@@ -1,0 +1,85 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Glowbot 小光｜像素解謎冒險</title>
+<meta name="description" content="炸牆、推箱、闖迷宮｜免費在瀏覽器玩">
+<meta property="og:title" content="Glowbot 小光｜像素解謎冒險">
+<meta property="og:description" content="炸牆、推箱、闖迷宮｜免費在瀏覽器玩">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://jasper31943.github.io/glowbot/">
+<meta property="og:image" content="https://jasper31943.github.io/glowbot/og.png">
+<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+@font-face{font-family:'Cubic11';src:url('fonts/Cubic_11.woff2') format('woff2');font-display:swap}
+/* UI palette = Endesga 32 subset (see THEME in game.js) */
+:root{--ink:#181425;--plum:#3e2731;--panel:#ead4aa;--panel2:#e4a672;--brown:#b86f50;--dk:#733e39;--amber:#feae34;--cyan:#2ce8f5;--blue:#0099db;--pink:#f6757a;--green:#63c74d;--navy:#262b44}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;color:var(--plum);font-family:'Cubic11',monospace;overflow:hidden;touch-action:none;user-select:none;-webkit-font-smoothing:none}
+body{background:var(--navy);background-image:linear-gradient(45deg,#3a4466 25%,transparent 25%,transparent 75%,#3a4466 75%),linear-gradient(45deg,#3a4466 25%,transparent 25%,transparent 75%,#3a4466 75%);background-size:16px 16px;background-position:0 0,8px 8px}
+#app{height:100%;display:flex;flex-direction:column;max-width:560px;margin:0 auto;padding:8px 6px calc(8px + env(safe-area-inset-bottom));position:relative}
+.panel{background:var(--panel);border:3px solid var(--ink);box-shadow:inset -3px -3px 0 var(--panel2),inset 3px 3px 0 #fff4,3px 3px 0 var(--ink)}
+header{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.pill{padding:5px 9px;font-size:14px;white-space:nowrap}
+.lv b{color:var(--blue)}.st b{color:var(--dk);font-size:18px}
+.sub{color:var(--brown);font-size:12px}
+#remain{text-align:center;font-size:14px;color:var(--panel);margin-top:4px;text-shadow:2px 2px 0 var(--ink)}#remain b{font-size:30px;color:var(--cyan)}#remain b.low{color:var(--pink)}
+#keys{min-height:24px;display:flex;gap:6px;justify-content:center;margin:6px 0;font-size:12px;color:var(--panel);align-items:center;text-shadow:1px 1px 0 var(--ink)}
+.kc{width:24px;height:20px;display:grid;place-items:center;font-size:12px;background:var(--panel);border:2px solid var(--ink);text-shadow:none}
+.chip{background:var(--panel);color:var(--plum);border:2px solid var(--ink);padding:1px 5px;text-shadow:none}
+#wrap{flex:1;min-height:0;min-width:0;width:100%;overflow:hidden;display:flex;align-items:center;justify-content:center}
+canvas{display:block;box-sizing:content-box;image-rendering:pixelated;image-rendering:crisp-edges;border:3px solid var(--ink);box-shadow:4px 4px 0 var(--ink)}
+#ctl{display:flex;justify-content:space-between;align-items:flex-end;margin-top:6px}
+.side{display:flex;gap:8px}
+.ib{width:46px;height:46px;display:grid;place-items:center;cursor:pointer;color:var(--plum);padding:0;font-family:inherit}
+.ib svg{width:20px;height:20px}
+.pad{display:grid;grid-template-columns:repeat(3,50px);grid-template-rows:repeat(3,46px);gap:2px}
+.d{width:48px;height:46px;display:grid;place-items:center;cursor:pointer;color:var(--plum);padding:0}
+.d svg{width:20px;height:20px}
+.d,.ib{opacity:.7}.d.on,.d:active,.ib:active{opacity:1;background:var(--amber);transform:translate(2px,2px);box-shadow:inset -3px -3px 0 var(--brown),1px 1px 0 var(--ink)}
+#up{grid-area:1/2}#left{grid-area:2/1}#right{grid-area:2/3}#down{grid-area:3/2}
+
+#win,#menu{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:#18142599;z-index:5}
+#win.on,#menu.on{display:flex}
+.card{width:min(320px,90vw);padding:18px;text-align:center}
+.card h2{margin:0 0 4px;font-size:24px;font-weight:normal;color:var(--dk)}
+.stars{font-size:40px;letter-spacing:6px;margin:6px 0}.stars .s{color:var(--amber);text-shadow:3px 3px 0 var(--ink)}.stars .e{color:#c2856988}
+.share{white-space:nowrap;line-height:1.5;background:var(--ink);color:var(--panel);padding:8px;font-size:15px;margin:10px 0;border:2px solid var(--plum)}
+.btn{font:16px 'Cubic11',monospace;padding:8px 14px;margin:4px;cursor:pointer;color:var(--plum)}
+.p{background:var(--amber)}.g{}
+.lb{aspect-ratio:1;font:22px 'Cubic11';cursor:pointer;color:var(--plum)}.lb small{display:block;font-size:12px;color:var(--brown)}.lv{cursor:pointer}
+.wh{display:flex;justify-content:space-between;align-items:baseline;margin:10px 0 4px;font-size:15px;color:var(--dk)}.wg{display:grid;grid-template-columns:repeat(6,1fr);gap:4px}.lb{font-size:16px;padding:4px 0}.lb small{font-size:9px}.lb.lock{opacity:.5}#menu .card{max-height:92vh;overflow:auto;width:min(420px,94vw)}
+@media(min-width:700px){#app{max-width:1600px}}
+@media (min-width:900px),(hover:hover) and (pointer:fine) and (min-width:700px){.pad{display:none}#ctl{position:absolute;left:16px;bottom:16px;margin:0}}
+
+#hint{min-height:20px;overflow-wrap:anywhere;text-align:center;font-size:13px;color:var(--panel);text-shadow:1px 1px 0 var(--ink);margin:4px 0 2px;line-height:1.3}
+#wrap{position:relative}
+#hintbar{display:flex;align-items:center;gap:6px;margin:4px 0 2px}#hintbar #hint{flex:1;min-width:0;margin:0;text-align:left}
+#mini{flex:none;width:44px;height:44px;image-rendering:pixelated;padding:3px;background:rgba(184,111,80,.8);border:2px solid var(--ink);box-shadow:inset -2px -2px 0 rgba(115,62,57,.8),inset 2px 2px 0 rgba(228,166,114,.8)}
+#act{width:56px;height:56px;border-radius:50%;font:16px 'Cubic11';color:var(--plum);margin-right:6px}
+#ctl .right{display:flex;align-items:flex-end}
+.chip b{color:var(--blue)}
+@media (min-width:900px),(hover:hover) and (pointer:fine) and (min-width:700px){#act{display:none}}
+</style></head><body>
+<div id="app">
+<header><div class="pill lv panel"><span id="mapname"></span> · <span id="zonename"></span></div><button class="pill panel" id="mute" aria-label="音效" style="font-size:14px;cursor:pointer;padding:5px 7px">🔊</button><button class="pill panel" id="menuBtn" style="font-size:14px;cursor:pointer">選單</button></header>
+<div id="hintbar"><div id="hint"></div><canvas id="mini"></canvas></div><div id="remain" style="display:none"></div><div id="keys"></div>
+<div id="wrap"><canvas id="cv"></canvas></div>
+<div id="ctl">
+ <div class="side">
+  <button class="ib panel" id="reset" title="重來（這個區域）" aria-label="重來"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12a9 9 0 109-9 9 9 0 00-6.4 2.6L3 8"/><path d="M3 3v5h5"/></svg></button>
+ </div>
+ <div class="right"><button class="panel" id="act" aria-label="動作">動作</button>
+ <div class="pad">
+  <button class="d panel" id="up" aria-label="上"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 15l6-6 6 6"/></svg></button>
+  <button class="d panel" id="left" aria-label="左"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M15 6l-6 6 6 6"/></svg></button>
+  <button class="d panel" id="right" aria-label="右"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
+  <button class="d panel" id="down" aria-label="下"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></button>
+ </div></div>
+</div></div>
+<div id="menu"><div class="card panel"><h2>Glowbot 小光</h2><div class="sub">大地圖冒險（測試版）</div>
+<button class="btn p panel" id="mClose" style="width:100%;margin-top:10px">繼續冒險</button>
+<button class="btn g panel" id="mNew" style="width:100%">重新開始冒險</button>
+<a href="levels.html" class="btn g panel" style="display:block;text-decoration:none;width:100%;box-sizing:border-box">關卡模式（30 關）</a></div></div>
+
+<script src="levels.js"></script><script src="logic.js"></script><script src="world-engine.js"></script><script src="world/world-def.js"></script><script src="art.js"></script><script src="world.js"></script>
+</body></html>
