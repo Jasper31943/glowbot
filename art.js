@@ -78,3 +78,13 @@ function robot(px,py,face,dir,frame,look,alpha){const Rb=TH.robot,O=TH.outline;o
  else{const bl=(T%3.2)>3.05;R(px+6+ex,py+(bl?9:8),1,bl?1:2,E);R(px+9+ex,py+(bl?9:8),1,bl?1:2,E)}
  o.globalAlpha=1}
 function nearOpen(x,y){for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){if(Logic.cell(L,x+dx,y+dy)!=='#')return true}return false}
+// guide arrow: 12x12 inside a 16 tile. dir 0 up,1 down,2 left,3 right (also accepts 'up'/'down'/'left'/'right'). Bobs 2px toward dir, pulses ~2Hz.
+function guideArrow(px,py,dir,t){const d=typeof dir==='string'?({up:0,down:1,left:2,right:3})[dir]:dir,tt=t||0,ph=(tt*2)%1,b=ph<.5?0:2,lit=ph<.5;
+ const v=[[0,-1],[0,1],[-1,0],[1,0]][d]||[0,-1],ox=px+v[0]*b,oy=py+v[1]*b;
+ // shape defined pointing up in a 12x12 box at (2,2); rotate for other dirs
+ const up=[[5,0,2,1],[4,1,4,1],[3,2,6,1],[2,3,8,1],[1,4,10,2],[4,6,4,6]];
+ const tr=(a,b,w,h)=>d===1?[a,12-b-h,w,h]:d===2?[b,a,h,w]:d===3?[12-b-h,a,h,w]:[a,b,w,h];
+ const Y=lit?E32.yellow:E32.amber;
+ up.forEach(q=>{const[a,b,w,h]=tr(...q);R(ox+2+a-1,oy+2+b-1,w+2,h+2,E32.ink)});
+ up.forEach(q=>{const[a,b,w,h]=tr(...q);R(ox+2+a,oy+2+b,w,h,Y)});
+ const[ha,hb,hw,hh]=tr(5,1,1,3);R(ox+2+ha,oy+2+hb,hw,hh,E32.white)}
