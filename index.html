@@ -69,6 +69,10 @@ canvas{display:block;box-sizing:content-box;image-rendering:pixelated;image-rend
 #title img{display:block;width:100%;max-width:1200px;max-height:78vh;object-fit:contain;image-rendering:pixelated;image-rendering:crisp-edges}
 #title .go{font-size:20px;color:#fff;text-shadow:2px 2px 0 #181425,-2px -2px 0 #181425,2px -2px 0 #181425,-2px 2px 0 #181425;animation:blink 1.2s steps(2) infinite}
 #title .k{display:none}@media (hover:hover) and (pointer:fine),(min-width:900px){#title .t{display:none}#title .k{display:inline}}
+#title .tb{display:none;gap:12px}#title.has .tb{display:flex}#title.has .go{display:none}
+#title .tb .btn,#tconf .btn{font-size:18px;padding:10px 16px;min-width:120px;margin:0}#tconf .btn{min-width:90px;margin:0 4px}
+#title .btn.sel,#tconf .btn.sel{background:var(--amber);outline:3px solid #fff;outline-offset:2px}
+#tconf{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:#18142599;z-index:9}#tconf.on{display:flex}#tconf .card{width:min(300px,90vw)}
 </style></head><body>
 <div id="app">
 <header><div class="pill lv panel"><span id="mapname"></span> · <span id="zonename"></span></div><button class="pill panel" id="mute" aria-label="音效" style="font-size:14px;cursor:pointer;padding:5px 7px">🔊</button><button class="pill panel" id="helpBtn" aria-label="操作說明" style="font-size:14px;cursor:pointer;padding:5px 9px">?</button><button class="pill panel" id="menuBtn" style="font-size:14px;cursor:pointer">選單</button></header>
@@ -86,7 +90,8 @@ canvas{display:block;box-sizing:content-box;image-rendering:pixelated;image-rend
   <button class="d panel" id="down" aria-label="下"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></button>
  </div></div>
 </div></div>
-<div id="title" class="on"><img src="og.png" alt="Glowbot 小光｜炸牆・推箱・闖迷宮｜免費在瀏覽器玩"><div class="go"><span class="t">點一下開始</span><span class="k">按任意鍵開始</span></div></div>
+<div id="title" class="on"><img src="og.png" alt="Glowbot 小光｜炸牆・推箱・闖迷宮｜免費在瀏覽器玩"><div class="go"><span class="t">點一下開始</span><span class="k">按任意鍵開始</span></div><div class="tb"><button class="btn panel" id="tCont">繼續上次</button><button class="btn panel" id="tNew">新遊戲</button></div>
+<div id="tconf"><div class="card panel"><div style="font-size:16px;color:var(--dk);margin-bottom:10px">確定要從頭開始？<br>進度會清除</div><button class="btn panel" id="cYes">確定</button><button class="btn panel" id="cNo">取消</button></div></div></div>
 <div id="help" class="on"><div class="card panel"><h2>Glowbot 小光</h2><div class="sub">操作說明</div>
 <div class="hl"><span class="k">移動</span><span>方向鍵 / <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>，手機用螢幕方向鍵或在畫面上滑動</span></div>
 <div class="hl"><span class="k">動作</span><span><kbd>空白鍵</kbd> / <kbd>Enter</kbd> / <kbd>X</kbd>，手機按「動作」：面對炸彈草＝撿起，拿著炸彈＝放在面前</span></div>

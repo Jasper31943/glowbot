@@ -7,9 +7,11 @@ const W=WE.parseWorld(WORLD_DEF);if(W.errors.length)console.warn('world errors',
 let T=0,stamp=0,L=null,st=null,TH=WORLDS.grass,S=null; // L/st/TH are the views art.js paints from
 let anim=null,fx=[],shake=0,fade=0,react=null,failAnim=null,cam={x:0,y:0,init:false},SC=3,VW=7,VH=9,facing='down',idleT=0,tutorialDone=false;
 // ---------- save / load ----------
-function persist(){} // no saved progress: every page load starts a fresh adventure (Jasper's request)
-function loadGame(){try{localStorage.removeItem(SAVEKEY);sessionStorage.removeItem(SAVEKEY)}catch(e){} // also wipes progress saved by older versions
- S=WE.initState(W);tutorialDone=false}
+const SAVEVER=2; // bump when map/engine changes make old saves invalid
+function persist(){try{localStorage.setItem(SAVEKEY,JSON.stringify({v:SAVEVER,s:S,tutorialDone}))}catch(e){}}
+let saved=null; // valid save found at load (title offers 繼續上次)
+function loadGame(){S=WE.initState(W);tutorialDone=false;try{const d=JSON.parse(localStorage.getItem(SAVEKEY));
+ if(d&&d.v===SAVEVER&&d.s&&W.maps[d.s.m]&&typeof d.s.x==='number')saved=d;else localStorage.removeItem(SAVEKEY)}catch(e){try{localStorage.removeItem(SAVEKEY)}catch(_){}}}
 function newGame(){S=WE.initState(W);tutorialDone=false;cam.init=false;persist();hud()}
 // ---------- view adapters for art.js ----------
 function buildView(){const M=W.maps[S.m];const g=[];for(let y=0;y<M.H;y++){const r=[];for(let x=0;x<M.W;x++)r.push(WE.cell(W,S,S.m,x,y));g.push(r)}
@@ -45,13 +47,13 @@ function act(a,opt){if(anim||failAnim||$('title').classList.contains('on')||$('m
  if(r.result==='fail'){failAnim={t0:T,from:prev};sfx('fail');return}
  if(r.result==='bump'){sfx('bump');anim={type:'bump',dir:a,t0:T,dur:.6,face:'x'};hud();return}
  if(r.result==='reset'){sfx('door');cam.init=true;hud();persist();return}
- if(r.result==='act'){if(r.ev.indexOf('grab')>=0)sfx('key');if(r.ev.indexOf('place')>=0){sfx('push');tutorialAssist()}hud();return}
+ if(r.result==='act'){if(r.ev.indexOf('grab')>=0)sfx('key');if(r.ev.indexOf('place')>=0){sfx('push');tutorialAssist()}hud();persist();return}
  const path=r.path||[];anim={type:'move',from:[prev.x,prev.y],path,t0:T,dur:.11*path.length+.03,ice:path.length>1,m:prev.m};
  sfx(r.ev.indexOf('push')>=0?'push':path.length>1?'slide':'step');['key','bolt','crumble'].forEach(e=>{if(r.ev.indexOf(e)>=0)setTimeout(()=>sfx(e),60)});
  if(r.ev.indexOf('key')>=0||r.ev.indexOf('claws')>=0||r.ev.indexOf('glove')>=0||r.ev.indexOf('upgrade')>=0)react={type:'hop',t0:T};
  if(doorSet()!==doorsBefore){shake=3;sfx('door')}
  if(r.result==='tunnel'){fade=1;anim=null;cam.init=false;sfx('slide');resize()}
- if(['tunnel','zone','key','claws','glove','upgrade','bolt','cleared'].some(e=>e===r.result||r.ev.indexOf(e)>=0))persist();
+ persist(); // save after every counted move (tunnels, pickups, cleared areas included)
  hud()}
 function doorSet(){const M=W.maps[S.m];let s='';for(let y=0;y<M.H;y++)for(let x=0;x<M.W;x++){const c=M.grid[y][x];if('DCMN'.indexOf(c)>=0)s+=WE.solid(W,S,S.m,x,y)?'1':'0'}return s}
 // Zone A tutorial: first bomb placed -> '!' + auto-hop one tile away from the blast. The hop is FREE (no fuse tick), so the
@@ -65,7 +67,18 @@ const helpOn=()=>$('help').classList.contains('on');let helpT=performance.now();
 // title screen (og.png look) comes first; any key / tap -> help panel -> game
 const titleOn=()=>$('title').classList.contains('on');
 function closeTitle(e){if(e){e.preventDefault();e.stopImmediatePropagation()}$('title').classList.remove('on');helpT=performance.now()}
-$('title').addEventListener('pointerdown',e=>{e.stopPropagation();e.preventDefault()});$('title').addEventListener('pointerup',e=>{e.stopPropagation();closeTitle(e)});
+// title choices: with a valid save -> [繼續上次][新遊戲] (+confirm); without -> any key/tap = new game
+let tsel=0,csel=1;const confOn=()=>$('tconf').classList.contains('on');
+function tpaint(){$('tCont').classList.toggle('sel',tsel===0);$('tNew').classList.toggle('sel',tsel===1);$('cYes').classList.toggle('sel',csel===0);$('cNo').classList.toggle('sel',csel===1)}
+function startContinue(){S=saved.s;tutorialDone=!!saved.tutorialDone;cam.init=false;resize();hud();closeTitle()}
+function startNew(){newGame();closeTitle()}
+function chooseNew(){if(saved){csel=1;$('tconf').classList.add('on');tpaint()}else startNew()}
+function titleKey(k){if(!saved){startNew();return}const nav=KEYS[k],ok=k==='Enter'||k===' ';
+ if(confOn()){if(nav){csel=1-csel;tpaint()}else if(ok){if(csel===0){$('tconf').classList.remove('on');startNew()}else{$('tconf').classList.remove('on')}}else if(k==='Escape')$('tconf').classList.remove('on');return}
+ if(nav){tsel=1-tsel;tpaint()}else if(ok){tsel===0?startContinue():chooseNew()}}
+const tb=(id,f)=>$(id).addEventListener('pointerup',e=>{e.stopPropagation();e.preventDefault();f()});
+tb('tCont',()=>{tsel=0;startContinue()});tb('tNew',()=>{tsel=1;tpaint();chooseNew()});tb('cYes',()=>{$('tconf').classList.remove('on');startNew()});tb('cNo',()=>$('tconf').classList.remove('on'));
+$('title').addEventListener('pointerdown',e=>{e.stopPropagation();e.preventDefault()});$('title').addEventListener('pointerup',e=>{e.stopPropagation();if(!saved)startNew()});
 function closeHelp(e){if(!helpOn()||performance.now()-helpT<250)return false;if(e)e.preventDefault();$('help').classList.remove('on');return true}
 $('helpBtn').onclick=e=>{e.stopPropagation();$('help').classList.add('on');helpT=performance.now()};
 let hp=null;$('help').addEventListener('pointerdown',e=>{e.stopPropagation();hp=[e.clientX,e.clientY]}); // tap (not scroll-drag) closes
@@ -73,7 +86,7 @@ $('help').addEventListener('pointerup',e=>{e.stopPropagation();if(hp&&Math.hypot
 // one key gate for title + help: a fresh key press advances title -> help -> play; held-key repeats are ignored;
 // an arrow/WASD that closes the help panel also moves, so play starts right away
 addEventListener('keydown',e=>{if(['Shift','Control','Alt','Meta','CapsLock','Tab'].indexOf(e.key)>=0)return;
- if(titleOn()){e.preventDefault();e.stopImmediatePropagation();if(!e.repeat)closeTitle();return}
+ if(titleOn()){e.preventDefault();e.stopImmediatePropagation();if(!e.repeat)titleKey(e.key);return}
  if(helpOn()){if(e.repeat){e.preventDefault();e.stopImmediatePropagation();return}$('help').classList.remove('on');
   if(!KEYS[e.key]){e.preventDefault();e.stopImmediatePropagation()}}},true);
 try{window.focus()}catch(e){}
@@ -176,6 +189,6 @@ function drawMini(){const M=W.maps[S.m];mctx.clearRect(0,0,mini.width,mini.heigh
  for(const Z of M.zones){mctx.strokeStyle=E32.sand;mctx.lineWidth=.5;mctx.strokeRect(Z.x*2+.25,Z.y*2+.25,Z.w*2-.5,Z.h*2-.5)}
  mctx.fillStyle=(Math.floor(T*4)%2)?E32.white:E32.cyan;mctx.fillRect(S.x*2-1,S.y*2-1,4,4)}
 // ---------- boot ----------
-loadGame();resize();hud();requestAnimationFrame(draw);
+loadGame();if(saved){$('title').classList.add('has');tpaint()}resize();hud();requestAnimationFrame(draw);
 setInterval(()=>{if(performance.now()-lastDraw>100){manualDraw=true;draw();manualDraw=false}},50);
 window.__world={act,state:()=>S,W,newGame,cam};
