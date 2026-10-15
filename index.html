@@ -1,5 +1,7 @@
 <!doctype html><html lang="zh-Hant"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <title>Glowbot 小光｜像素解謎冒險</title>
 <meta name="description" content="炸牆、推箱、闖迷宮">
 <meta property="og:title" content="Glowbot 小光｜像素解謎冒險">
@@ -73,8 +75,11 @@ canvas{display:block;box-sizing:content-box;image-rendering:pixelated;image-rend
 #title .tb .btn,#tconf .btn{font-size:18px;padding:10px 16px;min-width:120px;margin:0}#tconf .btn{min-width:90px;margin:0 4px}
 #title .btn.sel,#tconf .btn.sel{background:var(--amber);outline:3px solid #fff;outline-offset:2px}
 #tconf{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:#18142599;z-index:9}#tconf.on{display:flex}#tconf .card{width:min(300px,90vw)}
-#mini.big{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(86vw,86vh)!important;height:auto!important;z-index:7;padding:8px}
+#mini.big{position:fixed;left:50%;top:calc(50% + 30px);transform:translate(-50%,-50%);width:min(86vw,calc(86vh - 140px))!important;height:auto!important;z-index:7;padding:8px}
 @media (min-width:900px),(hover:hover) and (pointer:fine) and (min-width:700px){.pill{font-size:18px}#hint{font-size:17px}#keys{font-size:15px}.chip{padding:2px 8px}}
+#reset.glow{opacity:1;background:var(--amber);animation:rglow 1s ease-in-out infinite}@keyframes rglow{50%{box-shadow:0 0 0 4px #fff6,0 0 14px 4px var(--amber)}}
+#miniX{display:none;position:fixed;top:12px;right:12px;z-index:9;width:46px;height:46px;font-size:22px;cursor:pointer;font-family:inherit}#miniX.on{display:grid;place-items:center}
+#title.has{background:rgba(24,20,37,.55)}#title.has img{max-height:46vh}
 </style></head><body>
 <div id="app">
 <header><div class="pill lv panel"><span id="mapname"></span> · <span id="zonename"></span></div><button class="pill panel" id="mute" aria-label="音效" style="font-size:14px;cursor:pointer;padding:5px 7px">🔊</button><button class="pill panel" id="musicBtn" aria-label="音樂" style="font-size:14px;cursor:pointer;padding:5px 7px">♪</button><button class="pill panel" id="helpBtn" aria-label="操作說明" style="font-size:14px;cursor:pointer;padding:5px 9px">?</button><button class="pill panel" id="menuBtn" style="font-size:14px;cursor:pointer">選單</button></header>
@@ -106,5 +111,5 @@ canvas{display:block;box-sizing:content-box;image-rendering:pixelated;image-rend
 <button class="btn g panel" id="mNew" style="width:100%">重新開始冒險</button>
 <a href="levels.html" class="btn g panel" style="display:block;text-decoration:none;width:100%;box-sizing:border-box">關卡模式（30 關）</a></div></div>
 
-<script src="levels.js"></script><script src="logic.js"></script><script src="world-engine.js"></script><script src="world/world-def.js"></script><script src="art.js"></script><script src="ice-art.js"></script><script src="desert-art.js"></script><script src="forest-art.js"></script><script src="music.js"></script><script src="world.js"></script>
+<script src="levels.js"></script><script src="logic.js"></script><script src="world-engine.js"></script><script src="world/world-def.js"></script><script src="art.js"></script><script src="ice-art.js"></script><script src="desert-art.js"></script><script src="forest-art.js"></script><script src="music.js"></script><script src="share.js"></script><script src="world.js"></script>
 </body></html>
