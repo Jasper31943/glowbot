@@ -57,7 +57,7 @@ const PLACEABLE='.,IJXO*';
 function finish(W,s,ev,res,extra){ // after a counted step: tick fuses; robot inside a blast = fail
  tick(W,s,ev,null);if(s.hurt){delete s.hurt;return Object.assign({state:s,result:'fail',ev},extra||{})}return Object.assign({state:s,result:res,ev},extra||{})}
 // actions: up/down/left/right, 'act' (facing bomb grass = pick up; facing floor/ice/switch while holding = place), 'reset' (restore current zone)
-function step(W,s0,a){const ev=[];
+function step(W,s0,a,opt){const ev=[];const free=!!(opt&&opt.free); // free: tutorial auto-hop — moves without counting a turn (no fuse tick)
  if(a==='reset')return resetZone(W,s0);
  if(a==='act'){const s=clone(s0);const [dx,dy]=DIRS[s.f],fx=s.x+dx,fy=s.y+dy,fc=cell(W,s,s.m,fx,fy);
   if(!s.held&&fc==='b'){s.held=1;ev.push('grab');s.steps++;return finish(W,s,ev,'act')}
@@ -71,9 +71,11 @@ function step(W,s0,a){const ev=[];
  if(solid(W,s,s.m,nx,ny)){ev.push('bump');if(!s.bombs.length)return{state:s,result:'bump',ev,path:[]};return finish(W,s,ev,'bump',{path:[]})}
  const moves=[];
  let bi=boxAt(s,s.m,nx,ny),mi=bombAt(s,s.m,nx,ny);
- if(bi>=0||mi>=0){let bx=nx+dx,by=ny+dy;if(objBlocked(W,s,s.m,bx,by)){ev.push('bump');if(!s.bombs.length)return{state:s,result:'bump',ev,path:[]};return finish(W,s,ev,'bump',{path:[]})}
+ if(bi>=0||mi>=0){let bx=nx+dx,by=ny+dy;const BZ=bi>=0?zoneAt(W,s.m,nx,ny):null; // box-blocked: boxes stay inside their own zone, never on its entry/exit
+  const boxOut=(x,y)=>bi>=0&&!!BZ&&(!(x>=BZ.x&&x<BZ.x+BZ.w&&y>=BZ.y&&y<BZ.y+BZ.h)||(BZ.entry&&BZ.entry[0]===x&&BZ.entry[1]===y)||(BZ.exit&&BZ.exit[0]===x&&BZ.exit[1]===y));
+  if(objBlocked(W,s,s.m,bx,by)||boxOut(bx,by)){ev.push('bump');if(!s.bombs.length)return{state:s,result:'bump',ev,path:[]};return finish(W,s,ev,'bump',{path:[]})}
   if(cell(W,s,s.m,bx,by)==='o'){if(bi>=0){s.boxes.splice(bi,1);s.holes.splice(s.holes.indexOf(K(s.m,bx,by)),1);s.filled.push(K(s.m,bx,by));ev.push('fill')}else{s.bombs.splice(mi,1);ev.push('fizzle')}}
-  else{while(isIce(cell(W,s,s.m,bx,by))&&!objBlocked(W,s,s.m,bx+dx,by+dy)&&cell(W,s,s.m,bx+dx,by+dy)!=='o'){bx+=dx;by+=dy} // boxes and bombs slide on ice
+  else{while(isIce(cell(W,s,s.m,bx,by))&&!objBlocked(W,s,s.m,bx+dx,by+dy)&&!boxOut(bx+dx,by+dy)&&cell(W,s,s.m,bx+dx,by+dy)!=='o'){bx+=dx;by+=dy} // boxes and bombs slide on ice
    if(bi>=0)s.boxes[bi]=K(s.m,bx,by);else{s.bombs[mi].x=bx;s.bombs[mi].y=by}}
   moves.push([[nx,ny],[bx,by]]);ev.push('push')}
  else if(hasInv(s,'g')){const px=s.x-dx,py=s.y-dy,pb=boxAt(s,s.m,px,py);if(pb>=0){s.boxes[pb]=K(s.m,s.x,s.y);moves.push([[px,py],[s.x,s.y]]);ev.push('pull')}}
@@ -81,8 +83,8 @@ function step(W,s0,a){const ev=[];
  while(slides(s,cell(W,s,s.m,s.x,s.y))){const tx=s.x+dx,ty=s.y+dy;if(solid(W,s,s.m,tx,ty)||boxAt(s,s.m,tx,ty)>=0||bombAt(s,s.m,tx,ty)>=0)break;leave.push([s.x,s.y]);s.x=tx;s.y=ty;pickup(W,s,ev);path.push([tx,ty]);if(cell(W,s,s.m,tx,ty)==='H')break}
  leave.forEach(([x,y])=>{if(base(W,s.m,x,y)==='O'&&!has(s.filled,K(s.m,x,y))&&!has(s.holes,K(s.m,x,y))){s.holes.push(K(s.m,x,y));ev.push('crumble')}});
  if(cell(W,s,s.m,s.x,s.y)==='H')return{state:s0,result:'fall',ev,path};
- if(s.left!=null)s.left--;s.steps++;
- tick(W,s,ev,null);if(s.hurt){delete s.hurt;return{state:s,result:'fail',ev,path,moves}}
+ if(!free){if(s.left!=null)s.left--;s.steps++;
+ tick(W,s,ev,null);if(s.hurt){delete s.hurt;return{state:s,result:'fail',ev,path,moves}}}
  let result='move';const c=base(W,s.m,s.x,s.y);
  if(/[1-9]/.test(c)){const pair=W.tunnels[c];const other=pair.find(p=>!(p.m===s.m&&p.x===s.x&&p.y===s.y));if(other){s.m=other.m;s.x=other.x;s.y=other.y;result='tunnel';if(!has(s.visited,s.m))s.visited.push(s.m)}}
  for(const Z of W.maps[s.m].zones)if(Z.exit&&Z.exit[0]===s.x&&Z.exit[1]===s.y&&!has(s.cleared,Z.id)){s.cleared.push(Z.id);ev.push('cleared')}

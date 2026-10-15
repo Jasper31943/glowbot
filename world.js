@@ -33,9 +33,9 @@ function hud(){const M=W.maps[S.m],Z=WE.zoneAt(W,S.m,S.x,S.y);$('mapname').textC
  const lf=$('remain');if(S.left!=null){lf.style.display='';lf.innerHTML=`剩 <b class="${S.left<=3?'low':''}">${S.left}</b> 步`}else lf.style.display='none';
  const h=(W.hints||[]).find(h=>(h.need&&!WE.hasInv(S,h.need))||(h.visit&&S.visited.indexOf(h.visit)<0)||(!h.need&&!h.visit));$('hint').textContent=h?'▶ '+h.text:'';}
 // ---------- input ----------
-function act(a){if(anim||failAnim||$('menu').classList.contains('on'))return;
+function act(a,opt){if(anim||failAnim||$('menu').classList.contains('on')||$('help').classList.contains('on'))return;
  if(WE.DIRS[a]){facing=a;idleT=T}
- const prev=S,r=WE.step(W,S,a);
+ const prev=S,r=WE.step(W,S,a,opt);
  if(r.result==='noop'){return}
  if(r.result==='tired'){sfx('bump');anim={type:'bump',dir:a,t0:T,dur:.6,face:'pant'};return}
  if(r.result==='fall'){sfx('fail');anim={type:'bump',dir:a,t0:T,dur:.8,face:'x'};return}
@@ -53,12 +53,20 @@ function act(a){if(anim||failAnim||$('menu').classList.contains('on'))return;
  if(['tunnel','zone','key','claws','glove','upgrade','bolt','cleared'].some(e=>e===r.result||r.ev.indexOf(e)>=0))persist();
  hud()}
 function doorSet(){const M=W.maps[S.m];let s='';for(let y=0;y<M.H;y++)for(let x=0;x<M.W;x++){const c=M.grid[y][x];if('DCMN'.indexOf(c)>=0)s+=WE.solid(W,S,S.m,x,y)?'1':'0'}return s}
-// Zone A tutorial: first bomb placed -> '!' + auto-hop one tile away from the blast (a real step; the solver treats it as a normal move)
+// Zone A tutorial: first bomb placed -> '!' + auto-hop one tile away from the blast. The hop is FREE (no fuse tick), so the
+// player still gets exactly the 3 turns the bomb shows (3,2,1 then boom). Solver/check.js never use it (it only adds slack).
 function tutorialAssist(){const Z=WE.zoneAt(W,S.m,S.x,S.y);if(!Z||!Z.tutorial||tutorialDone)return;tutorialDone=true;react={type:'startle',t0:T};
  const b=S.bombs[S.bombs.length-1],away=Object.keys(WE.DIRS).filter(d=>{const [dx,dy]=WE.DIRS[d];const nx=S.x+dx,ny=S.y+dy;return Math.abs(nx-b.x)+Math.abs(ny-b.y)>1&&!(nx===b.x&&ny===b.y)&&!WE.solid(W,S,S.m,nx,ny)&&WE.boxAt(S,S.m,nx,ny)<0&&WE.bombAt(S,S.m,nx,ny)<0});
- if(away.length){const keepFacing=facing;setTimeout(()=>{act(away[0]);facing=keepFacing},450)}}
+ if(away.length){const keepFacing=facing;setTimeout(()=>{act(away[0],{free:true});facing=keepFacing},450)}}
 const KEYS={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',w:'up',s:'down',a:'left',d:'right'};
-addEventListener('keydown',e=>{if(KEYS[e.key]){e.preventDefault();press(KEYS[e.key])}else if(e.key===' '||e.key==='Enter'||e.key==='x'){e.preventDefault();act('act')}else if(e.key==='r')act('reset')});
+// controls help: shown on load, any key / tap closes it, '?' reopens
+const helpOn=()=>$('help').classList.contains('on');let helpT=performance.now();
+function closeHelp(e){if(!helpOn()||performance.now()-helpT<250)return false;if(e)e.preventDefault();$('help').classList.remove('on');return true}
+$('helpBtn').onclick=e=>{e.stopPropagation();$('help').classList.add('on');helpT=performance.now()};
+let hp=null;$('help').addEventListener('pointerdown',e=>{e.stopPropagation();hp=[e.clientX,e.clientY]}); // tap (not scroll-drag) closes
+$('help').addEventListener('pointerup',e=>{e.stopPropagation();if(hp&&Math.hypot(e.clientX-hp[0],e.clientY-hp[1])<10)closeHelp(e);hp=null});$('help').addEventListener('pointercancel',()=>hp=null);
+addEventListener('keydown',e=>{if(helpOn()){e.preventDefault();e.stopImmediatePropagation();closeHelp(e)}},true);
+addEventListener('keydown',e=>{if(KEYS[e.key]){e.preventDefault();press(KEYS[e.key])}else if(e.key===' '||e.key==='Enter'||e.key==='x'||e.key==='X'){e.preventDefault();act('act')}else if(e.key==='r'||e.key==='R'){e.preventDefault();act('reset')}});
 function press(d){const b=$(d);b.classList.add('on');setTimeout(()=>b.classList.remove('on'),140);act(d)}
 ['up','down','left','right'].forEach(d=>$(d).addEventListener('pointerdown',e=>{e.preventDefault();press(d)}));
 $('act').addEventListener('pointerdown',e=>{e.preventDefault();act('act')});$('reset').onclick=()=>act('reset');
@@ -115,8 +123,11 @@ function zoneBorders(){const M=W.maps[S.m];for(const Z of M.zones){const x0=(Z.x
   for(let i=0;i<w;i+=6){R(x0+i,y0,4,1,E32.grey1);R(x0+i,y0+h-1,4,1,E32.grey1)}for(let j=0;j<h;j+=6){R(x0,y0+j,1,4,E32.grey1);R(x0+w-1,y0+j,1,4,E32.grey1)}o.globalAlpha=1;
   // small restart icon (top-right corner)
   const ix=x0+w-9,iy=y0+2;R(ix,iy,7,7,TH.outline);R(ix+1,iy+1,5,5,E32.sand);R(ix+2,iy+2,3,1,E32.plum);R(ix+2,iy+2,1,3,E32.plum);R(ix+2,iy+4,3,1,E32.plum);R(ix+4,iy+1,1,2,E32.plum)}}
+// help legend: draw each grass-map tile with the real sprite code into the help panel's little canvases (once)
+let legendDone=false;function renderLegend(){legendDone=true;const D={'#':(x,y)=>wall(x,y,0,0),'.':(x,y)=>FLOORS[TH.style](x,y,0,0),'B':(x,y)=>{FLOORS[TH.style](x,y,0,0);crate(x,y,false,0)},'D':(x,y)=>{FLOORS[TH.style](x,y,0,0);bars(x,y,0)},'C':(x,y)=>{FLOORS[TH.style](x,y,0,0);gate(x,y,'c',0)}};
+ document.querySelectorAll('#help canvas[data-t]').forEach(c=>{const k=c.dataset.t;o.clearRect(0,0,16,16);(D[k]||((x,y)=>tile(k,x,y,-99,-99)))(0,0);const g=c.getContext('2d');g.imageSmoothingEnabled=false;g.clearRect(0,0,32,32);g.drawImage(off,0,0,16,16,0,0,32,32)})}
 function draw(){const now=performance.now()/1000,dt=Math.min(.05,now-(stamp||now));stamp=now;T+=dt;
- TH=WORLDS[W.maps[S.m].theme]||WORLDS.grass;buildView();
+ TH=WORLDS[W.maps[S.m].theme]||WORLDS.grass;buildView();if(!legendDone&&st){const th=TH;TH=WORLDS.grass;renderLegend();TH=th}
  const [tx,ty]=camTarget();if(!cam.init){cam.x=tx;cam.y=ty;cam.init=true}cam.x+=(tx-cam.x)*Math.min(1,dt*8);cam.y+=(ty-cam.y)*Math.min(1,dt*8);
  cam.ox=Math.round(cam.x*16)/16;cam.oy=Math.round(cam.y*16)/16;
  o.fillStyle=TH===WORLDS.grass?E32.green2:E32.ink;o.fillRect(0,0,off.width,off.height);
