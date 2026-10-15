@@ -91,6 +91,10 @@ function step(W,s0,a,opt){const ev=[];const free=!!(opt&&opt.free); // free: tut
  const zr=enterZone(W,s);if(zr==='zone')ev.push('zone');
  if(W.goal&&s.m===W.goal.m&&s.x===W.goal.x&&s.y===W.goal.y)result='goal';
  return{state:s,result,ev,path,moves}}
+// fuse expire: ~1s after a bomb shows 1 the game calls this; every bomb at 1 explodes WITHOUT a turn/move/step
+function expire(W,s0){if(!s0.bombs.some(b=>b.t===1))return{state:s0,result:'noop',ev:[]};const s=clone(s0),ev=[];
+ const later=s.bombs.filter(b=>b.t!==1);s.bombs=s.bombs.filter(b=>b.t===1);tick(W,s,ev,null);s.bombs=s.bombs.concat(later);
+ if(s.hurt){delete s.hurt;return{state:s,result:'fail',ev}}return{state:s,result:'expire',ev}}
 function resetZone(W,s0){if(!s0.zone)return{state:s0,result:'noop',ev:[]};const M=W.maps[s0.m],Z=M.zones.find(z=>z.id===s0.zone);const s=clone(s0);
  const inZ=k=>{const [m,xy]=k.split(':');const [x,y]=xy.split(',').map(Number);return m===s.m&&x>=Z.x&&x<Z.x+Z.w&&y>=Z.y&&y<Z.y+Z.h};
  s.boxes=s.boxes.filter(k=>!inZ(k)).concat(W.boxes0.filter(inZ));s.bombs=s.bombs.filter(b=>!inZ(K(b.m,b.x,b.y)));
@@ -119,6 +123,6 @@ function softlocks(W,goalPred,start,max){const G=explore(W,start,max);const rev=
  const ok=new Set(),q=[];for(const [k,s] of G.states)if(goalPred(s)){ok.add(k);q.push(k)}
  while(q.length){const k=q.pop();for(const pk of rev.get(k)||[])if(!ok.has(pk)){ok.add(pk);q.push(pk)}}
  const bad=[...G.states.keys()].filter(k=>!ok.has(k));return{reachable:G.states.size,goalReached:ok.size>0&&q.length===0&&[...ok].some(k=>goalPred(G.states.get(k))),softlocked:bad.length,example:bad[0]?G.states.get(bad[0]):null,truncated:G.truncated,G}}
-const api={normalize,parseWorld,initState,step,cell,base,zoneAt,solid,explore,bfsPath,softlocks,key,hasInv,DIRS,FUSE,ITEMS,switchDoorOpen,bombAt,boxAt,K};
+const api={normalize,parseWorld,initState,step,expire,cell,base,zoneAt,solid,explore,bfsPath,softlocks,key,hasInv,DIRS,FUSE,ITEMS,switchDoorOpen,bombAt,boxAt,K};
 if(typeof module!=='undefined')module.exports=api;else root.WorldEngine=api;
 })(this);
