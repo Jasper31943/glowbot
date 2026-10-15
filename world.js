@@ -7,7 +7,7 @@ const W=WE.parseWorld(WORLD_DEF);if(W.errors.length)console.warn('world errors',
 let T=0,stamp=0,L=null,st=null,TH=WORLDS.grass,S=null; // L/st/TH are the views art.js paints from
 let anim=null,fx=[],shake=0,fade=0,react=null,failAnim=null,cam={x:0,y:0,init:false},SC=3,VW=7,VH=9,facing='down',idleT=0,tutorialDone=false;
 // ---------- save / load ----------
-const SAVEVER=2; // bump when map/engine changes make old saves invalid
+const SAVEVER=3; // bump when map/engine changes make old saves invalid
 function persist(){try{localStorage.setItem(SAVEKEY,JSON.stringify({v:SAVEVER,s:S,tutorialDone}))}catch(e){}}
 let saved=null; // valid save found at load (title offers 繼續上次)
 function loadGame(){S=WE.initState(W);tutorialDone=false;try{const d=JSON.parse(localStorage.getItem(SAVEKEY));
@@ -29,37 +29,48 @@ function camTarget(){const M=W.maps[S.m];const Z=WE.zoneAt(W,S.m,S.x,S.y);let tx
  if(Z){tx=Z.x+Z.w/2-VW/2;ty=Z.y+Z.h/2-VH/2}else{const d=WE.DIRS[facing];tx=S.x+.5+d[0]*2-VW/2;ty=S.y+.5+d[1]*2-VH/2}
  tx=Math.max(0,Math.min(M.W-VW,tx));ty=Math.max(0,Math.min(M.H-VH,ty));if(M.W<=VW)tx=(M.W-VW)/2;if(M.H<=VH)ty=(M.H-VH)/2;return[tx,ty]}
 // ---------- HUD ----------
-const ITEMNAME={c:'青鑰匙',m:'紫鑰匙',n:'粉鑰匙',k:'冰爪',g:'磁力手套',U:'電池升級'};
+const ITEMNAME={c:'青鑰匙',m:'紫鑰匙',n:'粉鑰匙',k:'冰爪',f:'符文碎片',g:'磁力手套',U:'電池升級'};
 function hud(){const M=W.maps[S.m],Z=WE.zoneAt(W,S.m,S.x,S.y);$('mapname').textContent=M.name;$('zonename').textContent=Z?Z.name:'野外';
  const k=$('keys');k.innerHTML='';const chip=t=>{const c=document.createElement('span');c.className='chip';c.innerHTML=t;k.append(c)};
  if(S.held)chip('💣 炸彈');for(const i of S.inv)chip(ITEMNAME[i]||i);const bolts=S.got.filter(g=>WE.base(W,g.split(':')[0],...g.split(':')[1].split(',').map(Number))==='*').length;if(bolts)chip('🔩 '+bolts);
  const lf=$('remain');if(S.left!=null){lf.style.display='';lf.innerHTML=`剩 <b class="${S.left<=3?'low':''}">${S.left}</b> 步`}else lf.style.display='none';
- const h=(W.hints||[]).find(h=>(h.need&&!WE.hasInv(S,h.need))||(h.visit&&S.visited.indexOf(h.visit)<0)||(!h.need&&!h.visit));$('hint').textContent=h?'▶ '+h.text:'';}
+ const h=(W.hints||[]).find(h=>(h.need&&!WE.hasInv(S,h.need))||(h.cleared&&S.cleared.indexOf(h.cleared)<0)||(h.visit&&S.visited.indexOf(h.visit)<0)||(!h.need&&!h.visit));$('hint').textContent=h?'▶ '+h.text:'';
+ if([[0,-1],[0,1],[-1,0],[1,0]].some(([dx,dy])=>WE.cell(W,S,S.m,S.x+dx,S.y+dy)==='R'))$('hint').textContent=WE.hasInv(S,'f')?'▶ 走進符文石，用符文碎片打開它':'🪧 打倒頭目，取得符文碎片';
+ const here=WE.base(W,S.m,S.x,S.y);if(/[1-9]/.test(here)&&W.tunnels[here].length<2)$('hint').textContent='🚧 隧道 '+here+' 通往沙漠：即將開放';}
 // ---------- input ----------
-function blastFx(r){if(r.ev.indexOf('blast')>=0){const b=S.lastBlast||{};if(b.m===S.m)[[0,0],[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dy])=>fx.push({type:'smoke',x:b.x+dx,y:b.y+dy,t0:T}));sfx('crumble');if(r.ev.indexOf('wall')>=0)shake=3;delete S.lastBlast}}
+let patPrev=null,patT0=0;
+function snapPats(prev){patPrev={};(prev.pats||[]).forEach(p=>patPrev[p.i]=[p.x,p.y]);patT0=T}
+function defeatFx(){(S.defeated||[]).forEach(d=>{if(d.m===S.m){fx.push({type:'defeat',x:d.x,y:d.y,t0:T,away:d.ax==='h'?(d.d>0?3:2):3});setTimeout(()=>sfx('key'),500)}});delete S.defeated}
+function blastFx(r){if(r.ev.indexOf('defeat')>=0)defeatFx();if(r.ev.indexOf('blast')>=0){const b=S.lastBlast||{};if(b.m===S.m)[[0,0],[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dy])=>fx.push({type:'smoke',x:b.x+dx,y:b.y+dy,t0:T}));sfx('crumble');if(r.ev.indexOf('wall')>=0)shake=3;delete S.lastBlast}}
 // real-time fuses: every frame advance all bombs (3,2,1 one per second, 0 briefly, boom). Paused while title/help/menu/fail anim.
 function fuseFrame(dt){if(!S||!S.bombs.length||failAnim||['title','help','menu'].some(id=>$(id).classList.contains('on')))return;
  const prev=S,r=WE.advance(W,S,dt*1000);S=r.state;if(r.result==='tick')return;blastFx(r);
  if(r.result==='fail'){failAnim={t0:T,from:prev};sfx('fail');return}hud();persist()}
 function act(a,opt){if(anim||failAnim||$('title').classList.contains('on')||$('menu').classList.contains('on')||$('help').classList.contains('on'))return;
  if(WE.DIRS[a]){facing=a;idleT=T}
- const prev=S,r=WE.step(W,S,a,opt);
+ const prev=S,r=WE.step(W,S,a,opt);if(r.state!==S)snapPats(prev);
  if(r.result==='noop'){return}
  if(r.result==='tired'){sfx('bump');anim={type:'bump',dir:a,t0:T,dur:.6,face:'pant'};return}
  if(r.result==='fall'){sfx('fail');anim={type:'bump',dir:a,t0:T,dur:.8,face:'x'};return}
  const doorsBefore=doorSet();S=r.state;
  blastFx(r);
  if(r.result==='fail'){failAnim={t0:T,from:prev};sfx('fail');return}
+ if(r.ev.indexOf('rune')>=0){const [dx,dy]=WE.DIRS[S.f];fx.push({type:'smoke',x:S.x+dx,y:S.y+dy,t0:T});shake=3;sfx('crumble');hud();persist();return}
  if(r.result==='bump'){sfx('bump');anim={type:'bump',dir:a,t0:T,dur:.6,face:'x'};hud();return}
  if(r.result==='reset'){sfx('door');cam.init=true;hud();persist();return}
  if(r.result==='act'){if(r.ev.indexOf('grab')>=0)sfx('key');if(r.ev.indexOf('place')>=0){sfx('push');tutorialAssist()}hud();persist();return}
  const path=r.path||[];anim={type:'move',from:[prev.x,prev.y],path,t0:T,dur:.11*path.length+.03,ice:path.length>1,m:prev.m};
  sfx(r.ev.indexOf('push')>=0?'push':path.length>1?'slide':'step');['key','bolt','crumble'].forEach(e=>{if(r.ev.indexOf(e)>=0)setTimeout(()=>sfx(e),60)});
- if(r.ev.indexOf('key')>=0||r.ev.indexOf('claws')>=0||r.ev.indexOf('glove')>=0||r.ev.indexOf('upgrade')>=0)react={type:'hop',t0:T};
+ if(r.ev.indexOf('key')>=0||r.ev.indexOf('fragment')>=0||r.ev.indexOf('claws')>=0||r.ev.indexOf('glove')>=0||r.ev.indexOf('upgrade')>=0)react={type:'hop',t0:T};
  if(doorSet()!==doorsBefore){shake=3;sfx('door')}
- if(r.result==='tunnel'){fade=1;anim=null;cam.init=false;sfx('slide');resize()}
+ if(r.result==='tunnel'){music();fade=1;anim=null;cam.init=false;sfx('slide');resize()}
  persist(); // save after every counted move (tunnels, pickups, cleared areas included)
  hud()}
+function music(){try{window.Music&&window.Music.play&&window.Music.play(S.m)}catch(e){}}
+let musicOn=false;function musicStart(){if(musicOn)return;musicOn=true;music()} // first gesture (autoplay policy); music mute is Music's own (separate from SFX mute)
+function musicIcon(){const b=$('musicBtn');if(!b)return;const m=!!(window.Music&&window.Music.isMuted&&window.Music.isMuted());b.textContent='♪';b.style.opacity=m?.35:1;b.style.textDecoration=m?'line-through':'none'}
+if($('musicBtn'))$('musicBtn').onclick=e=>{e.stopPropagation();try{if(window.Music){Music.setMuted(!Music.isMuted());if(!Music.isMuted())music()}}catch(err){}musicIcon()};musicIcon();
+addEventListener('pointerdown',musicStart,true);addEventListener('keydown',musicStart,true);
 function doorSet(){const M=W.maps[S.m];let s='';for(let y=0;y<M.H;y++)for(let x=0;x<M.W;x++){const c=M.grid[y][x];if('DCMN'.indexOf(c)>=0)s+=WE.solid(W,S,S.m,x,y)?'1':'0'}return s}
 // Zone A tutorial: first bomb placed -> '!' + auto-hop one tile away from the blast. The hop is FREE (no fuse tick), so the
 // player still gets exactly the 3 turns the bomb shows (3,2,1 then boom). Solver/check.js never use it (it only adds slack).
@@ -75,8 +86,8 @@ function closeTitle(e){if(e){e.preventDefault();e.stopImmediatePropagation()}$('
 // title choices: with a valid save -> [繼續上次][新遊戲] (+confirm); without -> any key/tap = new game
 let tsel=0,csel=1;const confOn=()=>$('tconf').classList.contains('on');
 function tpaint(){$('tCont').classList.toggle('sel',tsel===0);$('tNew').classList.toggle('sel',tsel===1);$('cYes').classList.toggle('sel',csel===0);$('cNo').classList.toggle('sel',csel===1)}
-function startContinue(){S=saved.s;tutorialDone=!!saved.tutorialDone;cam.init=false;resize();hud();closeTitle()}
-function startNew(){newGame();closeTitle()}
+function startContinue(){S=saved.s;musicOn=true;setTimeout(music,0);tutorialDone=!!saved.tutorialDone;cam.init=false;resize();hud();closeTitle()}
+function startNew(){newGame();musicOn=true;music();closeTitle()}
 function chooseNew(){if(saved){csel=1;$('tconf').classList.add('on');tpaint()}else startNew()}
 function titleKey(k){if(!saved){startNew();return}const nav=KEYS[k],ok=k==='Enter'||k===' ';
  if(confOn()){if(nav){csel=1-csel;tpaint()}else if(ok){if(csel===0){$('tconf').classList.remove('on');startNew()}else{$('tconf').classList.remove('on')}}else if(k==='Escape')$('tconf').classList.remove('on');return}
@@ -115,6 +126,8 @@ function tunnel(px,py,x,y,d){R(px,py,16,16,TH.outline);R(px+2,py+3,12,13,E32.ink
 function hardIce(px,py,x,y){R(px,py,16,16,E32.blue1);R(px+1,py+1,14,14,E32.navy);for(let i=0;i<4;i++){R(px+7-i,py+2+i,1,1,E32.blue2);R(px+8+i,py+2+i,1,1,E32.blue2);R(px+7-i,py+13-i,1,1,E32.blue2);R(px+8+i,py+13-i,1,1,E32.blue2)}
  if((Math.floor(T*2+x*3+y))%6===0){R(px+1,py+1,2,1,E32.white);R(px+1,py+1,1,2,E32.white)}}
 function claws(px,py){const b=Math.round(Math.sin(T*3));py+=b;R(px+3,py+5,10,7,TH.outline);R(px+4,py+6,8,5,E32.blue2);[4,7,10].forEach(i=>{R(px+i,py+11,2,3,TH.outline);R(px+i,py+11,1,2,E32.grey1)})}
+function fragment(px,py){const b=Math.round(Math.sin(T*3)),g=.4+.3*Math.sin(T*4);o.globalAlpha=g;R(px+3,py+3+b,10,10,E32.cyan);o.globalAlpha=1; // small glowing rune stone shard
+ R(px+5,py+4+b,6,9,TH.outline);R(px+6,py+5+b,4,7,E32.grey2);R(px+6,py+5+b,4,1,E32.grey1);R(px+7,py+7+b,2,1,E32.cyan);R(px+7,py+8+b,1,2,E32.cyan)}
 function upgrade(px,py){battery(px,py);R(px+11,py+2,3,1,E32.green1);R(px+12,py+1,1,3,E32.green1)}
 function bombSprite(px,py,b){const last=b.t<=1,ph=((b.ms||0)%1000)/1000,flash=last&&Math.floor(T*(b.t===0?16:10))%2;
  R(px+4,py+5,9,9,TH.outline);R(px+5,py+6,7,7,flash?E32.red3:E32.grey4);R(px+6,py+7,2,2,flash?E32.pink:E32.grey2);R(px+9,py+3,2,3,E32.brown1);
@@ -124,6 +137,16 @@ function bombSprite(px,py,b){const last=b.t<=1,ph=((b.ms||0)%1000)/1000,flash=la
 // last second: red cross on the ground = blast tiles
 function blastWarn(b){if(b.t>1)return;const a=.25+.2*Math.sin(T*18);o.globalAlpha=a;[[0,0],[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dy])=>{const px=Math.round((b.x+dx-cam.ox)*16),py=Math.round((b.y+dy-cam.oy)*16);R(px+1,py+1,14,14,E32.red3)});o.globalAlpha=1;
  [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dy])=>{const px=Math.round((b.x+dx-cam.ox)*16),py=Math.round((b.y+dy-cam.oy)*16);R(px+1,py+1,14,1,E32.red3);R(px+1,py+14,14,1,E32.red3);R(px+1,py+1,1,14,E32.red3);R(px+14,py+1,1,14,E32.red3)})}
+// snowball patrols: hop between cells over 0.18s, face where they walk, '!' when the robot is in their line nearby
+// wooden sign next to every rune stone (drawn on the wall tile to its left): '需要之後的道具'
+function runeSigns(){const M=W.maps[S.m];for(let y=0;y<M.H;y++)for(let x=0;x<M.W;x++){if(L.grid[y][x]!=='R')continue;const px=Math.round((x-1-cam.ox)*16),py=Math.round((y-cam.oy)*16);
+  R(px+7,py+9,2,6,E32.brown2);R(px+2,py+2,12,8,E32.plum);R(px+3,py+3,10,6,E32.brown1);R(px+3,py+3,10,1,E32.tan);[[4,5,6],[4,7,4],[9,7,3]].forEach(([a,b,w])=>R(px+a,py+b,w,1,E32.brown2))}}
+function drawPats(){for(const p of S.pats||[]){if(p.m!==S.m)continue;const P0=W.pats0[p.i];let x=p.x,y=p.y;const q=Math.min(1,(T-patT0)/.18),pp=patPrev&&patPrev[p.i];
+  if(pp&&q<1){x=pp[0]+(p.x-pp[0])*q;y=pp[1]+(p.y-pp[1])*q}
+  const dir=P0.ax==='h'?(p.d>0?3:2):(p.d>0?1:0),frame=Math.floor(T*4+p.i)%2;
+  const spot=S.zone===P0.zone&&((P0.ax==='h'&&S.y===p.y&&Math.abs(S.x-p.x)<=3)||(P0.ax==='v'&&S.x===p.x&&Math.abs(S.y-p.y)<=3));
+  snowball(Math.round((x-cam.ox)*16),Math.round((y-cam.oy)*16)-(q<1?Math.round(Math.sin(q*Math.PI)*3):0),frame,dir,spot&&!failAnim)}}
+function defeat(f){const t=T-f.t0;if(t>=1.6)return false;snowballDefeat(Math.round((f.x-cam.ox)*16),Math.round((f.y-cam.oy)*16),t,f.away);return true}
 function smoke(f){const p=(T-f.t0)/.5;if(p>=1)return false;const fr=Math.min(3,Math.floor(p*4)),px=(f.x-cam.ox)*16,py=(f.y-cam.oy)*16;
  const sizes=[[6,6],[10,9],[12,11],[8,6]][fr],cols=[E32.yellow,E32.orange,E32.grey2,E32.grey3];o.globalAlpha=fr===3?.6:1;
  R(px+8-sizes[0]/2,py+8-sizes[1]/2,sizes[0],sizes[1],cols[fr]);R(px+8-sizes[0]/2+2,py+8-sizes[1]/2-1,sizes[0]-4,sizes[1]+2,cols[fr]);if(fr<2)R(px+6,py+6,4,4,E32.white);o.globalAlpha=1;return true}
@@ -133,7 +156,13 @@ function bush(px,py,x,y){const h=((x*73856093)^(y*19349663))>>>0;R(px,py,16,16,E
  if(h%3===0){R(px+2,py+3,1,1,E32.green1);R(px+11,py+10,1,1,E32.green1)}
  if(h%4!==0){const ox=(h>>3)%5,oy=(h>>6)%4;R(px+ox+2,py+oy+3,10,8,E32.green3);R(px+ox+3,py+oy+2,8,10,E32.green3);R(px+ox+3,py+oy+3,8,7,E32.green2);R(px+ox+4,py+oy+3,4,3,E32.green1);R(px+ox+3,py+oy+10,8,1,E32.green3)}
  if(h%7===0){R(px+5,py+6,1,1,E32.yellow);R(px+11,py+4,1,1,E32.pink)}}
+const ICY=()=>TH===WORLDS.snow;
 function tile(c,px,py,x,y){if(TH===WORLDS.grass&&(c===undefined||(c==='#'&&deep(x,y)))){bush(px,py,x,y);return}
+ if(ICY()){ // ice map: bright snow, snowy rock walls, pines outside (ice-art.js)
+  if(c===undefined||(c==='#'&&deep(x,y))){icePine(px,py,x,y);return}
+  if(c==='#'){const up=(L.grid[y-1]||[])[x];iceRock(px,py,x,y,up===undefined||up!=='#'||deep(x,y-1));return}
+  if(c==='%'){iceRock(px,py,x,y,false);const C=E32.grey3;R(px+4,py+3,1,3,C);R(px+5,py+6,2,1,C);R(px+7,py+7,1,3,C);R(px+8,py+10,2,1,C);R(px+10,py+4,1,2,C);R(px+11,py+6,1,1,C);return}
+  if(c==='I'){iceNormal(px,py,x,y);return}if(c==='J'){iceHard(px,py,x,y);return}}
  if(c==='#'){if(nearOpen(x,y))wall(px,py,x,y);return}
  if(c==='%'){cracked(px,py,x,y);return}
  if(c===','){rubble(px,py,x,y);return}
@@ -141,22 +170,20 @@ function tile(c,px,py,x,y){if(TH===WORLDS.grass&&(c===undefined||(c==='#'&&deep(
  if(c==='R'){rune(px,py,x,y);return}
  if(/[1-9]/.test(c)){tunnel(px,py,x,y,c);return}
  if(c==='J'){hardIce(px,py,x,y);return}
- if(c==='I')ice(px,py,x,y);else FLOORS[TH.style](px,py,x,y);
+ if(c==='I')ice(px,py,x,y);else if(ICY())iceSnow(px,py,x,y);else FLOORS[TH.style](px,py,x,y);
  const k=x+','+y,got=st.got.indexOf(k)>=0;
  if(c==='H')spikes(px,py);
  if(c==='O'){if(st.filled.indexOf(k)>=0){R(px+2,py+2,12,12,TH.outline);R(px+3,py+3,10,10,TH.crate[1])}else if(st.holes.indexOf(k)>=0){R(px+1,py+1,14,14,TH.outline);R(px+2,py+2,12,3,E32.navy)}else{R(px+1,py+1,14,14,TH.outline);R(px+2,py+2,12,12,E32.skin2);R(px+5,py+4,1,3,TH.outline);R(px+8,py+8,1,3,TH.outline)}}
  if(c==='X')plate(px,py,st.boxes.some(b=>b[0]===x&&b[1]===y));
  if(c==='G')goal(px,py);
  if('cmn'.indexOf(c)>=0&&!got)keyItem(px,py,c);
- if(c==='E'&&!got)battery(px,py);if(c==='g'&&!got)glove(px,py);if(c==='k'&&!got)claws(px,py);if(c==='U'&&!got)upgrade(px,py);
+ if(c==='E'&&!got)battery(px,py);if(c==='g'&&!got)glove(px,py);if(c==='k'&&!got)claws(px,py);if(c==='f'&&!got)fragment(px,py);if(c==='U'&&!got)upgrade(px,py);
  if(c==='*'&&!got){const b=Math.round(Math.sin(T*3+x));R(px+5,py+5+b,6,6,TH.outline);R(px+6,py+4+b,4,8,TH.outline);R(px+6,py+5+b,4,6,E32.grey1);R(px+5,py+6+b,6,4,E32.grey1);R(px+7,py+7+b,2,2,TH.outline)}
  if(c==='W')goal(px,py);
  if(c==='D'&&WE.solid(W,S,S.m,x,y))bars(px,py,0);
  if('CMN'.indexOf(c)>=0&&WE.solid(W,S,S.m,x,y))gate(px,py,c.toLowerCase(),0)}
 function zoneBorders(){const M=W.maps[S.m];for(const Z of M.zones){const x0=(Z.x-cam.ox)*16,y0=(Z.y-cam.oy)*16,w=Z.w*16,h=Z.h*16;o.globalAlpha=.55;
-  for(let i=0;i<w;i+=6){R(x0+i,y0,4,1,E32.grey1);R(x0+i,y0+h-1,4,1,E32.grey1)}for(let j=0;j<h;j+=6){R(x0,y0+j,1,4,E32.grey1);R(x0+w-1,y0+j,1,4,E32.grey1)}o.globalAlpha=1;
-  // small restart icon (top-right corner)
-  const ix=x0+w-9,iy=y0+2;R(ix,iy,7,7,TH.outline);R(ix+1,iy+1,5,5,E32.sand);R(ix+2,iy+2,3,1,E32.plum);R(ix+2,iy+2,1,3,E32.plum);R(ix+2,iy+4,3,1,E32.plum);R(ix+4,iy+1,1,2,E32.plum)}}
+  for(let i=0;i<w;i+=6){R(x0+i,y0,4,1,E32.grey1);R(x0+i,y0+h-1,4,1,E32.grey1)}for(let j=0;j<h;j+=6){R(x0,y0+j,1,4,E32.grey1);R(x0+w-1,y0+j,1,4,E32.grey1)}o.globalAlpha=1;}}
 // help legend: draw each grass-map tile with the real sprite code into the help panel's little canvases (once)
 let legendDone=false;function renderLegend(){legendDone=true;const D={'#':(x,y)=>wall(x,y,0,0),'.':(x,y)=>FLOORS[TH.style](x,y,0,0),'B':(x,y)=>{FLOORS[TH.style](x,y,0,0);crate(x,y,false,0)},'D':(x,y)=>{FLOORS[TH.style](x,y,0,0);bars(x,y,0)},'C':(x,y)=>{FLOORS[TH.style](x,y,0,0);gate(x,y,'c',0)}};
  document.querySelectorAll('#help canvas[data-t]').forEach(c=>{const k=c.dataset.t;o.clearRect(0,0,16,16);(D[k]||((x,y)=>tile(k,x,y,-99,-99)))(0,0);const g=c.getContext('2d');g.imageSmoothingEnabled=false;g.clearRect(0,0,32,32);g.drawImage(off,0,0,16,16,0,0,32,32)})}
@@ -164,9 +191,9 @@ function draw(){const now=performance.now()/1000,dt=Math.min(.05,now-(stamp||now
  TH=WORLDS[W.maps[S.m].theme]||WORLDS.grass;buildView();if(!legendDone&&st){const th=TH;TH=WORLDS.grass;renderLegend();TH=th}
  const [tx,ty]=camTarget();if(!cam.init){cam.x=tx;cam.y=ty;cam.init=true}cam.x+=(tx-cam.x)*Math.min(1,dt*8);cam.y+=(ty-cam.y)*Math.min(1,dt*8);
  cam.ox=Math.round(cam.x*16)/16;cam.oy=Math.round(cam.y*16)/16;
- o.fillStyle=TH===WORLDS.grass?E32.green2:E32.ink;o.fillRect(0,0,off.width,off.height);
+ o.fillStyle=TH===WORLDS.grass?E32.green2:ICY()?E32.white:E32.ink;o.fillRect(0,0,off.width,off.height);
  const x0=Math.floor(cam.ox),y0=Math.floor(cam.oy);
- for(let y=y0-1;y<=y0+VH+1;y++)for(let x=x0-1;x<=x0+VW+1;x++){if((x<0||y<0||x>=L.W||y>=L.H)&&TH!==WORLDS.grass)continue;tile((L.grid[y]||[])[x],Math.round((x-cam.ox)*16),Math.round((y-cam.oy)*16),x,y)}
+ for(let y=y0-1;y<=y0+VH+1;y++)for(let x=x0-1;x<=x0+VW+1;x++){if((x<0||y<0||x>=L.W||y>=L.H)&&TH!==WORLDS.grass&&!ICY())continue;tile((L.grid[y]||[])[x],Math.round((x-cam.ox)*16),Math.round((y-cam.oy)*16),x,y)}
  zoneBorders();
  st.boxes.forEach(b=>crate(Math.round((b[0]-cam.ox)*16),Math.round((b[1]-cam.oy)*16),L.grid[b[1]][b[0]]==='X',0));
  S.bombs.filter(b=>b.m===S.m).forEach(blastWarn);S.bombs.filter(b=>b.m===S.m).forEach(b=>bombSprite(Math.round((b.x-cam.ox)*16),Math.round((b.y-cam.oy)*16),b));
@@ -188,7 +215,7 @@ function draw(){const now=performance.now()/1000,dt=Math.min(.05,now-(stamp||now
  else robot(gx+shk,gy+Math.round(Math.sin(T*2.4))-1-hop,react&&react.type==='hop'?'norm':face,anim&&anim.type==='bump'?'down':facing,frame,look,1);
  if(bang){const bx=gx+12,by=gy-6-hop;R(bx-1,by-1,4,9,TH.outline);R(bx,by,2,5,E32.amber);R(bx,by+6,2,1,E32.amber)}
  if(S.held&&!failAnim){R(gx+11,gy+1-hop,5,5,TH.outline);R(gx+12,gy+2-hop,3,3,E32.grey4)}
- fx=fx.filter(smoke);
+ runeSigns();drawPats();fx=fx.filter(f=>f.type==='defeat'?defeat(f):smoke(f));
  // blit with shake + tunnel fade
  const sh=shake>0?(shake--%2?2:-2)*SC:0;ctx.imageSmoothingEnabled=false;ctx.fillStyle=E32.ink;ctx.fillRect(0,0,cv.width,cv.height);ctx.drawImage(off,sh,0,cv.width,cv.height);
  if(fade>0){ctx.fillStyle=`rgba(24,20,37,${fade})`;ctx.fillRect(0,0,cv.width,cv.height);fade=Math.max(0,fade-dt/0.3)}
