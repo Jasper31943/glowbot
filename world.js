@@ -38,10 +38,12 @@ function checkStuck(){const k=S.zone?WE.key(S):null;if(k===stuck.k)return;stuck.
   const zb=S.boxes.filter(b=>b.startsWith(S.m+':')).map(b=>b.split(':')[1].split(',').map(Number)).filter(([x,y])=>inZ(x,y));
   if(zb.length&&WE.zoneStuck(W,S,20000)===true){stuck.on=true;stuck.boxes=zb.filter(([x,y])=>WE.base(W,S.m,x,y)!=='X')}}
  $('reset').classList.toggle('glow',stuck.on);if(was&&!stuck.on&&!stuckSeen){stuckSeen=true;try{localStorage.setItem(STUCKSEEN,'1')}catch(e){}}}
-// ice area A guide: on arriving in the ice map (A not cleared yet) a bouncing arrow points at A's entrance for 4s
-let guide={m:null,t0:-99};function guideCheck(){if(S.m!==guide.m){guide.m=S.m;if(S.m==='ice'&&S.cleared.indexOf('ice#A')<0)guide.t0=T}}
-function drawGuide(){if(S.m!=='ice'||T-guide.t0>4||T<guide.t0)return;const Z=W.maps.ice.zones.find(z=>z.id==='ice#A');if(!Z||S.zone===Z.id)return;
- const [ex,ey]=Z.entry,px=Math.round((ex-cam.ox)*16),py=Math.round((ey-cam.oy)*16)-16;if(typeof guideArrow==='function')guideArrow(px,py,1,T-guide.t0)} // art: guideArrow from art.js (美術監督)
+// ice area A guide: ~4s arrow at A's entrance when arriving on ice, loading a save into ice, or first entering zone A (A still uncleared)
+let guide={m:null,z:null,t0:-99};function guideArm(){if(S.m==='ice'&&S.cleared.indexOf('ice#A')<0)guide.t0=T}
+function guideCheck(){const z=S.zone||null;if(S.m!==guide.m){guide.m=S.m;guide.z=z;guideArm()} // map change (tunnel in, or continue-from-title after title painted another map)
+ else if(z!==guide.z){const was=guide.z;guide.z=z;if(z==='ice#A'&&was!=='ice#A')guideArm()}} // first time this visit that A becomes the current zone
+function drawGuide(){if(S.m!=='ice'||T-guide.t0>4||T<guide.t0)return;const Z=W.maps.ice.zones.find(z=>z.id==='ice#A');if(!Z)return;
+ const [ex,ey]=Z.entry,px=Math.round((ex-cam.ox)*16),py=Math.round((ey-cam.oy)*16)-16;if(typeof guideArrow==='function')guideArrow(px,py,1,T-guide.t0)} // art: guideArrow(dir=1 down) from art.js
 function hud(){checkStuck();guideCheck();const M=W.maps[S.m],Z=WE.zoneAt(W,S.m,S.x,S.y);$('mapname').textContent=M.name;$('zonename').textContent=Z?Z.name:'野外';
  const k=$('keys');k.innerHTML='';const chip=t=>{const c=document.createElement('span');c.className='chip';c.innerHTML=t;k.append(c)};
  if(S.held)chip('💣 炸彈');for(const i of S.inv)if(!KEYMAP[i]||KEYMAP[i]===S.m)chip(ITEMNAME[i]||i);const bolts=S.got.filter(g=>WE.base(W,g.split(':')[0],...g.split(':')[1].split(',').map(Number))==='*').length;if(bolts)chip('🔩 '+bolts);const lamps=S.got.filter(g=>WE.base(W,g.split(':')[0],...g.split(':')[1].split(',').map(Number))==='L').length;if(lamps)chip('🏮 '+lamps);
@@ -106,7 +108,7 @@ function closeTitle(e){if(e){e.preventDefault();e.stopImmediatePropagation()}$('
 // title choices: with a valid save -> [繼續上次][新遊戲] (+confirm); without -> any key/tap = new game
 let tsel=0,csel=1;const confOn=()=>$('tconf').classList.contains('on');
 function tpaint(){$('tCont').classList.toggle('sel',tsel===0);$('tNew').classList.toggle('sel',tsel===1);$('cYes').classList.toggle('sel',csel===0);$('cNo').classList.toggle('sel',csel===1)}
-function startContinue(){S=saved.s;musicOn=true;setTimeout(music,0);tutorialDone=!!saved.tutorialDone;cam.init=false;resize();hud();closeTitle()}
+function startContinue(){S=saved.s;musicOn=true;setTimeout(music,0);tutorialDone=!!saved.tutorialDone;cam.init=false;guide.m=null;guide.z=null;guideArm();resize();hud();closeTitle()} // re-arm ice-A arrow after 「繼續上次」
 function startNew(){newGame();musicOn=true;music();closeTitle()}
 function chooseNew(){if(saved){csel=1;$('tconf').classList.add('on');tpaint()}else startNew()}
 function titleKey(k){if(!saved){startNew();return}const nav=KEYS[k],ok=k==='Enter'||k===' ';
@@ -331,3 +333,5 @@ function drawMini(){const M=W.maps[S.m];mctx.clearRect(0,0,mini.width,mini.heigh
 loadGame();if(saved){$('title').classList.add('has');tpaint();S=JSON.parse(JSON.stringify(saved.s));WE.initMovers(W,S);tutorialDone=!!saved.tutorialDone;cam.init=false;$('help').classList.remove('on')}resize();hud();requestAnimationFrame(draw); // title background = the saved map/area + its hint
 setInterval(()=>{if(performance.now()-lastDraw>100){manualDraw=true;draw();manualDraw=false}},50);
 window.__world={act,state:()=>S,W,newGame,cam};
+// production ending preview (kept in dist): world.html?ending=1[&t=5] or ?ending=1 on GitHub Pages index.html
+(function(){const q=location.search;if(!/(?:^|[?&])ending(?:=|&|$)/.test(q))return;const m=q.match(/[?&]t=([^&]*)/);$('title').classList.remove('on');$('help').classList.remove('on');startEnding({t:m?+decodeURIComponent(m[1]):null})})();
