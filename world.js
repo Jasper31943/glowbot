@@ -5,7 +5,7 @@ const SAVEKEY='glowbot.world.v1',SHARE_URL='https://jasper31943.github.io/glowbo
 let save={};try{save=JSON.parse(localStorage.getItem('robotMaze.v1'))||{}}catch(e){} // shares mute setting with level mode
 const W=WE.parseWorld(WORLD_DEF);if(W.errors.length)console.warn('world errors',W.errors);
 let T=0,stamp=0,L=null,st=null,TH=WORLDS.grass,S=null; // L/st/TH are the views art.js paints from
-let anim=null,fx=[],shake=0,fade=0,react=null,failAnim=null,cam={x:0,y:0,init:false},SC=3,VW=7,VH=9,facing='down',idleT=0,tutorialDone=false;
+let anim=null,fx=[],shake=0,fade=0,react=null,failAnim=null,cam={x:0,y:0,init:false},SC=3,VW=7,VIEWH=9,facing='down',idleT=0,tutorialDone=false;
 // ---------- save / load ----------
 const SAVEVER=4,SAVEOK=[3,4]; // v4 = desert/forest fields; v3 saves are upgraded in place (they never reached those maps)
 function persist(){try{localStorage.setItem(SAVEKEY,JSON.stringify({v:SAVEVER,s:S,tutorialDone}))}catch(e){}}
@@ -20,35 +20,47 @@ function buildView(){const M=W.maps[S.m];const g=[];for(let y=0;y<M.H;y++){const
 // ---------- layout / camera ----------
 function resize(){const w=$('wrap'),aw=w.clientWidth,ah=w.clientHeight;const desk=matchMedia('(min-width:900px),(hover:hover) and (pointer:fine)').matches&&innerWidth>=700;
  const M=W.maps[S.m];
- if(desk){SC=Math.max(4,Math.floor(Math.min(aw/(15*16),ah/(9*16))));VW=Math.min(M.W,Math.floor(aw/(16*SC)));VH=Math.min(M.H,Math.floor(ah/(16*SC)))} // big screens scale up (>=4x) instead of showing the whole mapelse{SC=3;VW=Math.min(M.W,Math.floor(aw/48),7);VH=Math.min(M.H,Math.floor(ah/48))}
- if(VW<7&&!desk){SC=2;VW=Math.min(M.W,7);VH=Math.min(M.H,Math.floor(ah/32))}
- off.width=VW*16;off.height=VH*16;cv.width=off.width*SC;cv.height=off.height*SC;cv.style.width=cv.width+'px';cv.style.height=cv.height+'px';ctx.imageSmoothingEnabled=false;
+ if(desk){SC=Math.max(4,Math.floor(Math.min(aw/(15*16),ah/(9*16))));VW=Math.min(M.W,Math.floor(aw/(16*SC)));VIEWH=Math.min(M.H,Math.floor(ah/(16*SC)))} // big screens scale up (>=4x) instead of showing the whole mapelse{SC=3;VW=Math.min(M.W,Math.floor(aw/48),7);VIEWH=Math.min(M.H,Math.floor(ah/48))}
+ if(VW<7&&!desk){SC=2;VW=Math.min(M.W,7);VIEWH=Math.min(M.H,Math.floor(ah/32))}
+ off.width=VW*16;off.height=VIEWH*16;cv.width=off.width*SC;cv.height=off.height*SC;cv.style.width=cv.width+'px';cv.style.height=cv.height+'px';ctx.imageSmoothingEnabled=false;
  mini.width=M.W*2;mini.height=M.H*2;{const k=44/Math.max(M.W,M.H);mini.style.width=Math.round(M.W*k)+'px';mini.style.height=Math.round(M.H*k)+'px'}}
 addEventListener('resize',()=>{resize()});
 function camTarget(){const M=W.maps[S.m];const Z=WE.zoneAt(W,S.m,S.x,S.y);let tx,ty;
- if(Z){tx=Z.x+Z.w/2-VW/2;ty=Z.y+Z.h/2-VH/2}else{const d=WE.DIRS[facing];tx=S.x+.5+d[0]*2-VW/2;ty=S.y+.5+d[1]*2-VH/2}
- tx=Math.max(0,Math.min(M.W-VW,tx));ty=Math.max(0,Math.min(M.H-VH,ty));if(M.W<=VW)tx=(M.W-VW)/2;if(M.H<=VH)ty=(M.H-VH)/2;return[tx,ty]}
+ if(Z){tx=Z.x+Z.w/2-VW/2;ty=Z.y+Z.h/2-VIEWH/2}else{const d=WE.DIRS[facing];tx=S.x+.5+d[0]*2-VW/2;ty=S.y+.5+d[1]*2-VIEWH/2}
+ tx=Math.max(0,Math.min(M.W-VW,tx));ty=Math.max(0,Math.min(M.H-VIEWH,ty));if(M.W<=VW)tx=(M.W-VW)/2;if(M.H<=VIEWH)ty=(M.H-VIEWH)/2;return[tx,ty]}
 // ---------- HUD ----------
 const KEYMAP={c:'grass',m:'ice',k:'ice',f:'ice'}; // map-local items: chip only shown on their own map
 const ITEMNAME={c:'青鑰匙',m:'紫鑰匙',n:'粉鑰匙',k:'冰爪',f:'符文碎片',F:'🔥 吐火',g:'磁力手套',U:'電池升級'};
-function hud(){const M=W.maps[S.m],Z=WE.zoneAt(W,S.m,S.x,S.y);$('mapname').textContent=M.name;$('zonename').textContent=Z?Z.name:'野外';
+// ---------- stuck detection: after each move in a puzzle area, exhaustive in-area search (WE.zoneStuck). Only a proven dead state is flagged.
+let stuck={k:null,on:false,boxes:[]};const STUCKSEEN='glowbot.stuckSeen';let stuckSeen=false;try{stuckSeen=localStorage.getItem(STUCKSEEN)==='1'}catch(e){}
+function checkStuck(){const k=S.zone?WE.key(S):null;if(k===stuck.k)return;stuck.k=k;const was=stuck.on;stuck.on=false;stuck.boxes=[];
+ if(k){const Z=W.maps[S.m].zones.find(z=>z.id===S.zone),inZ=(x,y)=>x>=Z.x&&x<Z.x+Z.w&&y>=Z.y&&y<Z.y+Z.h;
+  const zb=S.boxes.filter(b=>b.startsWith(S.m+':')).map(b=>b.split(':')[1].split(',').map(Number)).filter(([x,y])=>inZ(x,y));
+  if(zb.length&&WE.zoneStuck(W,S,20000)===true){stuck.on=true;stuck.boxes=zb.filter(([x,y])=>WE.base(W,S.m,x,y)!=='X')}}
+ $('reset').classList.toggle('glow',stuck.on);if(was&&!stuck.on&&!stuckSeen){stuckSeen=true;try{localStorage.setItem(STUCKSEEN,'1')}catch(e){}}}
+// ice area A guide: on arriving in the ice map (A not cleared yet) a bouncing arrow points at A's entrance for 4s
+let guide={m:null,t0:-99};function guideCheck(){if(S.m!==guide.m){guide.m=S.m;if(S.m==='ice'&&S.cleared.indexOf('ice#A')<0)guide.t0=T}}
+function drawGuide(){if(S.m!=='ice'||T-guide.t0>4||T<guide.t0)return;const Z=W.maps.ice.zones.find(z=>z.id==='ice#A');if(!Z||S.zone===Z.id)return;
+ const [ex,ey]=Z.entry,px=Math.round((ex-cam.ox)*16),py=Math.round((ey-cam.oy)*16)-16;if(typeof guideArrow==='function')guideArrow(px,py,1,T-guide.t0)} // art: guideArrow from art.js (美術監督)
+function hud(){checkStuck();guideCheck();const M=W.maps[S.m],Z=WE.zoneAt(W,S.m,S.x,S.y);$('mapname').textContent=M.name;$('zonename').textContent=Z?Z.name:'野外';
  const k=$('keys');k.innerHTML='';const chip=t=>{const c=document.createElement('span');c.className='chip';c.innerHTML=t;k.append(c)};
  if(S.held)chip('💣 炸彈');for(const i of S.inv)if(!KEYMAP[i]||KEYMAP[i]===S.m)chip(ITEMNAME[i]||i);const bolts=S.got.filter(g=>WE.base(W,g.split(':')[0],...g.split(':')[1].split(',').map(Number))==='*').length;if(bolts)chip('🔩 '+bolts);const lamps=S.got.filter(g=>WE.base(W,g.split(':')[0],...g.split(':')[1].split(',').map(Number))==='L').length;if(lamps)chip('🏮 '+lamps);
  const lf=$('remain');if(S.left!=null){lf.style.display='';lf.innerHTML=`剩 <b class="${S.left<=3?'low':''}">${S.left}</b> 步`}else lf.style.display='none';
- const unmet=h=>(h.need&&!WE.hasInv(S,h.need))||(h.cleared&&S.cleared.indexOf(h.cleared)<0)||(h.visit&&S.visited.indexOf(h.visit)<0)||(!h.need&&!h.visit&&!h.cleared),hs=W.hints||[],h=hs.find(h=>h.m===S.m&&unmet(h))||hs.find(h=>!h.m&&unmet(h));$('hint').textContent=h?'▶ '+h.text:'';
+ const unmet=h=>h.zone?(S.zone===h.zone&&S.cleared.indexOf(h.zone)<0):(h.need&&!WE.hasInv(S,h.need))||(h.cleared&&S.cleared.indexOf(h.cleared)<0)||(h.visit&&S.visited.indexOf(h.visit)<0)||(!h.need&&!h.visit&&!h.cleared),hs=W.hints||[],h=hs.find(h=>h.m===S.m&&unmet(h))||hs.find(h=>!h.m&&unmet(h));$('hint').textContent=h?'▶ '+h.text:'';
  if([[0,-1],[0,1],[-1,0],[1,0]].some(([dx,dy])=>WE.cell(W,S,S.m,S.x+dx,S.y+dy)==='R'))$('hint').textContent=WE.hasInv(S,'f')?'▶ 走進符文石，用符文碎片打開它':'🪧 打倒頭目，取得符文碎片';
  const near=(x,y,d)=>Math.abs(S.x-x)+Math.abs(S.y-y)<=(d||1);
  if(S.m==='ice'&&shortcut&&!WE.hasInv(S,'m')&&near(shortcut.door[0],shortcut.door[1],2))$('hint').textContent='🪧 紫門是回程捷徑（從裡面拿紫鑰匙才打得開），先往前走';
  if(S.m==='ice'&&shortcut&&near(shortcut.top[0],shortcut.top[1],1))$('hint').textContent='🪧 回程捷徑：往下直走，回到隧道 1';
  if(S.zone&&S.zoneSteps>40&&S.cleared.indexOf(S.zone)<0)$('hint').textContent='🤔 卡住了嗎？按 ↺ 重來這一區';
- if(flashT&&performance.now()<flashT.until)$('hint').textContent=flashT.t;
+ if(stuck.on&&!stuckSeen)$('hint').textContent='箱子卡住了，按 ↺ 重來';if(flashT&&performance.now()<flashT.until)$('hint').textContent=flashT.t;
  const here=WE.base(W,S.m,S.x,S.y);if(WE.isTun(here)&&W.tunnels[WE.tunId(here)].length<2)$('hint').textContent='🚧 隧道 '+WE.tunId(here)+' 通往'+((W.tunnelTo||{})[WE.tunId(here)]||'下一區')+'：即將開放';}
 let flashT=null;function flash(t){flashT={t,until:performance.now()+2500};hud();setTimeout(hud,2600)}
 // ---------- input ----------
 let patPrev=null,patT0=0;
 function snapPats(prev){patPrev={};(prev.pats||[]).forEach(p=>patPrev[p.i]=[p.x,p.y]);patT0=T}
 function defeatFx(){(S.defeated||[]).forEach(d=>{if(d.m===S.m){fx.push({type:'defeat',x:d.x,y:d.y,t0:T,away:d.ax==='h'?(d.d>0?3:2):3});setTimeout(()=>sfx('key'),500)}});delete S.defeated}
-function blastFx(r){if(r.ev.indexOf('defeat')>=0)defeatFx();if(r.ev.indexOf('blast')>=0){const b=S.lastBlast||{};if(b.m===S.m)[[0,0],[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dy])=>fx.push({type:'smoke',x:b.x+dx,y:b.y+dy,t0:T}));sfx('crumble');if(r.ev.indexOf('wall')>=0)shake=3;delete S.lastBlast}}
+function blastFx(r){if(r.ev.indexOf('defeat')>=0&&S.m==='core')setTimeout(()=>startEnding(),1600); // core boss down -> ending (core map not built yet)
+ if(r.ev.indexOf('defeat')>=0)defeatFx();if(r.ev.indexOf('blast')>=0){const b=S.lastBlast||{};if(b.m===S.m)[[0,0],[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dy])=>fx.push({type:'smoke',x:b.x+dx,y:b.y+dy,t0:T}));sfx('crumble');if(r.ev.indexOf('wall')>=0)shake=3;delete S.lastBlast}}
 // real-time fuses: every frame advance all bombs (3,2,1 one per second, boom when it hits 0). Paused while title/help/menu/fail anim.
 function fuseFrame(dt){if(!S||!S.bombs.length||failAnim||['title','help','menu'].some(id=>$(id).classList.contains('on')))return;
  const prev=S,r=WE.advance(W,S,dt*1000);S=r.state;if(r.result==='tick')return;blastFx(r);v2Fx(r,prev);
@@ -116,7 +128,12 @@ addEventListener('keydown',e=>{if(['Shift','Control','Alt','Meta','CapsLock','Ta
 try{window.focus()}catch(e){}
 document.querySelectorAll('button').forEach(b=>{b.tabIndex=-1;b.addEventListener('mousedown',e=>e.preventDefault());b.addEventListener('click',()=>{b.blur();try{window.focus()}catch(e){}})});
 addEventListener('keyup',e=>{if(e.key===' '&&document.activeElement&&document.activeElement.tagName==='BUTTON'){e.preventDefault();document.activeElement.blur()}},true);
-mini.style.cursor='pointer';mini.addEventListener('pointerup',e=>{e.stopPropagation();e.preventDefault();mini.classList.toggle('big')});mini.addEventListener('pointerdown',e=>{e.stopPropagation();e.preventDefault()});
+mini.setAttribute('role','button');mini.setAttribute('aria-label','地圖（點一下放大／縮小）');mini.tabIndex=0;
+const miniX=document.createElement('button');miniX.id='miniX';miniX.className='panel';miniX.textContent='✕';miniX.setAttribute('aria-label','關閉地圖');document.body.append(miniX);
+function miniBig(on){mini.classList.toggle('big',on);miniX.classList.toggle('on',on);mini.setAttribute('aria-expanded',on?'true':'false')}
+miniX.addEventListener('pointerup',e=>{e.stopPropagation();e.preventDefault();miniBig(false)});miniX.addEventListener('pointerdown',e=>{e.stopPropagation();e.preventDefault()});
+addEventListener('keydown',e=>{if(e.key==='Escape'&&mini.classList.contains('big')){e.preventDefault();e.stopImmediatePropagation();miniBig(false)}},true);
+mini.style.cursor='pointer';mini.addEventListener('pointerup',e=>{e.stopPropagation();e.preventDefault();miniBig(!mini.classList.contains('big'))});mini.addEventListener('pointerdown',e=>{e.stopPropagation();e.preventDefault()});
 addEventListener('keydown',e=>{if(KEYS[e.key]){e.preventDefault();press(KEYS[e.key])}else if(e.key===' '||e.key==='Enter'||e.key==='x'||e.key==='X'){e.preventDefault();act('act')}else if(e.key==='r'||e.key==='R'){e.preventDefault();act('reset')}});
 function press(d){const b=$(d);b.classList.add('on');setTimeout(()=>b.classList.remove('on'),140);act(d)}
 ['up','down','left','right'].forEach(d=>$(d).addEventListener('pointerdown',e=>{e.preventDefault();press(d)}));
@@ -247,16 +264,39 @@ function zoneBorders(){const M=W.maps[S.m];for(const Z of M.zones){const x0=(Z.x
 // help legend: draw each grass-map tile with the real sprite code into the help panel's little canvases (once)
 let legendDone=false;function renderLegend(){legendDone=true;const D={'#':(x,y)=>wall(x,y,0,0),'.':(x,y)=>FLOORS[TH.style](x,y,0,0),'B':(x,y)=>{FLOORS[TH.style](x,y,0,0);crate(x,y,false,0)},'D':(x,y)=>{FLOORS[TH.style](x,y,0,0);bars(x,y,0)},'C':(x,y)=>{FLOORS[TH.style](x,y,0,0);gate(x,y,'c',0)}};
  document.querySelectorAll('#help canvas[data-t]').forEach(c=>{const k=c.dataset.t;o.clearRect(0,0,16,16);(D[k]||((x,y)=>tile(k,x,y,-99,-99)))(0,0);const g=c.getContext('2d');g.imageSmoothingEnabled=false;g.clearRect(0,0,32,32);g.drawImage(off,0,0,16,16,0,0,32,32)})}
-function draw(){const now=performance.now()/1000,dt=Math.min(.05,now-(stamp||now));stamp=now;T+=dt;fuseFrame(dt);
+// ---------- ending (after the core boss): 10s scene from ending-art.js, drawn on the 256x144 buffer `off` and scaled crisp ----------
+const ENDING_ART=['core-art.js','swamp-art.js','volcano-art.js','mine-art.js','power-art.js','castle-art.js','ending-art.js']; // art.js + ice-art.js are already on the page
+let ending=null;
+function loadScript(src){return new Promise((ok,no)=>{if(document.querySelector('script[src="'+src+'"]'))return ok();const e=document.createElement('script');e.src=src;e.onload=ok;e.onerror=()=>no(new Error('load '+src));document.head.appendChild(e)})}
+async function startEnding(opt){if(ending)return;ending={loading:true};for(const f of ENDING_ART)await loadScript(f); // in order: ending-art.js needs the others
+ const c=document.createElement('canvas');c.id='endcv';c.style.cssText='position:fixed;left:0;top:0;width:100vw;height:100vh;z-index:1000;background:#000;touch-action:none;cursor:pointer;image-rendering:pixelated;image-rendering:crisp-edges';document.body.appendChild(c);
+ ending={c,g:c.getContext('2d'),t0:performance.now(),dinged:0,fixedT:opt&&opt.t!=null&&!isNaN(opt.t)?opt.t:null,rect:[0,0,1]};
+ try{window.Music&&Music.stop()}catch(e){}
+ c.addEventListener('click',endingTap)}
+function endingT(){const E=ending;return E.fixedT!=null?E.fixedT:Math.min(ENDING_DURATION,(performance.now()-E.t0)/1000)}
+function endingFrame(){const E=ending;if(!E||E.loading)return;const t=endingT();
+ while(E.dinged<ENDING_LAMP_TIMES.length&&t>=ENDING_LAMP_TIMES[E.dinged]){if(E.fixedT==null&&window.Music&&Music.ding)Music.ding(E.dinged);E.dinged++}
+ if(off.width!==256||off.height!==144){off.width=256;off.height=144}
+ const keepT=T;o.save();o.clearRect(0,0,256,144);endingScene(256,144,t);o.restore();T=keepT; // endingScene drives art's T; give the game clock back
+ const c=E.c,g=E.g,dw=innerWidth,dh=innerHeight;if(c.width!==dw||c.height!==dh){c.width=dw;c.height=dh;g.imageSmoothingEnabled=false}
+ const s=Math.min(dw/256,dh/144),x=Math.round((dw-256*s)/2),y=Math.round((dh-144*s)/2);E.rect=[x,y,s];
+ g.imageSmoothingEnabled=false;const px=(yy)=>{const d=o.getImageData(128,yy,1,1).data;return`rgb(${d[0]},${d[1]},${d[2]})`}; // letterbox bars take the scene's own top/bottom colour (sky / ground)
+ g.fillStyle=px(0);g.fillRect(0,0,dw,Math.ceil(dh/2));g.fillStyle=px(143);g.fillRect(0,Math.floor(dh/2),dw,Math.ceil(dh/2));g.drawImage(off,0,0,256,144,x,y,Math.round(256*s),Math.round(144*s));
+ } // 15/15 is drawn by ending-art.js itself (no overlay)
+// share button: ENDING_SHARE_BUTTON is in unscaled 256x144 coords; map the click back from the displayed size. Clickable from t>=9.8s, only on the player's own click.
+function endingTap(e){if(!ending||ending.loading||endingT()<9.8)return;const [x,y,s]=ending.rect,lx=(e.clientX-x)/s,ly=(e.clientY-y)/s,B=ENDING_SHARE_BUTTON;
+ if(lx>=B.x&&lx<B.x+B.w&&ly>=B.y&&ly<B.y+B.h&&window.Share)Share.clear()}
+function draw(){if(ending){endingFrame();if(!manualDraw)requestAnimationFrame(draw);return}const now=performance.now()/1000,dt=Math.min(.05,now-(stamp||now));stamp=now;T+=dt;fuseFrame(dt);
  TH=WORLDS[W.maps[S.m].theme]||WORLDS.grass;buildView();if(!legendDone&&st){const th=TH;TH=WORLDS.grass;renderLegend();TH=th}
  const [tx,ty]=camTarget();if(!cam.init){cam.x=tx;cam.y=ty;cam.init=true}{const k=1-Math.exp(-dt*5),mx=dt*14;cam.x+=Math.max(-mx,Math.min(mx,(tx-cam.x)*k));cam.y+=Math.max(-mx,Math.min(mx,(ty-cam.y)*k))} // smooth pan, capped speed (no jump on zone change)
  cam.ox=Math.round(cam.x*16)/16;cam.oy=Math.round(cam.y*16)/16;
  o.fillStyle=V2()?(DES()?E32.tan:E32.green3):TH===WORLDS.grass?E32.green2:ICY()?E32.white:E32.ink;o.fillRect(0,0,off.width,off.height);
  const x0=Math.floor(cam.ox),y0=Math.floor(cam.oy);
- for(let y=y0-1;y<=y0+VH+1;y++)for(let x=x0-1;x<=x0+VW+1;x++){if((x<0||y<0||x>=L.W||y>=L.H)&&TH!==WORLDS.grass&&!ICY()&&!V2())continue;tile((L.grid[y]||[])[x],Math.round((x-cam.ox)*16),Math.round((y-cam.oy)*16),x,y)}
+ for(let y=y0-1;y<=y0+VIEWH+1;y++)for(let x=x0-1;x<=x0+VW+1;x++){if((x<0||y<0||x>=L.W||y>=L.H)&&TH!==WORLDS.grass&&!ICY()&&!V2())continue;tile((L.grid[y]||[])[x],Math.round((x-cam.ox)*16),Math.round((y-cam.oy)*16),x,y)}
  zoneBorders();
  st.boxes.forEach(b=>crate(Math.round((b[0]-cam.ox)*16),Math.round((b[1]-cam.oy)*16),L.grid[b[1]][b[0]]==='X',0));
- drawMovers();S.bombs.filter(b=>b.m===S.m).forEach(blastWarn);S.bombs.filter(b=>b.m===S.m).forEach(b=>bombSprite(Math.round((b.x-cam.ox)*16),Math.round((b.y-cam.oy)*16),b));
+ if(stuck.on&&typeof stuckBoxMark==='function')stuck.boxes.forEach(([x,y])=>stuckBoxMark(Math.round((x-cam.ox)*16),Math.round((y-cam.oy)*16),T));
+ drawMovers();drawGuide();S.bombs.filter(b=>b.m===S.m).forEach(blastWarn);S.bombs.filter(b=>b.m===S.m).forEach(b=>bombSprite(Math.round((b.x-cam.ox)*16),Math.round((b.y-cam.oy)*16),b));
  // robot
  let rx=S.x,ry=S.y,frame=0,shk=0,face='norm';
  if(anim){const p=Math.min(1,(T-anim.t0)/anim.dur);
@@ -288,6 +328,6 @@ function drawMini(){const M=W.maps[S.m];mctx.clearRect(0,0,mini.width,mini.heigh
  for(const Z of M.zones){mctx.strokeStyle=E32.sand;mctx.lineWidth=.5;mctx.strokeRect(Z.x*2+.25,Z.y*2+.25,Z.w*2-.5,Z.h*2-.5)}
  mctx.fillStyle=(Math.floor(T*4)%2)?E32.white:E32.cyan;mctx.fillRect(S.x*2-1,S.y*2-1,4,4)}
 // ---------- boot ----------
-loadGame();if(saved){$('title').classList.add('has');tpaint()}resize();hud();requestAnimationFrame(draw);
+loadGame();if(saved){$('title').classList.add('has');tpaint();S=JSON.parse(JSON.stringify(saved.s));WE.initMovers(W,S);tutorialDone=!!saved.tutorialDone;cam.init=false;$('help').classList.remove('on')}resize();hud();requestAnimationFrame(draw); // title background = the saved map/area + its hint
 setInterval(()=>{if(performance.now()-lastDraw>100){manualDraw=true;draw();manualDraw=false}},50);
 window.__world={act,state:()=>S,W,newGame,cam};
