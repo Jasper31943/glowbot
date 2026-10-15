@@ -5,9 +5,9 @@ const ICE_THEME={name:'冰原',style:'ice',
  snow:[E32.white,E32.grey1,'#dfe8f2'],             // floor base / speckle / soft shade
  ice:[E32.cyan,E32.blue2,E32.white,'#9fe9f5'],      // normal ice I: light blue + white glints
  hard:[E32.blue1,E32.navy,E32.blue2,E32.cyan],      // hard ice J: dark blue, diamond lattice
- rock:[E32.grey1,E32.grey2,E32.grey3,E32.white],    // snowy rock wall, white snow cap
+ rock:['#6f88b0','#5a7098','#8aa2c6',E32.white,'#3f5277'],  // blue slate wall (mid-dark) / mortar / highlight / snow cap / outline
  pine:[E32.green3,E32.teal,E32.white,E32.brown2],
- outline:E32.grey3};                               // softer outline than grass (keeps it bright)
+ outline:'#3f5277'};                               // softer outline than grass (keeps it bright)
 const IH=(x,y,i)=>{const h=Math.sin(x*127.1+y*311.7+i*74.7)*43758.5453;return h-Math.floor(h)};
 function iceSnow(px,py,x,y){const S=ICE_THEME.snow;R(px,py,16,16,S[0]);
  for(let i=0;i<4;i++)R(px+1+Math.floor(IH(x,y,i)*14),py+1+Math.floor(IH(x,y,i+7)*14),2,1,S[1]);
@@ -19,16 +19,23 @@ function iceHard(px,py,x,y){const J=ICE_THEME.hard;R(px,py,16,16,J[0]);
  for(let i=0;i<8;i++){R(px+8-i,py+i,1,1,J[2]);R(px+7+i,py+i,1,1,J[2]);R(px+8-i,py+15-i,1,1,J[2]);R(px+7+i,py+15-i,1,1,J[2])}
  R(px+6,py+6,4,4,J[1]);R(px+7,py+7,2,2,J[3]);
  const t=(typeof T==='number'?T:0);if(((t*2+x*3+y*5)|0)%7===0)R(px+3,py+3,1,1,E32.white)} // occasional sparkle
-function iceRock(px,py,x,y,snowTop){const K=ICE_THEME.rock;R(px,py,16,16,ICE_THEME.outline);R(px+1,py+1,14,14,K[0]);
- R(px+1,py+8,14,1,K[1]);R(px+8,py+1,1,7,K[1]);R(px+4,py+9,1,6,K[1]);R(px+1,py+14,14,1,K[1]);R(px+12,py+11,2,2,K[2]);
- if(snowTop){R(px,py,16,4,K[3]);R(px+2,py+4,4,1,K[3]);R(px+9,py+4,5,1,K[3]);R(px+11,py+5,2,1,K[3])}} // white snow on the top row of a wall mass
+function iceRock(px,py,x,y,snowTop){const K=ICE_THEME.rock;R(px,py,16,16,K[4]);R(px+1,py+1,14,14,K[0]); // blue slate: clearly darker than snow floor
+ R(px+1,py+8,14,1,K[1]);R(px+8,py+1,1,7,K[1]);R(px+4,py+9,1,6,K[1]);R(px+1,py+14,14,1,K[1]);R(px+2,py+2,4,1,K[2]);R(px+10,py+10,3,1,K[2]);R(px+12,py+11,2,2,K[1]);
+ if(snowTop){R(px,py,16,3,K[3]);R(px,py+3,16,1,K[4]);R(px+2,py+3,4,2,K[3]);R(px+9,py+3,5,1,K[3]);R(px+11,py+4,2,1,K[3]);R(px+3,py+5,2,1,K[4])}} // crisp white cap + dark edge line
+// wooden sign 回程捷徑 (same wood as comingSoonSign / rune sign). Drawn on a tile; text is a tiny 4-glyph hint + arrow.
+function shortcutSign(px,py){R(px+7,py+9,2,6,E32.brown2);R(px+1,py+1,14,9,E32.plum);R(px+2,py+2,12,7,E32.brown1);R(px+2,py+2,12,1,E32.tan);
+ R(px+3,py+5,4,1,E32.sand);R(px+4,py+4,1,3,E32.sand);R(px+7,py+5,6,1,E32.sand);R(px+5,py+3,1,1,E32.sand);R(px+5,py+7,1,1,E32.sand)} // ← arrow glyph; full text '回程捷徑' via engine label/tooltip
+// overlay on the purple door M after it's opened from the far side: back-arrow badge. t (s) for gentle pulse.
+function purpleDoorShortcutMark(px,py,t){const a=.75+.25*Math.sin((t||0)*3);R(px+9,py-1,8,8,E32.ink);o.globalAlpha=a;R(px+10,py,6,6,E32.magenta);o.globalAlpha=1;
+ R(px+11,py+3,4,1,E32.white);R(px+12,py+2,1,1,E32.white);R(px+12,py+4,1,1,E32.white);R(px+14,py+1,1,2,E32.white)}
 function icePine(px,py,x,y){iceSnow(px,py,x,y);const P=ICE_THEME.pine,o=Math.floor(IH(x,y,3)*3)-1;
  R(px+7+o,py+12,2,3,P[3]);
  [[7,1,2],[6,3,4],[5,5,6],[4,7,8],[3,9,10]].forEach(([a,b,w])=>R(px+a+o,py+b,w,2,P[0]));
  R(px+6+o,py+3,2,1,P[2]);R(px+4+o,py+7,3,1,P[2]);R(px+9+o,py+5,2,1,P[2]);R(px+3+o,py+11,10,1,P[1])}
 // --- snowball patrol monster (tile 'P' in ice.txt). frame 0/1 bounce; dir 0 up 1 down 2 left 3 right.
 // Light grey-blue outline so the white/cyan robot stays the most visible thing on screen.
-function snowball(px,py,frame,dir,spotted){const OL=E32.grey2,B=E32.white,SH=E32.grey1,EY=E32.ink,BL=E32.blue2;
+function snowball(px,py,frame,dir,spotted){const OL='#3f5277',B=E32.white,SH='#b9cbe0',EY=E32.ink,BL=E32.blue2;
+ R(px+1,py+14,14,2,'#7fb8d8');R(px+3,py+13,10,1,'#7fb8d8');R(px+3,py+15,10,1,'#5f9cc4'); // cyan-blue ground shadow, like robotShadow
  const b=frame?1:0,sq=frame?1:0;           // bounce: frame 1 squashes 1px
  const y0=py+3+b,rows=sq?[4,8,10,12,12,12,12,10,6]:[4,8,10,12,12,12,12,12,10,6];  // round body, row widths
  rows.forEach((w,j)=>R(px+8-w/2-1,y0+j-1,w+2,1,OL));R(px+8-2-1,y0+rows.length-1,6,1,OL);
@@ -52,4 +59,4 @@ function snowBunny(px,py,flip){const OL=E32.grey2,W=E32.white,P=E32.pink;const X
  r(4,7,8,7,OL);r(5,8,6,5,W);r(11,10,2,2,W);r(12,9,1,1,OL);        // body + tail
  r(6,9,1,1,E32.ink);r(5,11,1,1,P)}
 // world.js uses these for theme 'snow'
-if(typeof module!=='undefined')module.exports={ICE_THEME,iceSnow,iceNormal,iceHard,iceRock,icePine,snowball,snowballDefeat,snowBunny};
+if(typeof module!=='undefined')module.exports={shortcutSign,purpleDoorShortcutMark,ICE_THEME,iceSnow,iceNormal,iceHard,iceRock,icePine,snowball,snowballDefeat,snowBunny};
