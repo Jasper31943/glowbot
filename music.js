@@ -102,6 +102,9 @@ var Music={
     if(master){var t=ctx.currentTime;master.gain.cancelScheduledValues(t);master.gain.setTargetAtTime(muted?0:vol,t,0.05);}},
   isMuted:function(){return muted;},
   setVolume:function(v){vol=Math.max(0,Math.min(1,+v||0));try{localStorage.setItem(VKEY,String(vol));}catch(e){}if(master&&!muted)master.gain.setTargetAtTime(vol,ctx.currentTime,0.05);},
+  // ending lamp ding i=0..14: bell-like, rising pentatonic pitch
+  ding:function(i){if(!ensure()||ctx.state!=='running')return;var st=[0,2,4,7,9],n=67+st[i%5]+12*Math.floor(i/5),t=ctx.currentTime+0.01;
+    tone(ctx,master,'triangle',mtof(n),t,0.6,0.16,0.004,0.5);tone(ctx,master,'sine',mtof(n+12),t,0.35,0.06,0.004,0.3);},
   tracks:function(){return Object.keys(TRACKS);},
   // Offline render for testing: returns Promise<AudioBuffer>
   render:function(name,secs,rate){var tr=TRACKS[trackFor(name)],r=rate||44100,oc=new OfflineAudioContext(1,Math.ceil(r*secs),r),m=oc.createGain();
