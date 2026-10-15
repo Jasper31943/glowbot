@@ -7,8 +7,9 @@ const W=WE.parseWorld(WORLD_DEF);if(W.errors.length)console.warn('world errors',
 let T=0,stamp=0,L=null,st=null,TH=WORLDS.grass,S=null; // L/st/TH are the views art.js paints from
 let anim=null,fx=[],shake=0,fade=0,react=null,failAnim=null,cam={x:0,y:0,init:false},SC=3,VW=7,VH=9,facing='down',idleT=0,tutorialDone=false;
 // ---------- save / load ----------
-function persist(){try{localStorage.setItem(SAVEKEY,JSON.stringify({s:S,tutorialDone}))}catch(e){}}
-function loadGame(){try{const d=JSON.parse(localStorage.getItem(SAVEKEY));if(d&&d.s&&W.maps[d.s.m]){S=d.s;tutorialDone=!!d.tutorialDone;return}}catch(e){}S=WE.initState(W)}
+function persist(){} // no saved progress: every page load starts a fresh adventure (Jasper's request)
+function loadGame(){try{localStorage.removeItem(SAVEKEY);sessionStorage.removeItem(SAVEKEY)}catch(e){} // also wipes progress saved by older versions
+ S=WE.initState(W);tutorialDone=false}
 function newGame(){S=WE.initState(W);tutorialDone=false;cam.init=false;persist();hud()}
 // ---------- view adapters for art.js ----------
 function buildView(){const M=W.maps[S.m];const g=[];for(let y=0;y<M.H;y++){const r=[];for(let x=0;x<M.W;x++)r.push(WE.cell(W,S,S.m,x,y));g.push(r)}
