@@ -30,12 +30,21 @@ function camTarget(){const M=W.maps[S.m];const Z=WE.zoneAt(W,S.m,S.x,S.y);let tx
  tx=Math.max(0,Math.min(M.W-VW,tx));ty=Math.max(0,Math.min(M.H-VH,ty));if(M.W<=VW)tx=(M.W-VW)/2;if(M.H<=VH)ty=(M.H-VH)/2;return[tx,ty]}
 // ---------- HUD ----------
 const ITEMNAME={c:'青鑰匙',m:'紫鑰匙',n:'粉鑰匙',k:'冰爪',g:'磁力手套',U:'電池升級'};
-function hud(){const M=W.maps[S.m],Z=WE.zoneAt(W,S.m,S.x,S.y);$('mapname').textContent=M.name;$('zonename').textContent=Z?Z.name:'野外';
+function hud(){armFuse();const M=W.maps[S.m],Z=WE.zoneAt(W,S.m,S.x,S.y);$('mapname').textContent=M.name;$('zonename').textContent=Z?Z.name:'野外';
  const k=$('keys');k.innerHTML='';const chip=t=>{const c=document.createElement('span');c.className='chip';c.innerHTML=t;k.append(c)};
  if(S.held)chip('💣 炸彈');for(const i of S.inv)chip(ITEMNAME[i]||i);const bolts=S.got.filter(g=>WE.base(W,g.split(':')[0],...g.split(':')[1].split(',').map(Number))==='*').length;if(bolts)chip('🔩 '+bolts);
  const lf=$('remain');if(S.left!=null){lf.style.display='';lf.innerHTML=`剩 <b class="${S.left<=3?'low':''}">${S.left}</b> 步`}else lf.style.display='none';
  const h=(W.hints||[]).find(h=>(h.need&&!WE.hasInv(S,h.need))||(h.visit&&S.visited.indexOf(h.visit)<0)||(!h.need&&!h.visit));$('hint').textContent=h?'▶ '+h.text:'';}
 // ---------- input ----------
+function blastFx(r){if(r.ev.indexOf('blast')>=0){const b=S.lastBlast||{};if(b.m===S.m)[[0,0],[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dy])=>fx.push({type:'smoke',x:b.x+dx,y:b.y+dy,t0:T}));sfx('crumble');if(r.ev.indexOf('wall')>=0)shake=3;delete S.lastBlast}}
+// self-detonation: a bomb showing 1 waits ~1s (shows 0 briefly), then explodes on its own without using a move
+let fuseT=null,fuseZero=false;
+function armFuse(){clearTimeout(fuseT);fuseZero=false;if(!S||!S.bombs.some(b=>b.t===1))return;
+ fuseT=setTimeout(()=>{fuseZero=true;fuseT=setTimeout(fuseFire,250)},900)}
+function fuseFire(){fuseZero=false;const busy=anim||failAnim||['title','help','menu'].some(id=>$(id).classList.contains('on'));
+ if(busy){fuseT=setTimeout(fuseFire,200);return}
+ const prev=S,r=WE.expire(W,S);if(r.result==='noop')return;S=r.state;blastFx(r);
+ if(r.result==='fail'){failAnim={t0:T,from:prev};sfx('fail');return}hud();persist()}
 function act(a,opt){if(anim||failAnim||$('title').classList.contains('on')||$('menu').classList.contains('on')||$('help').classList.contains('on'))return;
  if(WE.DIRS[a]){facing=a;idleT=T}
  const prev=S,r=WE.step(W,S,a,opt);
@@ -43,7 +52,7 @@ function act(a,opt){if(anim||failAnim||$('title').classList.contains('on')||$('m
  if(r.result==='tired'){sfx('bump');anim={type:'bump',dir:a,t0:T,dur:.6,face:'pant'};return}
  if(r.result==='fall'){sfx('fail');anim={type:'bump',dir:a,t0:T,dur:.8,face:'x'};return}
  const doorsBefore=doorSet();S=r.state;
- if(r.ev.indexOf('blast')>=0){const b=S.lastBlast||{};if(b.m===S.m)[[0,0],[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dy])=>fx.push({type:'smoke',x:b.x+dx,y:b.y+dy,t0:T}));sfx('crumble');if(r.ev.indexOf('wall')>=0)shake=3;delete S.lastBlast}
+ blastFx(r);
  if(r.result==='fail'){failAnim={t0:T,from:prev};sfx('fail');return}
  if(r.result==='bump'){sfx('bump');anim={type:'bump',dir:a,t0:T,dur:.6,face:'x'};hud();return}
  if(r.result==='reset'){sfx('door');cam.init=true;hud();persist();return}
@@ -99,7 +108,7 @@ addEventListener('pointerup',e=>{if(sx==null)return;const dx=e.clientX-sx,dy=e.c
 $('menuBtn').onclick=()=>$('menu').classList.add('on');$('mClose').onclick=()=>$('menu').classList.remove('on');$('mNew').onclick=()=>{newGame();$('menu').classList.remove('on')};
 $('mute').onclick=()=>{save.mute=!save.mute;try{const g=JSON.parse(localStorage.getItem('robotMaze.v1'))||{};g.mute=save.mute;localStorage.setItem('robotMaze.v1',JSON.stringify(g))}catch(e){}$('mute').textContent=save.mute?'🔇':'🔊';if(!save.mute){audioInit();sfx('key')}};$('mute').textContent=save.mute?'🔇':'🔊';
 // ---------- extra pixel sprites for big-map tiles (same palette) ----------
-const DIG={1:['010','110','010','010','111'],2:['111','001','111','100','111'],3:['111','001','111','001','111']};
+const DIG={0:['111','101','101','101','111'],1:['010','110','010','010','111'],2:['111','001','111','100','111'],3:['111','001','111','001','111']};
 function digit(n,x,y,c){(DIG[n]||[]).forEach((r,j)=>r.split('').forEach((v,i)=>{if(v==='1')R(x+i,y+j,1,1,c)}))}
 function cracked(px,py,x,y){wall(px,py,x,y);const C=TH.outline;R(px+4,py+3,1,3,C);R(px+5,py+6,2,1,C);R(px+7,py+7,1,3,C);R(px+8,py+10,2,1,C);R(px+10,py+4,1,2,C);R(px+11,py+6,1,1,C)}
 function rubble(px,py,x,y){FLOORS[TH.style](px,py,x,y);const W2=TH.wall;[[3,10],[9,4],[11,11],[6,6]].forEach(([a,b],i)=>{R(px+a,py+b,3,2,TH.outline);R(px+a,py+b,2,1,W2[i%2])})}
@@ -113,7 +122,7 @@ function claws(px,py){const b=Math.round(Math.sin(T*3));py+=b;R(px+3,py+5,10,7,T
 function upgrade(px,py){battery(px,py);R(px+11,py+2,3,1,E32.green1);R(px+12,py+1,1,3,E32.green1)}
 function bombSprite(px,py,b){const flash=b.t===1&&Math.floor(T*10)%2;R(px+4,py+5,9,9,TH.outline);R(px+5,py+6,7,7,flash?E32.red3:E32.grey4);R(px+6,py+7,2,2,flash?E32.pink:E32.grey2);R(px+9,py+3,2,3,E32.brown1);
  const sp=Math.floor(T*12)%2;R(px+10+sp,py+1,1,1,E32.amber);R(px+11,py+2-sp,1,1,E32.yellow);
- const dy=py-7;R(px+5,dy-1,7,8,TH.outline);R(px+6,dy,5,6,b.t===1?E32.red3:E32.sand);digit(b.t,px+7,dy+1,b.t===1?E32.white:E32.plum)}
+ const dy=py-7;R(px+5,dy-1,7,8,TH.outline);R(px+6,dy,5,6,b.t===1?E32.red3:E32.sand);digit(fuseZero?0:b.t,px+7,dy+1,b.t===1?E32.white:E32.plum)}
 function smoke(f){const p=(T-f.t0)/.5;if(p>=1)return false;const fr=Math.min(3,Math.floor(p*4)),px=(f.x-cam.ox)*16,py=(f.y-cam.oy)*16;
  const sizes=[[6,6],[10,9],[12,11],[8,6]][fr],cols=[E32.yellow,E32.orange,E32.grey2,E32.grey3];o.globalAlpha=fr===3?.6:1;
  R(px+8-sizes[0]/2,py+8-sizes[1]/2,sizes[0],sizes[1],cols[fr]);R(px+8-sizes[0]/2+2,py+8-sizes[1]/2-1,sizes[0]-4,sizes[1]+2,cols[fr]);if(fr<2)R(px+6,py+6,4,4,E32.white);o.globalAlpha=1;return true}
