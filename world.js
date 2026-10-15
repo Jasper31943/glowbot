@@ -30,20 +30,16 @@ function camTarget(){const M=W.maps[S.m];const Z=WE.zoneAt(W,S.m,S.x,S.y);let tx
  tx=Math.max(0,Math.min(M.W-VW,tx));ty=Math.max(0,Math.min(M.H-VH,ty));if(M.W<=VW)tx=(M.W-VW)/2;if(M.H<=VH)ty=(M.H-VH)/2;return[tx,ty]}
 // ---------- HUD ----------
 const ITEMNAME={c:'青鑰匙',m:'紫鑰匙',n:'粉鑰匙',k:'冰爪',g:'磁力手套',U:'電池升級'};
-function hud(){armFuse();const M=W.maps[S.m],Z=WE.zoneAt(W,S.m,S.x,S.y);$('mapname').textContent=M.name;$('zonename').textContent=Z?Z.name:'野外';
+function hud(){const M=W.maps[S.m],Z=WE.zoneAt(W,S.m,S.x,S.y);$('mapname').textContent=M.name;$('zonename').textContent=Z?Z.name:'野外';
  const k=$('keys');k.innerHTML='';const chip=t=>{const c=document.createElement('span');c.className='chip';c.innerHTML=t;k.append(c)};
  if(S.held)chip('💣 炸彈');for(const i of S.inv)chip(ITEMNAME[i]||i);const bolts=S.got.filter(g=>WE.base(W,g.split(':')[0],...g.split(':')[1].split(',').map(Number))==='*').length;if(bolts)chip('🔩 '+bolts);
  const lf=$('remain');if(S.left!=null){lf.style.display='';lf.innerHTML=`剩 <b class="${S.left<=3?'low':''}">${S.left}</b> 步`}else lf.style.display='none';
  const h=(W.hints||[]).find(h=>(h.need&&!WE.hasInv(S,h.need))||(h.visit&&S.visited.indexOf(h.visit)<0)||(!h.need&&!h.visit));$('hint').textContent=h?'▶ '+h.text:'';}
 // ---------- input ----------
 function blastFx(r){if(r.ev.indexOf('blast')>=0){const b=S.lastBlast||{};if(b.m===S.m)[[0,0],[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dy])=>fx.push({type:'smoke',x:b.x+dx,y:b.y+dy,t0:T}));sfx('crumble');if(r.ev.indexOf('wall')>=0)shake=3;delete S.lastBlast}}
-// self-detonation: a bomb showing 1 waits ~1s (shows 0 briefly), then explodes on its own without using a move
-let fuseT=null,fuseZero=false;
-function armFuse(){clearTimeout(fuseT);fuseZero=false;if(!S||!S.bombs.some(b=>b.t===1))return;
- fuseT=setTimeout(()=>{fuseZero=true;fuseT=setTimeout(fuseFire,250)},900)}
-function fuseFire(){fuseZero=false;const busy=anim||failAnim||['title','help','menu'].some(id=>$(id).classList.contains('on'));
- if(busy){fuseT=setTimeout(fuseFire,200);return}
- const prev=S,r=WE.expire(W,S);if(r.result==='noop')return;S=r.state;blastFx(r);
+// real-time fuses: every frame advance all bombs (3,2,1 one per second, 0 briefly, boom). Paused while title/help/menu/fail anim.
+function fuseFrame(dt){if(!S||!S.bombs.length||failAnim||['title','help','menu'].some(id=>$(id).classList.contains('on')))return;
+ const prev=S,r=WE.advance(W,S,dt*1000);S=r.state;if(r.result==='tick')return;blastFx(r);
  if(r.result==='fail'){failAnim={t0:T,from:prev};sfx('fail');return}hud();persist()}
 function act(a,opt){if(anim||failAnim||$('title').classList.contains('on')||$('menu').classList.contains('on')||$('help').classList.contains('on'))return;
  if(WE.DIRS[a]){facing=a;idleT=T}
@@ -120,9 +116,14 @@ function hardIce(px,py,x,y){R(px,py,16,16,E32.blue1);R(px+1,py+1,14,14,E32.navy)
  if((Math.floor(T*2+x*3+y))%6===0){R(px+1,py+1,2,1,E32.white);R(px+1,py+1,1,2,E32.white)}}
 function claws(px,py){const b=Math.round(Math.sin(T*3));py+=b;R(px+3,py+5,10,7,TH.outline);R(px+4,py+6,8,5,E32.blue2);[4,7,10].forEach(i=>{R(px+i,py+11,2,3,TH.outline);R(px+i,py+11,1,2,E32.grey1)})}
 function upgrade(px,py){battery(px,py);R(px+11,py+2,3,1,E32.green1);R(px+12,py+1,1,3,E32.green1)}
-function bombSprite(px,py,b){const flash=b.t===1&&Math.floor(T*10)%2;R(px+4,py+5,9,9,TH.outline);R(px+5,py+6,7,7,flash?E32.red3:E32.grey4);R(px+6,py+7,2,2,flash?E32.pink:E32.grey2);R(px+9,py+3,2,3,E32.brown1);
- const sp=Math.floor(T*12)%2;R(px+10+sp,py+1,1,1,E32.amber);R(px+11,py+2-sp,1,1,E32.yellow);
- const dy=py-7;R(px+5,dy-1,7,8,TH.outline);R(px+6,dy,5,6,b.t===1?E32.red3:E32.sand);digit(fuseZero?0:b.t,px+7,dy+1,b.t===1?E32.white:E32.plum)}
+function bombSprite(px,py,b){const last=b.t<=1,ph=((b.ms||0)%1000)/1000,flash=last&&Math.floor(T*(b.t===0?16:10))%2;
+ R(px+4,py+5,9,9,TH.outline);R(px+5,py+6,7,7,flash?E32.red3:E32.grey4);R(px+6,py+7,2,2,flash?E32.pink:E32.grey2);R(px+9,py+3,2,3,E32.brown1);
+ const sp=Math.floor(T*(last?36:12))%2;R(px+10+sp,py+1,1,1,E32.amber);R(px+11,py+2-sp,1,1,E32.yellow);if(last){R(px+12-sp,py+sp,1,1,E32.amber);R(px+9+sp,py+sp,1,1,E32.yellow)}
+ const pop=ph<.18?2:ph<.3?1:0,dy=py-7-pop; // number pops each second
+ R(px+5-pop,dy-1-pop,7+pop*2,8+pop*2,TH.outline);R(px+6-pop,dy-pop,5+pop*2,6+pop*2,last?E32.red3:E32.sand);digit(b.t,px+7,dy+1,last?E32.white:E32.plum)}
+// last second: red cross on the ground = blast tiles
+function blastWarn(b){if(b.t>1)return;const a=.25+.2*Math.sin(T*18);o.globalAlpha=a;[[0,0],[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dy])=>{const px=Math.round((b.x+dx-cam.ox)*16),py=Math.round((b.y+dy-cam.oy)*16);R(px+1,py+1,14,14,E32.red3)});o.globalAlpha=1;
+ [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dy])=>{const px=Math.round((b.x+dx-cam.ox)*16),py=Math.round((b.y+dy-cam.oy)*16);R(px+1,py+1,14,1,E32.red3);R(px+1,py+14,14,1,E32.red3);R(px+1,py+1,1,14,E32.red3);R(px+14,py+1,1,14,E32.red3)})}
 function smoke(f){const p=(T-f.t0)/.5;if(p>=1)return false;const fr=Math.min(3,Math.floor(p*4)),px=(f.x-cam.ox)*16,py=(f.y-cam.oy)*16;
  const sizes=[[6,6],[10,9],[12,11],[8,6]][fr],cols=[E32.yellow,E32.orange,E32.grey2,E32.grey3];o.globalAlpha=fr===3?.6:1;
  R(px+8-sizes[0]/2,py+8-sizes[1]/2,sizes[0],sizes[1],cols[fr]);R(px+8-sizes[0]/2+2,py+8-sizes[1]/2-1,sizes[0]-4,sizes[1]+2,cols[fr]);if(fr<2)R(px+6,py+6,4,4,E32.white);o.globalAlpha=1;return true}
@@ -159,7 +160,7 @@ function zoneBorders(){const M=W.maps[S.m];for(const Z of M.zones){const x0=(Z.x
 // help legend: draw each grass-map tile with the real sprite code into the help panel's little canvases (once)
 let legendDone=false;function renderLegend(){legendDone=true;const D={'#':(x,y)=>wall(x,y,0,0),'.':(x,y)=>FLOORS[TH.style](x,y,0,0),'B':(x,y)=>{FLOORS[TH.style](x,y,0,0);crate(x,y,false,0)},'D':(x,y)=>{FLOORS[TH.style](x,y,0,0);bars(x,y,0)},'C':(x,y)=>{FLOORS[TH.style](x,y,0,0);gate(x,y,'c',0)}};
  document.querySelectorAll('#help canvas[data-t]').forEach(c=>{const k=c.dataset.t;o.clearRect(0,0,16,16);(D[k]||((x,y)=>tile(k,x,y,-99,-99)))(0,0);const g=c.getContext('2d');g.imageSmoothingEnabled=false;g.clearRect(0,0,32,32);g.drawImage(off,0,0,16,16,0,0,32,32)})}
-function draw(){const now=performance.now()/1000,dt=Math.min(.05,now-(stamp||now));stamp=now;T+=dt;
+function draw(){const now=performance.now()/1000,dt=Math.min(.05,now-(stamp||now));stamp=now;T+=dt;fuseFrame(dt);
  TH=WORLDS[W.maps[S.m].theme]||WORLDS.grass;buildView();if(!legendDone&&st){const th=TH;TH=WORLDS.grass;renderLegend();TH=th}
  const [tx,ty]=camTarget();if(!cam.init){cam.x=tx;cam.y=ty;cam.init=true}cam.x+=(tx-cam.x)*Math.min(1,dt*8);cam.y+=(ty-cam.y)*Math.min(1,dt*8);
  cam.ox=Math.round(cam.x*16)/16;cam.oy=Math.round(cam.y*16)/16;
@@ -168,7 +169,7 @@ function draw(){const now=performance.now()/1000,dt=Math.min(.05,now-(stamp||now
  for(let y=y0-1;y<=y0+VH+1;y++)for(let x=x0-1;x<=x0+VW+1;x++){if((x<0||y<0||x>=L.W||y>=L.H)&&TH!==WORLDS.grass)continue;tile((L.grid[y]||[])[x],Math.round((x-cam.ox)*16),Math.round((y-cam.oy)*16),x,y)}
  zoneBorders();
  st.boxes.forEach(b=>crate(Math.round((b[0]-cam.ox)*16),Math.round((b[1]-cam.oy)*16),L.grid[b[1]][b[0]]==='X',0));
- S.bombs.filter(b=>b.m===S.m).forEach(b=>bombSprite(Math.round((b.x-cam.ox)*16),Math.round((b.y-cam.oy)*16),b));
+ S.bombs.filter(b=>b.m===S.m).forEach(blastWarn);S.bombs.filter(b=>b.m===S.m).forEach(b=>bombSprite(Math.round((b.x-cam.ox)*16),Math.round((b.y-cam.oy)*16),b));
  // robot
  let rx=S.x,ry=S.y,frame=0,shk=0,face='norm';
  if(anim){const p=Math.min(1,(T-anim.t0)/anim.dur);
