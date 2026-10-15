@@ -58,5 +58,12 @@ function snowBunny(px,py,flip){const OL=E32.grey2,W=E32.white,P=E32.pink;const X
  r(5,2,2,6,OL);r(8,2,2,6,OL);r(6,3,1,4,P);r(9,3,1,4,P);           // ears
  r(4,7,8,7,OL);r(5,8,6,5,W);r(11,10,2,2,W);r(12,9,1,1,OL);        // body + tail
  r(6,9,1,1,E32.ink);r(5,11,1,1,P)}
+// stuck-box hint: draw after the crate. Bubble extends 11px above the tile (py-11..py-1). Blinks/bobs at 2Hz.
+function stuckBoxMark(px,py,t){const tt=t||0,on=Math.floor(tt*4)%2===0,b=on?0:1,O=E32.ink,Rd=E32.red3;
+ o.globalAlpha=.35;R(px+1,py+1,4,2,Rd);R(px+1,py+3,2,2,Rd);R(px+11,py+13,4,2,Rd);R(px+13,py+11,2,2,Rd);o.globalAlpha=1; // corner tint
+ const x=px+5,y=py-11+b;
+ R(x,y,7,9,O);R(x-1,y+1,9,7,O);R(x+2,y+9,3,1,O);R(x+3,y+10,1,1,O); // outline + tail
+ R(x+1,y+1,5,7,E32.white);R(x,y+2,7,5,E32.white);R(x+3,y+9,1,0,E32.white);
+ const C=on?Rd:E32.red2;R(x+3,y+2,2,4,C);R(x+3,y+7,2,1,C)}
 // world.js uses these for theme 'snow'
-if(typeof module!=='undefined')module.exports={shortcutSign,purpleDoorShortcutMark,ICE_THEME,iceSnow,iceNormal,iceHard,iceRock,icePine,snowball,snowballDefeat,snowBunny};
+if(typeof module!=='undefined')module.exports={shortcutSign,purpleDoorShortcutMark,ICE_THEME,iceSnow,iceNormal,iceHard,iceRock,icePine,snowball,snowballDefeat,snowBunny,stuckBoxMark};
