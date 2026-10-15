@@ -33,7 +33,7 @@ function hud(){const M=W.maps[S.m],Z=WE.zoneAt(W,S.m,S.x,S.y);$('mapname').textC
  const lf=$('remain');if(S.left!=null){lf.style.display='';lf.innerHTML=`剩 <b class="${S.left<=3?'low':''}">${S.left}</b> 步`}else lf.style.display='none';
  const h=(W.hints||[]).find(h=>(h.need&&!WE.hasInv(S,h.need))||(h.visit&&S.visited.indexOf(h.visit)<0)||(!h.need&&!h.visit));$('hint').textContent=h?'▶ '+h.text:'';}
 // ---------- input ----------
-function act(a,opt){if(anim||failAnim||$('menu').classList.contains('on')||$('help').classList.contains('on'))return;
+function act(a,opt){if(anim||failAnim||$('title').classList.contains('on')||$('menu').classList.contains('on')||$('help').classList.contains('on'))return;
  if(WE.DIRS[a]){facing=a;idleT=T}
  const prev=S,r=WE.step(W,S,a,opt);
  if(r.result==='noop'){return}
@@ -61,6 +61,11 @@ function tutorialAssist(){const Z=WE.zoneAt(W,S.m,S.x,S.y);if(!Z||!Z.tutorial||t
 const KEYS={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',w:'up',s:'down',a:'left',d:'right'};
 // controls help: shown on load, any key / tap closes it, '?' reopens
 const helpOn=()=>$('help').classList.contains('on');let helpT=performance.now();
+// title screen (og.png look) comes first; any key / tap -> help panel -> game
+const titleOn=()=>$('title').classList.contains('on');
+function closeTitle(e){if(e){e.preventDefault();e.stopImmediatePropagation()}$('title').classList.remove('on');helpT=performance.now()}
+addEventListener('keydown',e=>{if(titleOn())closeTitle(e)},true);
+$('title').addEventListener('pointerdown',e=>{e.stopPropagation();e.preventDefault()});$('title').addEventListener('pointerup',e=>{e.stopPropagation();closeTitle(e)});
 function closeHelp(e){if(!helpOn()||performance.now()-helpT<250)return false;if(e)e.preventDefault();$('help').classList.remove('on');return true}
 $('helpBtn').onclick=e=>{e.stopPropagation();$('help').classList.add('on');helpT=performance.now()};
 let hp=null;$('help').addEventListener('pointerdown',e=>{e.stopPropagation();hp=[e.clientX,e.clientY]}); // tap (not scroll-drag) closes
