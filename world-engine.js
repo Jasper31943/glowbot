@@ -4,7 +4,7 @@
 (function(root){
 const DIRS={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]};
 const ITEMS={c:'key',m:'key',n:'key',k:'claws',g:'glove',U:'upgrade',E:'battery','*':'bolt'};
-const FUSE=3;
+const FUSE=3,FUSE_MS=3400,FUSE_MODEL=+((typeof process!=='undefined'&&process.env&&process.env.FUSE_N)||4); // real-time fuse: 3,2,1 (1s each), 0 for 0.4s, boom. Solver: <=FUSE_MODEL actions between place and blast
 // ---------- parse ----------
 function parseWorld(def){
  const W={maps:{},start:null,tunnels:{},boxes0:[],errors:[],hints:def.hints||[],goal:def.goal||null};
@@ -55,25 +55,23 @@ function tick(W,s,ev,skipNew){const keep=[];for(const b of s.bombs){if(b===skipN
 // actions: up/down/left/right, 'act' (pick up / place bomb), 'reset' (restore current zone)
 const PLACEABLE='.,IJXO*';
 function finish(W,s,ev,res,extra){ // after a counted step: tick fuses; robot inside a blast = fail
- tick(W,s,ev,null);if(s.hurt){delete s.hurt;return Object.assign({state:s,result:'fail',ev},extra||{})}return Object.assign({state:s,result:res,ev},extra||{})}
+ return Object.assign({state:s,result:res,ev},extra||{})} // moves never tick fuses (fuses are real-time, see advance())
 // actions: up/down/left/right, 'act' (facing bomb grass = pick up; facing floor/ice/switch while holding = place), 'reset' (restore current zone)
 function step(W,s0,a,opt){const ev=[];const free=!!(opt&&opt.free); // free: tutorial auto-hop — moves without counting a turn (no fuse tick)
  if(a==='reset')return resetZone(W,s0);
  if(a==='act'){const s=clone(s0);const [dx,dy]=DIRS[s.f],fx=s.x+dx,fy=s.y+dy,fc=cell(W,s,s.m,fx,fy);
   if(!s.held&&fc==='b'){s.held=1;ev.push('grab');s.steps++;return finish(W,s,ev,'act')}
   if(s.held&&PLACEABLE.indexOf(fc)>=0&&!(fc==='O'&&false)&&boxAt(s,s.m,fx,fy)<0&&bombAt(s,s.m,fx,fy)<0&&!(ITEMS[fc]&&fc!=='*'&&!has(s.got,K(s.m,fx,fy)))){
-   tick(W,s,ev,null);if(s.hurt){delete s.hurt;return{state:s,result:'fail',ev}} // other bombs still count this press? placing step itself doesn't count for the NEW bomb
-   s.bombs.push({m:s.m,x:fx,y:fy,t:FUSE});s.held=0;ev.push('place');s.steps++;return{state:s,result:'act',ev}}
-  if(!s.bombs.length)return{state:s0,result:'noop',ev};
-  s.steps++;return finish(W,s,ev,'act')}
+   s.bombs.push({m:s.m,x:fx,y:fy,t:FUSE,ms:0});s.held=0;ev.push('place');s.steps++;return{state:s,result:'act',ev}}
+  return{state:s0,result:'noop',ev}}
  const [dx,dy]=DIRS[a];if(s0.left!=null&&s0.left<=0)return{state:s0,result:'tired',ev,path:[]};
  const s=clone(s0);s.f=a;const nx=s.x+dx,ny=s.y+dy;
- if(solid(W,s,s.m,nx,ny)){ev.push('bump');if(!s.bombs.length)return{state:s,result:'bump',ev,path:[]};return finish(W,s,ev,'bump',{path:[]})}
+ if(solid(W,s,s.m,nx,ny)){ev.push('bump');return{state:s,result:'bump',ev,path:[]}}
  const moves=[];
  let bi=boxAt(s,s.m,nx,ny),mi=bombAt(s,s.m,nx,ny);
  if(bi>=0||mi>=0){let bx=nx+dx,by=ny+dy;const BZ=bi>=0?zoneAt(W,s.m,nx,ny):null; // box-blocked: boxes stay inside their own zone, never on its entry/exit
   const boxOut=(x,y)=>bi>=0&&!!BZ&&(!(x>=BZ.x&&x<BZ.x+BZ.w&&y>=BZ.y&&y<BZ.y+BZ.h)||(BZ.entry&&BZ.entry[0]===x&&BZ.entry[1]===y)||(BZ.exit&&BZ.exit[0]===x&&BZ.exit[1]===y));
-  if(objBlocked(W,s,s.m,bx,by)||boxOut(bx,by)){ev.push('bump');if(!s.bombs.length)return{state:s,result:'bump',ev,path:[]};return finish(W,s,ev,'bump',{path:[]})}
+  if(objBlocked(W,s,s.m,bx,by)||boxOut(bx,by)){ev.push('bump');return{state:s,result:'bump',ev,path:[]}}
   if(cell(W,s,s.m,bx,by)==='o'){if(bi>=0){s.boxes.splice(bi,1);s.holes.splice(s.holes.indexOf(K(s.m,bx,by)),1);s.filled.push(K(s.m,bx,by));ev.push('fill')}else{s.bombs.splice(mi,1);ev.push('fizzle')}}
   else{while(isIce(cell(W,s,s.m,bx,by))&&!objBlocked(W,s,s.m,bx+dx,by+dy)&&!boxOut(bx+dx,by+dy)&&cell(W,s,s.m,bx+dx,by+dy)!=='o'){bx+=dx;by+=dy} // boxes and bombs slide on ice
    if(bi>=0)s.boxes[bi]=K(s.m,bx,by);else{s.bombs[mi].x=bx;s.bombs[mi].y=by}}
@@ -83,18 +81,20 @@ function step(W,s0,a,opt){const ev=[];const free=!!(opt&&opt.free); // free: tut
  while(slides(s,cell(W,s,s.m,s.x,s.y))){const tx=s.x+dx,ty=s.y+dy;if(solid(W,s,s.m,tx,ty)||boxAt(s,s.m,tx,ty)>=0||bombAt(s,s.m,tx,ty)>=0)break;leave.push([s.x,s.y]);s.x=tx;s.y=ty;pickup(W,s,ev);path.push([tx,ty]);if(cell(W,s,s.m,tx,ty)==='H')break}
  leave.forEach(([x,y])=>{if(base(W,s.m,x,y)==='O'&&!has(s.filled,K(s.m,x,y))&&!has(s.holes,K(s.m,x,y))){s.holes.push(K(s.m,x,y));ev.push('crumble')}});
  if(cell(W,s,s.m,s.x,s.y)==='H')return{state:s0,result:'fall',ev,path};
- if(!free){if(s.left!=null)s.left--;s.steps++;
- tick(W,s,ev,null);if(s.hurt){delete s.hurt;return{state:s,result:'fail',ev,path,moves}}}
+ if(!free){if(s.left!=null)s.left--;s.steps++}
  let result='move';const c=base(W,s.m,s.x,s.y);
  if(/[1-9]/.test(c)){const pair=W.tunnels[c];const other=pair.find(p=>!(p.m===s.m&&p.x===s.x&&p.y===s.y));if(other){s.m=other.m;s.x=other.x;s.y=other.y;result='tunnel';if(!has(s.visited,s.m))s.visited.push(s.m)}}
  for(const Z of W.maps[s.m].zones)if(Z.exit&&Z.exit[0]===s.x&&Z.exit[1]===s.y&&!has(s.cleared,Z.id)){s.cleared.push(Z.id);ev.push('cleared')}
  const zr=enterZone(W,s);if(zr==='zone')ev.push('zone');
  if(W.goal&&s.m===W.goal.m&&s.x===W.goal.x&&s.y===W.goal.y)result='goal';
  return{state:s,result,ev,path,moves}}
-// fuse expire: ~1s after a bomb shows 1 the game calls this; every bomb at 1 explodes WITHOUT a turn/move/step
-function expire(W,s0){if(!s0.bombs.some(b=>b.t===1))return{state:s0,result:'noop',ev:[]};const s=clone(s0),ev=[];
- const later=s.bombs.filter(b=>b.t!==1);s.bombs=s.bombs.filter(b=>b.t===1);tick(W,s,ev,null);s.bombs=s.bombs.concat(later);
- if(s.hurt){delete s.hurt;return{state:s,result:'fail',ev}}return{state:s,result:'expire',ev}}
+// real-time fuses: the game calls advance(dtMs) every frame (paused while title/help/menu is open).
+// Each bomb keeps its own ms; t = number shown (3,2,1,0); at FUSE_MS it explodes (blast hurts the robot as before).
+function advance(W,s0,dt){if(!s0.bombs.length)return{state:s0,result:'none',ev:[]};const s=clone(s0),ev=[];
+ for(const b of s.bombs){b.ms=(b.ms||0)+dt;b.t=Math.max(0,FUSE-Math.floor(b.ms/1000))}
+ const boom=s.bombs.filter(b=>b.ms>=FUSE_MS),later=s.bombs.filter(b=>b.ms<FUSE_MS);
+ if(boom.length){boom.forEach(b=>b.t=1);s.bombs=boom;tick(W,s,ev,null);s.bombs=later}
+ if(s.hurt){delete s.hurt;return{state:s,result:'fail',ev}}return{state:s,result:boom.length?'blast':'tick',ev}}
 function resetZone(W,s0){if(!s0.zone)return{state:s0,result:'noop',ev:[]};const M=W.maps[s0.m],Z=M.zones.find(z=>z.id===s0.zone);const s=clone(s0);
  const inZ=k=>{const [m,xy]=k.split(':');const [x,y]=xy.split(',').map(Number);return m===s.m&&x>=Z.x&&x<Z.x+Z.w&&y>=Z.y&&y<Z.y+Z.h};
  s.boxes=s.boxes.filter(k=>!inZ(k)).concat(W.boxes0.filter(inZ));s.bombs=s.bombs.filter(b=>!inZ(K(b.m,b.x,b.y)));
@@ -102,6 +102,12 @@ function resetZone(W,s0){if(!s0.zone)return{state:s0,result:'noop',ev:[]};const 
  s.got=s.got.filter(k=>!(inZ(k)&&ITEMS[base(W,s.m,+k.split(':')[1].split(',')[0],+k.split(',')[1])]==='battery')); // batteries respawn; keys/items stay
  if(!Z)return{state:s,result:"nothing",ev:[]};[s.x,s.y]=Z.entry||s.zoneEntry;s.held=0;s.left=Z.limit?Z.limit+(hasInv(s,'U')?10:0):null;return{state:s,result:'reset',ev:['reset']}}
 // ---------- solver ----------
+// Solver fuse model (real game is time-based ~3.4s ≈ 6+ moves for a slow 2 moves/s player): the robot gets at most FUSE_MODEL (4) actions between placing and the blast;
+// 'wait' lets the bomb tick without moving. Placing doesn't tick the new bomb.
+function mstep(W,s,a){if(a==='wait'){if(!s.bombs.length)return{state:s,result:'noop',ev:[]};const n=clone(s),ev=[];tick(W,n,ev,null);if(n.hurt)return{state:n,result:'fail',ev};return{state:n,result:'wait',ev}}
+ const r=step(W,s,a);if(['noop','fall','tired','fail','reset'].indexOf(r.result)>=0||!r.state.bombs.length)return r;
+ const n=r.state===s?clone(s):r.state,ev=r.ev.slice();const fresh=ev.indexOf('place')>=0?n.bombs[n.bombs.length-1]:null;if(fresh)fresh.t=FUSE_MODEL;tick(W,n,ev,fresh);
+ if(n.hurt){delete n.hurt;return Object.assign({},r,{state:n,result:'fail',ev})}return Object.assign({},r,{state:n,ev})}
 // Solver-only normalisation (sound because every zone can be reset): zones other than the current one are either
 // CLEARED (exit reached: contents dropped, doors open) or back to their initial contents.
 function normalize(W,s){if(!W.solverAbstract)return s;const n=clone(s);const cur=s.zone;
@@ -110,19 +116,19 @@ function normalize(W,s){if(!W.solverAbstract)return s;const n=clone(s);const cur
  n.boxes=n.boxes.filter(k=>{const Z=zoneOf(k);return !Z||Z.id===cur}).concat(W.boxes0.filter(k=>{const Z=zoneOf(k);return Z&&Z.id!==cur&&!has(n.cleared,Z.id)}));
  n.bombs=n.bombs.filter(b=>keep(K(b.m,b.x,b.y)));n.broken=n.broken.filter(keep);n.holes=n.holes.filter(keep);n.filled=n.filled.filter(keep);return n}
 function key(s){return [s.m,s.x,s.y,s.f,s.held,s.inv,s.got.slice().sort().join(';'),s.boxes.slice().sort().join(';'),s.bombs.map(b=>K(b.m,b.x,b.y)+'t'+b.t).sort().join(';'),s.broken.slice().sort().join(';'),s.holes.slice().sort().join(';'),s.filled.slice().sort().join(';'),s.left,s.zone,s.cleared.slice().sort().join(';')].join('|')}
-const ACTIONS=['up','down','left','right','act','reset'];
+const ACTIONS=['up','down','left','right','act','reset','wait'];
 // explore the whole reachable state graph; returns {states, edges, startKey}
 function explore(W,start,max){max=max||400000;const s0=start||initState(W);const k0=key(s0);const states=new Map([[k0,s0]]),edges=new Map(),q=[k0];let trunc=false;
- while(q.length){const k=q.shift(),s=states.get(k),out=[];for(const a of ACTIONS){const r=step(W,s,a);if(r.result==='noop'||r.result==='fall'||r.result==='tired'||r.result==='fail'||r.state===s)continue;const ns=normalize(W,r.state),nk=key(ns);out.push([a,nk]);if(!states.has(nk)){if(states.size>=max){trunc=true;continue}states.set(nk,ns);q.push(nk)}}edges.set(k,out)}
+ while(q.length){const k=q.shift(),s=states.get(k),out=[];for(const a of ACTIONS){const r=mstep(W,s,a);if(r.result==='noop'||r.result==='fall'||r.result==='tired'||r.result==='fail'||r.state===s)continue;const ns=normalize(W,r.state),nk=key(ns);out.push([a,nk]);if(!states.has(nk)){if(states.size>=max){trunc=true;continue}states.set(nk,ns);q.push(nk)}}edges.set(k,out)}
  return{states,edges,startKey:k0,truncated:trunc}}
 function bfsPath(W,start,pred,max){const s0=start||initState(W);const k0=key(s0);const prev=new Map([[k0,null]]),q=[[k0,s0]];let n=0;
- while(q.length){const [k,s]=q.shift();if(pred(s))return path(prev,k);if(++n>(max||400000))return null;for(const a of ACTIONS){const r=step(W,s,a);if(r.result==='noop'||r.result==='fall'||r.result==='tired'||r.result==='fail'||r.state===s)continue;const ns=normalize(W,r.state),nk=key(ns);if(!prev.has(nk)){prev.set(nk,[k,a]);q.push([nk,ns])}}}return null}
+ while(q.length){const [k,s]=q.shift();if(pred(s))return path(prev,k);if(++n>(max||400000))return null;for(const a of ACTIONS){const r=mstep(W,s,a);if(r.result==='noop'||r.result==='fall'||r.result==='tired'||r.result==='fail'||r.state===s)continue;const ns=normalize(W,r.state),nk=key(ns);if(!prev.has(nk)){prev.set(nk,[k,a]);q.push([nk,ns])}}}return null}
 function path(prev,k){const p=[];while(prev.get(k)){const [pk,a]=prev.get(k);p.unshift(a);k=pk}return p}
 // soft-lock check: every reachable state must still be able to reach a state satisfying goalPred
 function softlocks(W,goalPred,start,max){const G=explore(W,start,max);const rev=new Map();for(const [k,out] of G.edges)for(const [,nk] of out){if(!rev.has(nk))rev.set(nk,[]);rev.get(nk).push(k)}
  const ok=new Set(),q=[];for(const [k,s] of G.states)if(goalPred(s)){ok.add(k);q.push(k)}
  while(q.length){const k=q.pop();for(const pk of rev.get(k)||[])if(!ok.has(pk)){ok.add(pk);q.push(pk)}}
  const bad=[...G.states.keys()].filter(k=>!ok.has(k));return{reachable:G.states.size,goalReached:ok.size>0&&q.length===0&&[...ok].some(k=>goalPred(G.states.get(k))),softlocked:bad.length,example:bad[0]?G.states.get(bad[0]):null,truncated:G.truncated,G}}
-const api={normalize,parseWorld,initState,step,expire,cell,base,zoneAt,solid,explore,bfsPath,softlocks,key,hasInv,DIRS,FUSE,ITEMS,switchDoorOpen,bombAt,boxAt,K};
+const api={normalize,parseWorld,initState,step,advance,FUSE_MS,cell,base,zoneAt,solid,explore,bfsPath,softlocks,key,hasInv,DIRS,FUSE,ITEMS,switchDoorOpen,bombAt,boxAt,K};
 if(typeof module!=='undefined')module.exports=api;else root.WorldEngine=api;
 })(this);
