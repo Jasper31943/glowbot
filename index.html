@@ -75,7 +75,7 @@ canvas{display:block;box-sizing:content-box;image-rendering:pixelated;image-rend
 #tconf{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:#18142599;z-index:9}#tconf.on{display:flex}#tconf .card{width:min(300px,90vw)}
 </style></head><body>
 <div id="app">
-<header><div class="pill lv panel"><span id="mapname"></span> · <span id="zonename"></span></div><button class="pill panel" id="mute" aria-label="音效" style="font-size:14px;cursor:pointer;padding:5px 7px">🔊</button><button class="pill panel" id="helpBtn" aria-label="操作說明" style="font-size:14px;cursor:pointer;padding:5px 9px">?</button><button class="pill panel" id="menuBtn" style="font-size:14px;cursor:pointer">選單</button></header>
+<header><div class="pill lv panel"><span id="mapname"></span> · <span id="zonename"></span></div><button class="pill panel" id="mute" aria-label="音效" style="font-size:14px;cursor:pointer;padding:5px 7px">🔊</button><button class="pill panel" id="musicBtn" aria-label="音樂" style="font-size:14px;cursor:pointer;padding:5px 7px">♪</button><button class="pill panel" id="helpBtn" aria-label="操作說明" style="font-size:14px;cursor:pointer;padding:5px 9px">?</button><button class="pill panel" id="menuBtn" style="font-size:14px;cursor:pointer">選單</button></header>
 <div id="hintbar"><div id="hint"></div><canvas id="mini"></canvas></div><div id="remain" style="display:none"></div><div id="keys"></div>
 <div id="wrap"><canvas id="cv"></canvas></div>
 <div id="ctl">
@@ -104,5 +104,5 @@ canvas{display:block;box-sizing:content-box;image-rendering:pixelated;image-rend
 <button class="btn g panel" id="mNew" style="width:100%">重新開始冒險</button>
 <a href="levels.html" class="btn g panel" style="display:block;text-decoration:none;width:100%;box-sizing:border-box">關卡模式（30 關）</a></div></div>
 
-<script src="levels.js"></script><script src="logic.js"></script><script src="world-engine.js"></script><script src="world/world-def.js"></script><script src="art.js"></script><script src="world.js"></script>
+<script src="levels.js"></script><script src="logic.js"></script><script src="world-engine.js"></script><script src="world/world-def.js"></script><script src="art.js"></script><script src="ice-art.js"></script><script src="music.js"></script><script src="world.js"></script>
 </body></html>
