@@ -64,13 +64,18 @@ const helpOn=()=>$('help').classList.contains('on');let helpT=performance.now();
 // title screen (og.png look) comes first; any key / tap -> help panel -> game
 const titleOn=()=>$('title').classList.contains('on');
 function closeTitle(e){if(e){e.preventDefault();e.stopImmediatePropagation()}$('title').classList.remove('on');helpT=performance.now()}
-addEventListener('keydown',e=>{if(titleOn())closeTitle(e)},true);
 $('title').addEventListener('pointerdown',e=>{e.stopPropagation();e.preventDefault()});$('title').addEventListener('pointerup',e=>{e.stopPropagation();closeTitle(e)});
 function closeHelp(e){if(!helpOn()||performance.now()-helpT<250)return false;if(e)e.preventDefault();$('help').classList.remove('on');return true}
 $('helpBtn').onclick=e=>{e.stopPropagation();$('help').classList.add('on');helpT=performance.now()};
 let hp=null;$('help').addEventListener('pointerdown',e=>{e.stopPropagation();hp=[e.clientX,e.clientY]}); // tap (not scroll-drag) closes
 $('help').addEventListener('pointerup',e=>{e.stopPropagation();if(hp&&Math.hypot(e.clientX-hp[0],e.clientY-hp[1])<10)closeHelp(e);hp=null});$('help').addEventListener('pointercancel',()=>hp=null);
-addEventListener('keydown',e=>{if(helpOn()){e.preventDefault();e.stopImmediatePropagation();closeHelp(e)}},true);
+// one key gate for title + help: a fresh key press advances title -> help -> play; held-key repeats are ignored;
+// an arrow/WASD that closes the help panel also moves, so play starts right away
+addEventListener('keydown',e=>{if(['Shift','Control','Alt','Meta','CapsLock','Tab'].indexOf(e.key)>=0)return;
+ if(titleOn()){e.preventDefault();e.stopImmediatePropagation();if(!e.repeat)closeTitle();return}
+ if(helpOn()){if(e.repeat){e.preventDefault();e.stopImmediatePropagation();return}$('help').classList.remove('on');
+  if(!KEYS[e.key]){e.preventDefault();e.stopImmediatePropagation()}}},true);
+try{window.focus()}catch(e){}
 addEventListener('keydown',e=>{if(KEYS[e.key]){e.preventDefault();press(KEYS[e.key])}else if(e.key===' '||e.key==='Enter'||e.key==='x'||e.key==='X'){e.preventDefault();act('act')}else if(e.key==='r'||e.key==='R'){e.preventDefault();act('reset')}});
 function press(d){const b=$(d);b.classList.add('on');setTimeout(()=>b.classList.remove('on'),140);act(d)}
 ['up','down','left','right'].forEach(d=>$(d).addEventListener('pointerdown',e=>{e.preventDefault();press(d)}));
