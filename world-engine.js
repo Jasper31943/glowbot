@@ -249,6 +249,18 @@ function softlocks(W,goalPred,start,max){const G=explore(W,start,max);const rev=
  const ok=new Set(),q=[];for(const [k,s] of G.states)if(goalPred(s)){ok.add(k);q.push(k)}
  while(q.length){const k=q.pop();for(const pk of rev.get(k)||[])if(!ok.has(pk)){ok.add(pk);q.push(pk)}}
  const bad=[...G.states.keys()].filter(k=>!ok.has(k));return{reachable:G.states.size,goalReached:ok.size>0&&q.length===0&&[...ok].some(k=>goalPred(G.states.get(k))),softlocked:bad.length,example:bad[0]?G.states.get(bad[0]):null,truncated:G.truncated,G}}
-const api={isTun,tunId,stepV2,solidV2,duneAt,bugAt,wormAt,bossOfZone,initMovers,REGROW,mstep,patAt,resetPats,normalize,parseWorld,initState,step,advance,FUSE_MS,cell,base,zoneAt,solid,explore,bfsPath,softlocks,key,hasInv,DIRS,FUSE,ITEMS,switchDoorOpen,bombAt,boxAt,K};
+// stuck check for a puzzle area: can it still be cleared WITHOUT ↺?  true = provably stuck, false = still solvable, null = unknown (bound hit / patrols).
+// Searches the full in-area state space with the real step rules (mstep). Walking out of the area is modelled as "come straight back with the
+// step limit refilled" (areas are self-contained: nothing outside changes what's inside). Only returns true after exhausting every state.
+function zoneStuck(W,s0,max){const M=W.maps[s0.m],Z=s0.zone&&M&&M.zones.find(z=>z.id===s0.zone);if(!Z||!Z.exit||has(s0.cleared,Z.id))return false;
+ const inZ=s=>s.m===s0.m&&s.x>=Z.x&&s.x<Z.x+Z.w&&s.y>=Z.y&&s.y<Z.y+Z.h,pats=(s0.pats||[]).some(p=>p.zone===Z.id)||(s0.dunes||[]).concat(s0.bugs||[],s0.bosses||[]).some(o=>o.zone===Z.id);
+ max=max||60000;const seen=new Set([key(s0)]),q=[s0];
+ for(let qi=0;qi<q.length;qi++){const s=q[qi];
+  for(const a of ACTIONS){if(a==='reset')continue;const r=mstep(W,s,a);if(r.result==='noop'||r.result==='fail'||r.result==='fall'||r.state===s)continue;let ns=r.state;
+   if(has(ns.cleared,Z.id))return false;
+   if(!inZ(ns)){if(pats||ns.inv!==s.inv)return null;ns=clone(s);ns.left=Z.limit?Z.limit+(hasInv(s,'U')?10:0):null} // left the area: back in, fresh step limit
+   const k=key(ns);if(seen.has(k))continue;if(seen.size>=max)return null;seen.add(k);q.push(ns)}}
+ return true}
+const api={zoneStuck,isTun,tunId,stepV2,solidV2,duneAt,bugAt,wormAt,bossOfZone,initMovers,REGROW,mstep,patAt,resetPats,normalize,parseWorld,initState,step,advance,FUSE_MS,cell,base,zoneAt,solid,explore,bfsPath,softlocks,key,hasInv,DIRS,FUSE,ITEMS,switchDoorOpen,bombAt,boxAt,K};
 if(typeof module!=='undefined')module.exports=api;else root.WorldEngine=api;
 })(this);
