@@ -54,9 +54,14 @@ function drawGuide(){if(!S||S.m!=='ice'||performance.now()>guide.until)return;co
   steps.reverse();return steps[Math.min(1,steps.length-1)]||{x:ex,y:ey,d:1}})(); // prefer the 2nd tile into A when possible
  const near=Math.abs(S.x-ex)+Math.abs(S.y-ey)<=1,onEnt=S.x===ex&&S.y===ey;
  let tx,ty,dir; // tile to mark + arrow direction (0u 1d 2l 3r)
- if(onEnt||near){tx=into.x;ty=into.y;dir=into.d} // robot on/near entrance → 1–2 tiles ahead into the room
- else{tx=ex;ty=ey; // prefer the entrance tile itself when the robot is not on it
-  dir=Math.abs(S.x-ex)>Math.abs(S.y-ey)?(S.x<ex?3:2):(S.y<ey?1:0)} // point from the robot toward the entrance
+ if(onEnt||inZ(S.x,S.y)){tx=into.x;ty=into.y;dir=into.d} // on the entrance or inside A → 1–2 tiles ahead into the room
+ else{ // outside A: follow the real walking path from the robot to the entrance, mark 1–2 steps ahead
+  const q=[[S.x,S.y]],pv=new Map([[S.x+','+S.y,null]]),ok=(x,y)=>(x===ex&&y===ey)||!WE.solid(W,S,'ice',x,y);let hit=false;
+  for(let i=0;i<q.length&&i<4000;i++){const [x,y]=q[i];if(x===ex&&y===ey){hit=true;break}
+   for(const [dx,dy,d] of [[0,-1,0],[0,1,1],[-1,0,2],[1,0,3]]){const nx=x+dx,ny=y+dy,k=nx+','+ny;if(pv.has(k)||!ok(nx,ny))continue;pv.set(k,[x,y,d]);q.push([nx,ny])}}
+  const st=[];if(hit){let c=ex+','+ey;while(pv.get(c)){const [px,py,d]=pv.get(c);st.push({x:+c.split(',')[0],y:+c.split(',')[1],d});c=px+','+py}st.reverse()}
+  const pick=st[Math.min(1,st.length-1)];
+  if(pick){tx=pick.x;ty=pick.y;dir=pick.d}else{tx=ex;ty=ey;dir=Math.abs(S.x-ex)>Math.abs(S.y-ey)?(S.x<ex?3:2):(S.y<ey?1:0)}}
  // if the chosen tile is off-camera, clamp to the screen edge and keep pointing that way
  const x0=cam.ox,y0=cam.oy,x1=x0+VW-1,y1=y0+VIEWH-1;
  if(tx<x0||tx>x1||ty<y0||ty>y1){const cx=Math.max(x0,Math.min(x1,tx)),cy=Math.max(y0,Math.min(y1,ty));
@@ -268,7 +273,7 @@ function bush(px,py,x,y){const h=((x*73856093)^(y*19349663))>>>0;R(px,py,16,16,E
 const ICY=()=>TH===WORLDS.snow;
 // lazy-load per-scene art (swamp/mine/volcano/core). ice/desert/forest stay eager in world.html.
 const SCENE_ART={swamp:['swamp-art.js'],mine:['mine-art.js'],volcano:['volcano-art.js','core-art.js'],sea:['sea-art.js'],castle:['castle-art.js'],sky:['sky-art.js'],mirror:['mirror-art.js'],power:['power-art.js'],clock:['clock-art.js'],factory:['factory-art.js'],core:['core-art.js','factory-art.js']};
-const _artLoaded={};async function ensureSceneArt(m){const list=SCENE_ART[m];if(!list)return;for(const f of list){if(_artLoaded[f]||document.querySelector('script[src="'+f+'"]'))continue;_artLoaded[f]=1;await new Promise((ok,no)=>{const e=document.createElement('script');e.src=f;e.onload=ok;e.onerror=()=>no(new Error(f));document.head.appendChild(e)})}}
+const _artLoaded={};async function ensureSceneArt(m){if(m==='core'&&!_artLoaded._end){_artLoaded._end=1;setTimeout(preloadEnding,1500)}const list=SCENE_ART[m];if(!list)return;for(const f of list){if(_artLoaded[f]||document.querySelector('script[src="'+f+'"]'))continue;_artLoaded[f]=1;await new Promise((ok,no)=>{const e=document.createElement('script');e.src=f;e.onload=ok;e.onerror=()=>no(new Error(f));document.head.appendChild(e)})}}
 const DES=()=>W.maps[S.m].theme==='desert',FOR=()=>W.maps[S.m].theme==='forest',SWA=()=>W.maps[S.m].theme==='swamp',MIN=()=>W.maps[S.m].theme==='mine',VOL=()=>W.maps[S.m].theme==='volcano',SEA=()=>W.maps[S.m].theme==='sea',CAS=()=>W.maps[S.m].theme==='castle',SKY=()=>W.maps[S.m].theme==='sky',MIR=()=>W.maps[S.m].theme==='mirror',POW=()=>W.maps[S.m].theme==='power',CLK=()=>W.maps[S.m].theme==='clock',FAC=()=>W.maps[S.m].theme==='factory',COR=()=>W.maps[S.m].theme==='core',V2=()=>W.maps[S.m].rules==='v2';
 function v2Floor(px,py,x,y){if(DES())desertSand(px,py,x,y);else if(FOR())forestGround(px,py,x,y,T);else if(SWA()&&typeof swampMud==='function')swampMud(px,py,x,y);else if(MIN()&&typeof mineFloor==='function')mineFloor(px,py,x,y);else if(VOL()&&typeof volcanoGround==='function')volcanoGround(px,py,x,y);else if(SEA()&&typeof seaSand==='function')seaSand(px,py,x,y);else if(CAS()&&typeof castleFloor==='function')castleFloor(px,py,x,y);else if(SKY()&&typeof skyGround==='function')skyGround(px,py,x,y);else if(MIR()&&typeof mirrorFloor==='function')mirrorFloor(px,py,x,y);else if(POW()&&typeof powerFloor==='function')powerFloor(px,py,x,y);else if(CLK()&&typeof clockFloor==='function')clockFloor(px,py,x,y);else if(FAC()&&typeof factoryFloor==='function')factoryFloor(px,py,x,y);else if(COR()&&typeof coreFloor==='function')coreFloor(px,py,x,y);else R(px,py,16,16,E32.grey3)}
 function v2Wall(px,py,x,y){if(FOR()){if(typeof forestCanopy==='function'){forestCanopy(px,py,x,y);return}}
@@ -361,7 +366,8 @@ let legendDone=false;function renderLegend(){legendDone=true;const D={'#':(x,y)=
 // ---------- ending (after the core boss): 10s scene from ending-art.js, drawn on the 256x144 buffer `off` and scaled crisp ----------
 const ENDING_ART=['core-art.js','swamp-art.js','volcano-art.js','mine-art.js','power-art.js','castle-art.js','ending-art.js']; // art.js + ice-art.js are already on the page
 let ending=null;
-function loadScript(src){return new Promise((ok,no)=>{if(document.querySelector('script[src="'+src+'"]'))return ok();const e=document.createElement('script');e.src=src;e.onload=ok;e.onerror=()=>no(new Error('load '+src));document.head.appendChild(e)})}
+const _ls={};function loadScript(src){return _ls[src]||(_ls[src]=new Promise((ok,no)=>{if(document.querySelector('script[src="'+src+'"]'))return ok();const e=document.createElement('script');e.src=src;e.onload=ok;e.onerror=()=>{delete _ls[src];no(new Error('load '+src))};document.head.appendChild(e)}))}
+function preloadEnding(){const L=ENDING_ART.slice(0,-1);Promise.all(L.map(f=>loadScript(f))).then(()=>loadScript(ENDING_ART[ENDING_ART.length-1])).catch(()=>{})} // warm the ending while the player is in the core
 async function startEnding(opt){if(ending)return;ending={loading:true};{const L=ENDING_ART.slice(0,-1);await Promise.all(L.map(f=>loadScript(f)));await loadScript(ENDING_ART[ENDING_ART.length-1])} // scene art in parallel, ending-art.js last (it needs the others)
  const c=document.createElement('canvas');c.id='endcv';c.style.cssText='position:fixed;left:0;top:0;width:100vw;height:100vh;z-index:1000;background:#000;touch-action:none;cursor:pointer;image-rendering:pixelated;image-rendering:crisp-edges';document.body.appendChild(c);
  ending={c,g:c.getContext('2d'),t0:performance.now()-(opt&&opt.t!=null&&!isNaN(opt.t)?Math.max(0,Math.min(ENDING_DURATION,opt.t))*1000:0),dinged:opt&&opt.t>0?ENDING_LAMP_TIMES.filter(x=>x<opt.t).length:0,fixedT:null,rect:[0,0,1]};
@@ -378,7 +384,7 @@ function endingFrame(){const E=ending;if(!E||E.loading)return;const t=endingT();
  g.fillStyle=px(0);g.fillRect(0,0,dw,Math.ceil(dh/2));g.fillStyle=px(143);g.fillRect(0,Math.floor(dh/2),dw,Math.ceil(dh/2));g.drawImage(off,0,0,256,144,x,y,Math.round(256*s),Math.round(144*s));
  } // 15/15 is drawn by ending-art.js itself (no overlay)
 // share button: ENDING_SHARE_BUTTON is in unscaled 256x144 coords; map the click back from the displayed size. Clickable from t>=9.8s, only on the player's own click.
-function endingTap(e){if(!ending||ending.loading||endingT()<9.8)return;const [x,y,s]=ending.rect,lx=(e.clientX-x)/s,ly=(e.clientY-y)/s,B=ENDING_SHARE_BUTTON;
+function endingTap(e){if(!ending||ending.loading)return;if(endingT()<9.8){ending.t0=performance.now()-9.8*1000;ending.dinged=ENDING_LAMP_TIMES.length;return} // tap during the animation skips to the share panelconst [x,y,s]=ending.rect,lx=(e.clientX-x)/s,ly=(e.clientY-y)/s,B=ENDING_SHARE_BUTTON;
  if(lx>=B.x&&lx<B.x+B.w&&ly>=B.y&&ly<B.y+B.h&&window.Share)Share.clear()}
 function draw(){if(ending){endingFrame();if(!manualDraw)requestAnimationFrame(draw);return}const now=performance.now()/1000,dt=Math.min(.05,now-(stamp||now));stamp=now;T+=dt;fuseFrame(dt);
  TH=WORLDS[W.maps[S.m].theme]||WORLDS.grass;if(V2())ensureSceneArt(S.m);buildView();if(!legendDone&&st){const th=TH;TH=WORLDS.grass;renderLegend();TH=th}
