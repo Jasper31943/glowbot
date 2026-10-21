@@ -362,9 +362,9 @@ let legendDone=false;function renderLegend(){legendDone=true;const D={'#':(x,y)=
 const ENDING_ART=['core-art.js','swamp-art.js','volcano-art.js','mine-art.js','power-art.js','castle-art.js','ending-art.js']; // art.js + ice-art.js are already on the page
 let ending=null;
 function loadScript(src){return new Promise((ok,no)=>{if(document.querySelector('script[src="'+src+'"]'))return ok();const e=document.createElement('script');e.src=src;e.onload=ok;e.onerror=()=>no(new Error('load '+src));document.head.appendChild(e)})}
-async function startEnding(opt){if(ending)return;ending={loading:true};for(const f of ENDING_ART)await loadScript(f); // in order: ending-art.js needs the others
+async function startEnding(opt){if(ending)return;ending={loading:true};{const L=ENDING_ART.slice(0,-1);await Promise.all(L.map(f=>loadScript(f)));await loadScript(ENDING_ART[ENDING_ART.length-1])} // scene art in parallel, ending-art.js last (it needs the others)
  const c=document.createElement('canvas');c.id='endcv';c.style.cssText='position:fixed;left:0;top:0;width:100vw;height:100vh;z-index:1000;background:#000;touch-action:none;cursor:pointer;image-rendering:pixelated;image-rendering:crisp-edges';document.body.appendChild(c);
- ending={c,g:c.getContext('2d'),t0:performance.now(),dinged:0,fixedT:opt&&opt.t!=null&&!isNaN(opt.t)?opt.t:null,rect:[0,0,1]};
+ ending={c,g:c.getContext('2d'),t0:performance.now()-(opt&&opt.t!=null&&!isNaN(opt.t)?Math.max(0,Math.min(ENDING_DURATION,opt.t))*1000:0),dinged:opt&&opt.t>0?ENDING_LAMP_TIMES.filter(x=>x<opt.t).length:0,fixedT:null,rect:[0,0,1]};
  try{window.Music&&Music.stop()}catch(e){}
  c.addEventListener('click',endingTap)}
 function endingT(){const E=ending;return E.fixedT!=null?E.fixedT:Math.min(ENDING_DURATION,(performance.now()-E.t0)/1000)}
