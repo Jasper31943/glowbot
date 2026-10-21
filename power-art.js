@@ -19,4 +19,42 @@ function sparkDefeat(px,py,t,awayDir){if(t<.8){sparkMon(px,py,0,false);for(let i
  firefly(px+(awayDir===2?-1:1)*Math.round(k*22),py-Math.round(k*12)+Math.round(Math.sin(k*20)*2),t)}
 function firefly(px,py,t){const g=Math.floor((t||0)*6)%2;o.globalAlpha=.35;R(px+5,py+7,6,6,E32.yellow);o.globalAlpha=1;
  R(px+7,py+7,3,2,E32.ink);R(px+7,py+9,3,3,g?E32.yellow:E32.amber);R(px+6,py+6,2,2,E32.grey1);R(px+9,py+6,2,2,E32.grey1)}
-if(typeof module!=='undefined')module.exports={POWER_THEME,powerFloor,powerWall,wire,generator,sparkMon,sparkDefeat,firefly};
+// wire gap ┊: empty slot; bridged=true when a box sits on it
+function wireGap(px,py,x,y,bridged,t){powerFloor(px,py,x,y);R(px+6,py,4,5,E32.ink);R(px+6,py+11,4,5,E32.ink);R(px+7,py,2,5,E32.grey4);R(px+7,py+11,2,5,E32.grey4);
+ if(bridged){R(px+6,py+5,4,6,E32.ink);R(px+7,py+5,2,6,E32.amber);const p=Math.floor((t||0)*8)%6;R(px+7,py+5+p,2,1,E32.yellow)}
+ else{R(px+7,py+6,2,1,E32.red3);R(px+7,py+9,2,1,E32.red3)}}
+// power door ▣: open when powered
+function powerDoor(px,py,open,t){R(px,py,16,16,E32.ink);R(px+1,py+1,14,14,E32.grey3);
+ if(open){R(px+3,py+2,10,12,E32.navy);R(px+4,py+3,8,10,E32.amber);o.globalAlpha=.35;R(px+5,py+4,6,8,E32.yellow);o.globalAlpha=1}
+ else{R(px+2,py+2,12,12,E32.grey2);R(px+3,py+3,10,10,E32.grey4);[[4,4],[10,4],[4,10],[10,10]].forEach(([a,b])=>R(px+a,py+b,2,2,E32.amber));R(px+6,py+6,4,4,E32.ink)}}
+// ---- 電火花王 §: 16x16 (sparks ±2). frame 0/1 crackle/walk, dir 2/3, hit 0..2 (3 HP), spotted "!".
+// powered=true (generator ON): charged look, engine may patrol + bombs deal damage.
+// powered=false (generator OFF): visually dimmed overlay; invulnerable (bombs do nothing). Art only dims — engine enforces damage.
+// flash=true white hit flash. Also accepts 7-arg form (...,hit,spotted,flash) defaulting powered=true.
+function sparkKing(px,py,frame,dir,hit,spotted,powered,flash){
+ if(arguments.length===7&&typeof powered!=='boolean'){flash=powered;powered=true}
+ const fl=dir===2,r=(a,b,w,h,c)=>R(fl?px+16-a-w:px+a,py+b,w,h,c),O=E32.ink,f=frame?1:0,on=powered!==false;
+ const C=flash?E32.white:(on?E32.yellow:E32.grey2),C2=flash?E32.grey1:(on?E32.amber:E32.grey3),C3=flash?E32.white:(on?E32.blue2:E32.navy);
+ o.globalAlpha=.4;r(2,14,12,2,on?E32.amber:E32.ink);o.globalAlpha=1;
+ // wild crackle bolts (identity)
+ const bolts=f?[[-2,1],[16,3],[-1,8],[17,11],[4,-3],[11,-2],[1,13],[14,13]]:[[-1,3],[15,1],[0,10],[16,8],[6,-3],[10,-4],[-1,12],[15,14]];
+ bolts.forEach(([a,b])=>{r(a,b,1,2,C);r(a+(a<8?1:-1),b+1,1,1,C2);r(a,b+2,1,1,E32.white)});
+ // plasma orb body (round, not box)
+ const disc=(cx,cy,rx,ry,col)=>{for(let j=-ry;j<=ry;j++){const w=Math.round(rx*Math.sqrt(Math.max(0,1-(j*j)/((ry+.5)*(ry+.5)))));r(cx-w,cy+j,w*2,1,col)}};
+ disc(8,8+f,7,6,O);disc(8,8+f,6,5,C3);disc(8,8+f,4,4,C2);disc(8,8+f,2,2,C);r(6,6+f,1,1,E32.white);
+ // angry arc eyes
+ r(4,7+f,3,2,O);r(9,7+f,3,2,O);r(5,7+f,1,1,E32.white);r(10,7+f,1,1,E32.white);r(4,6+f,3,1,O);r(9,6+f,3,1,O);
+ // storm crown spikes
+ r(5,-1+f,2,4,O);r(7,-3+f,2,5,O);r(9,-1+f,2,4,O);r(6,0+f,1,2,C);r(8,-2+f,1,3,C);r(10,0+f,1,2,C);
+ // spark feet
+ r(3,13+f,4,2,O);r(4,13+f,2,1,C3);r(9,13+f,4,2,O);r(10,13+f,2,1,C3);
+ if(hit>=1){r(10,5+f,1,3,O);r(4,10+f,2,1,O);r(-1,4,1,1,C2)}
+ if(hit>=2){r(7,3+f,1,2,O);r(11,8+f,1,2,O);r(7,-3+f,1,2,O);r(16,6,1,1,C2);r(0,9,1,1,C)}
+ if(!on){o.globalAlpha=.45;disc(8,8+f,6,5,E32.grey4);o.globalAlpha=1} // dim when unpowered (invulnerable)
+ if(spotted){R(px+6,py-12,5,9,O);R(px+7,py-11,3,5,E32.amber);R(px+7,py-5,3,1,E32.amber)}}
+function sparkKingDefeat(px,py,t,awayDir){
+ if(t<.8){sparkKing(px,py,0,awayDir===2?3:2,2,false,false,false);for(let i=0;i<3;i++){const a=t*9+i*2.094,x=px+7+Math.round(Math.cos(a)*7),y=py+-6+Math.round(Math.sin(a)*2);R(x-1,y-1,4,4,E32.ink);R(x,y,2,2,E32.yellow)};return}
+ const k=Math.min(1,(t-.8)/.8);if(k<.2){[[3,4],[9,3],[5,9],[11,10]].forEach(([a,c])=>{R(px+a-1,py+c-1,6,6,E32.amber);R(px+a,py+c,4,4,E32.yellow)});return}
+ firefly(px+(awayDir===2?-1:1)*Math.round(k*24),py-Math.round(k*14)+Math.round(Math.sin(k*20)*2),t)}
+if(typeof module!=='undefined')module.exports={POWER_THEME,powerFloor,powerWall,wire,generator,sparkMon,sparkDefeat,firefly,wireGap,powerDoor,sparkKing,sparkKingDefeat};
+
