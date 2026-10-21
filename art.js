@@ -10,7 +10,17 @@ const WORLDS={
  snow:{...base,name:'冰湖',style:'snow',floor:[E32.grey1,E32.white,E32.grey2],flowers:[E32.blue2],wall:[E32.grey2,E32.grey3,E32.grey4],moss:[E32.white,E32.grey1],ice:[E32.blue2,E32.blue1,E32.cyan,E32.navy],birds:false,flakes:true},
  castle:{...base,name:'古堡',style:'castle',torch:[E32.orange,E32.amber,E32.yellow],wallTop:E32.grey1,floor:[E32.grey2,E32.grey1,E32.grey3],flowers:[E32.green3],wall:[E32.grey4,E32.navy,E32.ink],moss:[E32.green3,E32.teal],ice:[E32.grey1,E32.grey2,E32.white,E32.blue2],birds:false},
  power:{...base,name:'發電廠',style:'power',stripe:[E32.amber,E32.ink],wallTop:E32.amber,floor:[E32.grey2,E32.grey1,E32.grey3],flowers:[E32.amber],wall:[E32.grey4,E32.navy,E32.ink],moss:[E32.amber,E32.orange],ice:[E32.grey1,E32.grey2,E32.white,E32.blue2],birds:false},
- factory:{...base,name:'夜間工廠',style:'factory',neon:[E32.magenta,E32.pink],wallTop:E32.pink,floor:[E32.grey3,E32.grey2,E32.grey4],flowers:[E32.magenta],wall:[E32.plum,E32.ink,E32.ink],moss:[E32.magenta,E32.purple],ice:[E32.grey1,E32.grey2,E32.white,E32.blue2],birds:false}};
+ factory:{...base,name:'夜間工廠',style:'factory',neon:[E32.magenta,E32.pink],wallTop:E32.pink,floor:[E32.grey3,E32.grey2,E32.grey4],flowers:[E32.magenta],wall:[E32.plum,E32.ink,E32.ink],moss:[E32.magenta,E32.purple],ice:[E32.grey1,E32.grey2,E32.white,E32.blue2],birds:false},
+ desert:{...base,name:'沙漠',style:'desert',floor:[E32.tan,E32.sand,E32.brown1],flowers:[E32.orange],wall:[E32.brown2,E32.brown1,E32.ink],moss:[E32.tan,E32.sand],ice:[E32.grey1,E32.grey2,E32.white,E32.blue2],birds:false},
+ forest:{...base,name:'森林',style:'forest',floor:[E32.green3,E32.green2,E32.green1],flowers:[E32.pink],wall:[E32.green3,E32.ink,E32.brown2],moss:[E32.green1,E32.green2],ice:[E32.grey1,E32.grey2,E32.white,E32.blue2],birds:true},
+ swamp:{...base,name:'沼澤',style:'swamp',floor:[E32.green3,E32.teal,E32.green2],flowers:[E32.yellow],wall:[E32.green3,E32.brown2,E32.ink],moss:[E32.teal,E32.green1],ice:[E32.grey1,E32.grey2,E32.white,E32.blue2],birds:false},
+ mine:{...base,name:'礦坑',style:'mine',floor:[E32.grey3,E32.grey2,E32.grey4],flowers:[E32.amber],wall:[E32.grey4,E32.brown2,E32.ink],moss:[E32.amber,E32.orange],ice:[E32.grey1,E32.grey2,E32.white,E32.blue2],birds:false},
+ volcano:{...base,name:'火山',style:'volcano',floor:[E32.brown2,E32.brown1,E32.grey4],flowers:[E32.orange],wall:[E32.brown2,E32.ink,E32.red3],moss:[E32.orange,E32.red2],ice:[E32.grey1,E32.grey2,E32.white,E32.blue2],birds:false},
+ sea:{...base,name:'海底',style:'sea',floor:[E32.blue1,E32.cyan,E32.blue2],flowers:[E32.pink],wall:[E32.navy,E32.blue2,E32.ink],moss:[E32.teal,E32.cyan],ice:[E32.grey1,E32.grey2,E32.white,E32.blue2],birds:false},
+ sky:{...base,name:'天空島',style:'sky',floor:[E32.blue2,E32.white,E32.grey1],flowers:[E32.yellow],wall:[E32.blue2,E32.navy,E32.ink],moss:[E32.white,E32.cyan],ice:[E32.grey1,E32.grey2,E32.white,E32.blue2],birds:true},
+ mirror:{...base,name:'鏡子迷宮',style:'mirror',floor:['#c9c3e6','#b5aed8','#ddd8f2'],flowers:[E32.cyan],wall:[E32.purple,'#8a6fb8','#a995d6'],moss:[E32.cyan,E32.white],ice:[E32.grey1,E32.grey2,E32.white,E32.blue2],birds:false},
+ clock:{...base,name:'鐘塔',style:'clock',floor:['#d8a878','#c4935f',E32.tan],flowers:[E32.amber],wall:[E32.brown1,E32.brown2,E32.tan],moss:[E32.amber,E32.orange],ice:[E32.grey1,E32.grey2,E32.white,E32.blue2],birds:false},
+ core:{...base,name:'核心',style:'core',floor:[E32.grey4,E32.ink,E32.grey3],flowers:[E32.magenta],wall:[E32.ink,E32.grey4,E32.magenta],moss:[E32.magenta,E32.cyan],ice:[E32.grey1,E32.grey2,E32.white,E32.blue2],birds:false}};
 const KC=base.keys;
 const TS=16;
 const R=(x,y,w,h,c)=>{o.fillStyle=c;o.fillRect(Math.round(x),Math.round(y),w,h)};
