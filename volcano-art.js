@@ -35,32 +35,40 @@ function robotDumbfounded(px,py,t){if(typeof robot==='function')robot(px,py,'n',
  const n=1+Math.floor((t||0)*4)%3;for(let i=0;i<n;i++)R(px+11+i*2,py-1,1,1,E32.white)} // '...' dots
 if(typeof module!=='undefined')module.exports={robotDumbfounded,VOLCANO_THEME,volcanoGround,volcanoRock,lavaFlow,lavaPool,cooledLava,noEffectPuff};
 // ---- 熔岩巨人 mini-boss: 16x24, draws 8px above tile (py-8..py+16). stage 0 intact,1,2 cracked,3 final (heavily cracked, nearly cooled)
-function lavaGiant(px,py,stage,t){const O=E32.ink,b=Math.sin(t*3),fin=stage>=3;
+function lavaGiant(px,py,stage,t){const O=E32.ink,b=Math.sin(t*3),fin=stage>=3,RIM=E32.amber,RIM2=E32.orange;
+ // dark basalt (navy) with cool grey tops — rim is hot amber so it never reads as a black blob
  const RK=fin?E32.grey3:E32.navy,HI=fin?E32.grey1:E32.grey3,HI2=fin?E32.white:E32.grey2,SH=fin?E32.grey4:E32.ink;
  const CORE=fin?E32.orange:(b>0?E32.yellow:E32.amber),EDGE=fin?E32.red2:E32.orange;
  R(px-2,py+13,20,4,E32.orange);R(px,py+14,16,2,E32.yellow);
  const disc=(cx,cy,rx,ry,col)=>{for(let j=-ry;j<=ry;j++){const w=Math.round(rx*Math.sqrt(Math.max(0,1-(j*j)/((ry+.5)*(ry+.5)))));R(px+cx-w,py+cy+j,w*2,1,col)}};
  const L=[[8,7,6,6],[3,1,5,4],[13,2,4,4],[0,7,3,5],[17,6,2,4],[-1,12,3,2],[17,11,3,3],[5,13,3,2],[11,13,3,2]],H=[7,-5,4,3];
- const off=fin?1:0; // stage 3: chunks drift apart
- L.forEach(([x,y,rx,ry],i)=>disc(x+(fin?(i%2?off:-off):0),y,rx+1,ry+1,O));
- L.forEach(([x,y,rx,ry],i)=>{x+=fin?(i%2?off:-off):0;disc(x,y,rx,ry,RK);R(px+x-rx+1,py+y+ry-1,rx*2-2,1,SH);R(px+x-rx+2,py+y-ry,Math.max(2,rx*2-5),1,HI);R(px+x-rx+2,py+y-ry,2,1,HI2)});
- disc(H[0],H[1],H[2]+1,H[3]+1,O);disc(H[0],H[1],H[2],H[3],RK);R(px+4,py-8,6,1,HI);R(px+5,py-8,2,1,HI2);
- const seam=(pts,w)=>{pts.forEach(([x,y],i)=>{const d=i%2?1:-1;for(let k=0;k<3;k++)R(px+x+k*d,py+y+k*2,w,2,EDGE)});pts.forEach(([x,y],i)=>{const d=i%2?1:-1;for(let k=0;k<3;k++)R(px+x+k*d,py+y+k*2,w-1,2,CORE)})};
+ const off=fin?1:0;
+ // hot amber rim (outside) then ink outline then basalt fill
+ L.forEach(([x,y,rx,ry],i)=>{x+=fin?(i%2?off:-off):0;disc(x,y,rx+2,ry+2,RIM);disc(x,y,rx+1,ry+1,O)});
+ L.forEach(([x,y,rx,ry],i)=>{x+=fin?(i%2?off:-off):0;disc(x,y,rx,ry,RK);R(px+x-rx+1,py+y+ry-1,rx*2-2,1,SH);R(px+x-rx+2,py+y-ry,Math.max(2,rx*2-5),1,HI);R(px+x-rx+2,py+y-ry,2,1,HI2);R(px+x+rx-2,py+y-ry+1,1,Math.max(2,ry),RIM2)}); // side rim flecks
+ disc(H[0],H[1],H[2]+2,H[3]+2,RIM);disc(H[0],H[1],H[2]+1,H[3]+1,O);disc(H[0],H[1],H[2],H[3],RK);R(px+4,py-8,6,1,HI);R(px+5,py-8,2,1,HI2);R(px+3,py-8,8,1,RIM);
+ // magma seams: hotter & thicker per stage
+ const seam=(pts,w,core,edge)=>{pts.forEach(([x,y],i)=>{const d=i%2?1:-1;for(let k=0;k<3;k++)R(px+x+k*d-1,py+y+k*2,w+2,3,edge)});pts.forEach(([x,y],i)=>{const d=i%2?1:-1;for(let k=0;k<3;k++){R(px+x+k*d,py+y+k*2,w,2,core);R(px+x+k*d,py+y+k*2,1,1,E32.white)}})};
  const S=[[[7,6],[9,9]],[[3,1],[13,2],[5,10],[11,4]],[[0,7],[15,8],[8,1],[11,11],[2,4],[14,-1]],[[6,12],[16,5],[-1,10],[9,-1]]];
  const n=stage>=3?4:stage+1;
- if(stage===2){o.globalAlpha=.3;for(let i=0;i<3;i++)S[i].forEach(([x,y])=>R(px+x-2,py+y-1,5,7,E32.amber));o.globalAlpha=1}
- const wd=stage===0?2:3;for(let i=0;i<n;i++)seam(S[i],wd);
- // face: big glowing eyes
- R(px+3,py-8,10,1,O);[[2,-8],[8,-8]].forEach(([x,y])=>{R(px+x,py+y,6,5,O);R(px+x+1,py+y+1,4,3,E32.yellow);R(px+x+1,py+y+1,2,1,E32.white)});
- R(px+5,py-2,5,1,O);
- if(stage===2&&b>.3){R(px-2,py-3,1,1,E32.yellow);R(px+18,py,1,1,E32.yellow);R(px+8,py-11,1,1,E32.amber)}
+ if(stage===1){o.globalAlpha=.18;S[0].concat(S[1]).forEach(([x,y])=>R(px+x-2,py+y-1,5,4,E32.orange));o.globalAlpha=1}
+ if(stage===2){o.globalAlpha=.28;S.slice(0,3).forEach(pts=>pts.forEach(([x,y])=>R(px+x-2,py+y-1,5,5,E32.amber)));o.globalAlpha=1}
+ const wd=stage===0?2:stage===1?3:3;
+ const coreC=stage===0?E32.amber:stage===1?E32.orange:stage===2?(b>0?E32.yellow:E32.amber):E32.orange;
+ const edgeC=stage===0?E32.red2:stage===1?E32.orange:E32.amber;
+ for(let i=0;i<n;i++)seam(S[i],wd,coreC,edgeC);
+ // eyes: bright yellow-white cores (readable on phone)
+ R(px+3,py-8,10,1,O);
+ [[2,-8],[8,-8]].forEach(([x,y])=>{R(px+x,py+y,6,5,O);R(px+x,py+y,6,1,RIM);R(px+x+1,py+y+1,4,3,E32.amber);R(px+x+1,py+y+1,4,2,E32.yellow);R(px+x+2,py+y+1,2,1,E32.white)});
+ R(px+5,py-2,5,1,O);R(px+6,py-2,3,1,CORE);
+ if(stage===2&&b>.2){R(px-2,py-3,2,2,E32.yellow);R(px+17,py,2,2,E32.amber);R(px+8,py-11,2,2,E32.yellow)}
  if(fin){o.globalAlpha=.8;R(px+1,py-11+Math.round(b),3,2,E32.grey1);R(px+12,py-12-Math.round(b),3,2,E32.grey1);R(px+7,py-14,2,2,E32.grey2);o.globalAlpha=1}}
 function lavaGiantDefeat(px,py,t){
  if(t<.6){lavaGiant(px,py,3,t);const k=t/.6;for(let i=0;i<4;i++)R(px+2+i*4,py-10-Math.round(k*8)-i%2*2,2,2,E32.grey1);return}
  const k=Math.min(1,(t-.6)/.6);if(k<.3){[[2,4],[8,2],[5,9],[10,9]].forEach(([a,c])=>{R(px+a-1,py+c-1,6,6,E32.grey3);R(px+a,py+c,4,4,E32.grey1)});return}
  rockBuddy(px,py-Math.round(Math.abs(Math.sin(t*6))*2))}
 function rockBuddy(px,py){const r=(a,c,w,h,col)=>R(px+a,py+c,w,h,col),O=E32.ink;
- r(2,5,12,10,O);r(3,6,10,8,E32.grey2);r(4,6,3,2,E32.grey1);r(5,9,2,2,O);r(9,9,2,2,O);r(5,9,1,1,E32.white);r(9,9,1,1,E32.white);
+ r(1,5,14,10,E32.amber);r(2,5,12,10,O);r(3,6,10,8,E32.grey2);r(4,6,3,2,E32.grey1);r(5,9,2,2,O);r(9,9,2,2,O);r(5,9,1,1,E32.white);r(9,9,1,1,E32.white);
  r(6,12,4,1,O);r(4,11,1,1,E32.pink);r(11,11,1,1,E32.pink);r(7,4,2,2,O);r(7,3,2,1,E32.amber);r(2,14,3,2,O);r(11,14,3,2,O)}
 // checkpoint brazier: 16x16, lit flame pops for ~0.3s from lit-time (t = seconds since lit for the pop; flame animates on)
 function bossCheckpointFlame(px,py,lit,t){const O=E32.ink,r=(a,c,w,h,col)=>R(px+a,py+c,w,h,col);
