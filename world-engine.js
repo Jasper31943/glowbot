@@ -366,7 +366,7 @@ function advance(W,s0,dt){if(!s0.bombs.length)return{state:s0,result:'none',ev:[
  if(boom.length){boom.forEach(b=>b.t=1);s.bombs=boom;tick(W,s,ev,null);s.bombs=later}
  if(s.hurt){delete s.hurt;return{state:s,result:'fail',ev}}return{state:s,result:boom.length?'blast':'tick',ev}}
 function resetZone(W,s0){if(!s0.zone)return{state:s0,result:'noop',ev:[]};const M=W.maps[s0.m],Z=M.zones.find(z=>z.id===s0.zone);const s=clone(s0);
- const inZ=k=>{const [m,xy]=k.split(':');const [x,y]=xy.split(',').map(Number);return m===s.m&&x>=Z.x&&x<Z.x+Z.w&&y>=Z.y&&y<Z.y+Z.h};
+ const pre=s.m+':',inZ=k=>{if(!k.startsWith(pre))return false;const [m,xy]=k.split(':');const [x,y]=xy.split(',').map(Number);return m===s.m&&x>=Z.x&&x<Z.x+Z.w&&y>=Z.y&&y<Z.y+Z.h};
  const cp=s.bossCp&&s.bossCp.zone===Z.id?s.bossCp:null; // volcano (and other mini-bosses): stage save keeps hp + permanent terrain
  s.boxes=s.boxes.filter(k=>!inZ(k)).concat(W.boxes0.filter(inZ));s.bombs=s.bombs.filter(b=>!inZ(K(b.m,b.x,b.y)));
  s.broken=s.broken.filter(k=>!inZ(k));s.holes=s.holes.filter(k=>!inZ(k));s.filled=s.filled.filter(k=>!inZ(k));
@@ -389,18 +389,27 @@ function mstep(W,s,a){if(a==='wait'){if(!s.bombs.length)return{state:s,result:'n
 // Solver-only normalisation (sound because every zone can be reset): zones other than the current one are either
 // CLEARED (exit reached: contents dropped, doors open) or back to their initial contents.
 function normalize(W,s){if(!W.solverAbstract)return s;const n=clone(s);const cur=s.zone;
- const zoneOf=k=>{const [m,xy]=k.split(':');const [x,y]=xy.split(',').map(Number);return zoneAt(W,m,x,y)};
+ const ZC=W._zoneOfCache||(W._zoneOfCache=new Map()); // zones are static: memoise key -> zone (solver hot path)
+ const zoneOf=k=>{let Z=ZC.get(k);if(Z===undefined){const [m,xy]=k.split(':');const [x,y]=xy.split(',').map(Number);Z=zoneAt(W,m,x,y);ZC.set(k,Z)}return Z};
  const keep=k=>{const Z=zoneOf(k);return !Z||Z.id===cur};
- n.boxes=n.boxes.filter(k=>{const Z=zoneOf(k);return !Z||Z.id===cur}).concat(W.boxes0.filter(k=>{const Z=zoneOf(k);return Z&&Z.id!==cur&&!has(n.cleared,Z.id)}));
+ const live=n.boxes.filter(k=>{const Z=zoneOf(k);return !Z||Z.id===cur});n.boxes=live.concat(W.boxes0.filter(k=>{const Z=zoneOf(k);return Z&&Z.id!==cur&&!has(n.cleared,Z.id)}));
+ // the re-added initial boxes are fully determined by (zone, cleared), both already in key(): key only the live ones (keeps 15-scene keys small)
+ Object.defineProperty(n,'_bk',{value:live.slice().sort().join(';'),enumerable:false});
+ // movers/clouds: key only entries that differ from the initial world (exact encoding, just shorter)
+ const MS=o=>o.i+'@'+o.x+','+o.y+'d'+o.d+'f'+(o.fr||0)+'h'+(o.hp||0),CS=o=>o.i+'@'+o.x+','+o.y+'d'+o.d;
+ const I0=W._init0Keys||(W._init0Keys={m:[W.dunes0,W.bugs0,W.bosses0].map(a=>a.map(MS)),c:(W.clouds0||[]).map(CS)});
+ const dk=(arr,init,f)=>{arr=arr||[];const d=arr.filter(o=>init[o.i]!==f(o)).map(f).join(';');return arr.length===init.length?d:d+'#'+arr.map(o=>o.i).join(',')};
+ Object.defineProperty(n,'_mk',{value:'~'+[n.dunes,n.bugs,n.bosses].map((a,j)=>dk(a,I0.m[j],MS)).join('/'),enumerable:false});
+ Object.defineProperty(n,'_ck',{value:'~'+dk(n.clouds,I0.c,CS),enumerable:false});
  n.bombs=n.bombs.filter(b=>keep(K(b.m,b.x,b.y)));n.broken=n.broken.filter(keep);n.holes=n.holes.filter(keep);n.filled=n.filled.filter(keep);return n}
-function key(s){return [s.m,s.x,s.y,s.f,s.held,s.inv,s.got.slice().sort().join(';'),s.boxes.slice().sort().join(';'),s.bombs.map(b=>K(b.m,b.x,b.y)+'t'+b.t).sort().join(';'),s.broken.slice().sort().join(';'),s.holes.slice().sort().join(';'),s.filled.slice().sort().join(';'),s.left,s.zone,s.cleared.slice().sort().join(';'),(s.pats||[]).map(p=>p.i+'@'+p.x+','+p.y+(p.d>0?'+':'-')).join(';'),[s.dunes,s.bugs,s.bosses].map(a=>(a||[]).map(o=>o.i+'@'+o.x+','+o.y+'d'+o.d+'f'+(o.fr||0)+'h'+(o.hp||0)).join(';')).join('/'),Object.keys(s.ch||{}).sort().map(k=>k+s.ch[k]).join(';'),Object.keys(s.vt||{}).sort().map(k=>k+'='+s.vt[k]).join(';'),(s.rocks||[]).map(r=>r.m+':'+r.x+','+r.y).sort().join(';'),s.lt||0,s.cf||'',s.cart&&Object.keys(s.cart).sort().map(k=>k+':'+s.cart[k]).join(';')||'',s.bossCp?s.bossCp.zone+':'+s.bossCp.hp:'',s.air||0,s.lvz&&Object.keys(s.lvz).sort().map(k=>k+s.lvz[k]).join(';')||'',(s.clouds||[]).map(o=>o.i+'@'+o.x+','+o.y+'d'+o.d).join(';'),s.zt||0,s.lit||0,s.pw||0,s.gen||0,(s.bosses||[]).filter(o=>o.kind==='phantom').map(o=>(o.lit?1:0)).join('')].join('|')}
+function key(s){return [s.m,s.x,s.y,s.f,s.held,s.inv,s.got.slice().sort().join(';'),(s._bk!=null?'~'+s._bk:s.boxes.slice().sort().join(';')),s.bombs.map(b=>K(b.m,b.x,b.y)+'t'+b.t).sort().join(';'),s.broken.slice().sort().join(';'),s.holes.slice().sort().join(';'),s.filled.slice().sort().join(';'),s.left,s.zone,s.cleared.slice().sort().join(';'),(s.pats||[]).map(p=>p.i+'@'+p.x+','+p.y+(p.d>0?'+':'-')).join(';'),(s._mk!=null?s._mk:[s.dunes,s.bugs,s.bosses].map(a=>(a||[]).map(o=>o.i+'@'+o.x+','+o.y+'d'+o.d+'f'+(o.fr||0)+'h'+(o.hp||0)).join(';')).join('/')),Object.keys(s.ch||{}).sort().map(k=>k+s.ch[k]).join(';'),Object.keys(s.vt||{}).sort().map(k=>k+'='+s.vt[k]).join(';'),(s.rocks||[]).map(r=>r.m+':'+r.x+','+r.y).sort().join(';'),s.lt||0,s.cf||'',s.cart&&Object.keys(s.cart).sort().map(k=>k+':'+s.cart[k]).join(';')||'',s.bossCp?s.bossCp.zone+':'+s.bossCp.hp:'',s.air||0,s.lvz&&Object.keys(s.lvz).sort().map(k=>k+s.lvz[k]).join(';')||'',(s._ck!=null?s._ck:(s.clouds||[]).map(o=>o.i+'@'+o.x+','+o.y+'d'+o.d).join(';')),s.zt||0,s.lit||0,s.pw||0,s.gen||0,(s.bosses||[]).filter(o=>o.kind==='phantom').map(o=>(o.lit?1:0)).join('')].join('|')}
 const ACTIONS=['up','down','left','right','act','reset','wait'];
 // explore the whole reachable state graph; returns {states, edges, startKey}
-function explore(W,start,max){max=max||400000;const s0=start||initState(W);const k0=key(s0);const states=new Map([[k0,s0]]),edges=new Map(),q=[k0];let trunc=false;
- while(q.length){const k=q.shift(),s=states.get(k),out=[];for(const a of ACTIONS){const r=mstep(W,s,a);if(r.result==='noop'||r.result==='fall'||r.result==='tired'||r.result==='fail'||r.state===s)continue;const ns=normalize(W,r.state),nk=key(ns);out.push([a,nk]);if(!states.has(nk)){if(states.size>=max){trunc=true;continue}states.set(nk,ns);q.push(nk)}}edges.set(k,out)}
+function explore(W,start,max){max=max||400000;const s0=start||initState(W);const k0=key(s0);const states=new Map([[k0,s0]]),edges=new Map(),q=[k0];let trunc=false,qh=0;
+ while(qh<q.length){const k=q[qh++],s=states.get(k),out=[];for(const a of ACTIONS){const r=mstep(W,s,a);if(r.result==='noop'||r.result==='fall'||r.result==='tired'||r.result==='fail'||r.state===s)continue;const ns=normalize(W,r.state),nk=key(ns);out.push([a,nk]);if(!states.has(nk)){if(states.size>=max){trunc=true;continue}states.set(nk,ns);q.push(nk)}}edges.set(k,out)}
  return{states,edges,startKey:k0,truncated:trunc}}
-function bfsPath(W,start,pred,max){const s0=start||initState(W);const k0=key(s0);const prev=new Map([[k0,null]]),q=[[k0,s0]];let n=0;
- while(q.length){const [k,s]=q.shift();if(pred(s))return path(prev,k);if(++n>(max||400000))return null;for(const a of ACTIONS){const r=mstep(W,s,a);if(r.result==='noop'||r.result==='fall'||r.result==='tired'||r.result==='fail'||r.state===s)continue;const ns=normalize(W,r.state),nk=key(ns);if(!prev.has(nk)){prev.set(nk,[k,a]);q.push([nk,ns])}}}return null}
+function bfsPath(W,start,pred,max){const s0=start||initState(W);const k0=key(s0);const prev=new Map([[k0,null]]),q=[[k0,s0]];let n=0,qh=0; // index head: Array#shift on multi-million queues is O(n)
+ while(qh<q.length){const [k,s]=q[qh];q[qh++]=null;if(pred(s))return path(prev,k);if(++n>(max||400000))return null;for(const a of ACTIONS){const r=mstep(W,s,a);if(r.result==='noop'||r.result==='fall'||r.result==='tired'||r.result==='fail'||r.state===s)continue;const ns=normalize(W,r.state),nk=key(ns);if(!prev.has(nk)){prev.set(nk,[k,a]);q.push([nk,ns])}}}return null}
 function path(prev,k){const p=[];while(prev.get(k)){const [pk,a]=prev.get(k);p.unshift(a);k=pk}return p}
 // soft-lock check: every reachable state must still be able to reach a state satisfying goalPred
 function softlocks(W,goalPred,start,max){const G=explore(W,start,max);const rev=new Map();for(const [k,out] of G.edges)for(const [,nk] of out){if(!rev.has(nk))rev.set(nk,[]);rev.get(nk).push(k)}
