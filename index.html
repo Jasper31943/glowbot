@@ -59,6 +59,13 @@ canvas{display:block;box-sizing:content-box;image-rendering:pixelated;image-rend
 #mini{flex:none;width:44px;height:44px;image-rendering:pixelated;padding:3px;background:rgba(184,111,80,.8);border:2px solid var(--ink);box-shadow:inset -2px -2px 0 rgba(115,62,57,.8),inset 2px 2px 0 rgba(228,166,114,.8)}
 #act{width:56px;height:56px;border-radius:50%;font:16px 'Cubic11';color:var(--plum);margin-right:6px}
 #ctl .right{display:flex;align-items:flex-end}
+/* phones (d-pad shown): d-pad centre at 64% of the screen, 動作 at ~29% (keeps a 32px gap to the ◀ key), ↺ stays bottom-left; lifted ≥24px off the bottom */
+@media (orientation:portrait) and (max-width:899px){@media not all and (hover:hover) and (pointer:fine) and (min-width:700px){
+#ctl{--ctlx:6px;position:relative;height:142px;padding-bottom:max(24px,env(safe-area-inset-bottom));box-sizing:content-box}
+#ctl .side{position:absolute;left:0;bottom:max(24px,env(safe-area-inset-bottom))}
+#ctl .right{display:block}
+#ctl .pad{position:absolute;bottom:max(24px,env(safe-area-inset-bottom));left:calc(64vw - 77px - var(--ctlx,0px))}
+#act{position:absolute;margin:0;bottom:calc(max(24px,env(safe-area-inset-bottom)) + 43px);left:calc(min(29vw,64vw - 137px) - 28px - var(--ctlx,0px))}}}
 .chip b{color:var(--blue)}
 @media (min-width:900px),(hover:hover) and (pointer:fine) and (min-width:700px){#act{display:none}}
 #help{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:#181425aa;z-index:6;padding:8px}#help.on{display:flex}
