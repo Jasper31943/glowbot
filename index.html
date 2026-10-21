@@ -111,5 +111,9 @@ canvas{display:block;box-sizing:content-box;image-rendering:pixelated;image-rend
 <button class="btn g panel" id="mNew" style="width:100%">重新開始冒險</button>
 <a href="levels.html" class="btn g panel" style="display:block;text-decoration:none;width:100%;box-sizing:border-box">關卡模式（30 關）</a></div></div>
 
-<script src="levels.js"></script><script src="logic.js"></script><script src="world-engine.js"></script><script src="world/world-def.js"></script><script src="art.js"></script><script src="ice-art.js"></script><script src="desert-art.js"></script><script src="forest-art.js"></script><script src="music.js"></script><script src="share.js"></script><script src="world.js"></script>
+<script src="levels.js"></script><script src="logic.js"></script><script src="world-engine.js"></script><script src="world/world-def.js"></script><script src="art.js"></script><script src="ice-art.js"></script><script src="desert-art.js"></script><script src="forest-art.js"></script><script src="music.js"></script><script src="share.js"></script>
+<script id="endBoot">/* runs before world.js: ?ending=1 skips title/save so the ending canvas is not covered */
+(function(){var q=location.search;if(!/(?:^|[?&])ending(?:=|&|$)/.test(q))return;var t=document.getElementById('title'),hp=document.getElementById('help');
+ if(t){t.classList.remove('on','has');t.style.display='none'}if(hp){hp.classList.remove('on');hp.style.display='none'}})();</script>
+<script src="world.js"></script>
 </body></html>
