@@ -86,7 +86,9 @@ function hud(){checkStuck();guideCheck();const M=W.maps[S.m],Z=WE.zoneAt(W,S.m,S
  const near=(x,y,d)=>Math.abs(S.x-x)+Math.abs(S.y-y)<=(d||1);
  if(S.m==='ice'&&shortcut&&!WE.hasInv(S,'m')&&near(shortcut.door[0],shortcut.door[1],2))$('hint').textContent='🪧 紫門是回程捷徑（從裡面拿紫鑰匙才打得開），先往前走';
  if(S.m==='ice'&&shortcut&&near(shortcut.top[0],shortcut.top[1],1))$('hint').textContent='🪧 回程捷徑：往下直走，回到隧道 1';
- if(S.zone&&S.zoneSteps>40&&S.cleared.indexOf(S.zone)<0)$('hint').textContent='🤔 卡住了嗎？按 ↺ 重來這一區';
+ const bz=S.zone&&S.cleared.indexOf(S.zone)<0&&(S.bosses||[]).find(o=>o.zone===S.zone&&o.m===S.m);
+ if(bz&&bz.hp<=0){const Z=W.maps[S.m].zones.find(z=>z.id===S.zone);let lamp=false;for(let y=Z.y;y<Z.y+Z.h;y++)for(let x=Z.x;x<Z.x+Z.w;x++)if(WE.base(W,S.m,x,y)==='L'&&S.got.indexOf(S.m+':'+x+','+y)<0)lamp=true;$('hint').textContent=lamp?'🎉 王倒了！王關門打開了：去點亮燈塔燈，再走出口':'🎉 王倒了！走出口'}
+ else if(S.zone&&S.zoneSteps>40&&S.cleared.indexOf(S.zone)<0)$('hint').textContent=h&&(h.zone===S.zone||h.cleared===S.zone)?'▶ '+h.text+'（卡住了就按 ↺）':'🤔 卡住了嗎？按 ↺ 重來這一區'; // this zone's own hint stays visible (the RB boss rule was being replaced by the generic line)
  if(stuck.on&&!stuckSeen)$('hint').textContent='箱子卡住了，按 ↺ 重來';if(flashT&&performance.now()<flashT.until)$('hint').textContent=flashT.t;
  const here=WE.base(W,S.m,S.x,S.y);if(WE.isTun(here)&&W.tunnels[WE.tunId(here)].length<2)$('hint').textContent='🚧 隧道 '+WE.tunId(here)+' 通往'+((W.tunnelTo||{})[WE.tunId(here)]||'下一區')+'：即將開放';}
 let flashT=null;function flash(t){flashT={t,until:performance.now()+2500};hud();setTimeout(hud,2600)}
@@ -257,7 +259,7 @@ function drawMovers(){if(!V2())return;const fr=Math.floor(T*3)%2;
    if(typeof lavaPool==='function'){lavaPool(px-8,py+8,fr);lavaPool(px+8,py+8,fr);lavaPool(px,py+16,fr);lavaPool(px,py,fr)}
    lavaGiant(px,py,hurt,T);
    if(S.bossCp&&S.bossCp.zone===o.zone&&typeof bossCheckpointFlame==='function')bossCheckpointFlame(px+20,py+4,true,T)}
-  else if(o.kind==='phantom'&&typeof mirrorKing==='function')mirrorKing(px,py,fr,o.d===2?2:3,hurt,T,hit);
+  else if(o.kind==='phantom'&&typeof mirrorKing==='function'){mirrorKing(px,py,fr,o.d===2?2:3,hurt,T,hit);for(let k=0;k<o.max;k++){R(px+3+k*6,py-8,5,4,E32.ink);R(px+4+k*6,py-7,3,2,k<o.hp?E32.red3:E32.grey3)}} // HP pips over the mirror king
   else if(o.kind==='spark'&&typeof sparkKing==='function')sparkKing(px,py,fr,o.d===2?2:3,hurt,!!o.spotted,!!S.gen,hit);
   else if(o.kind==='guard'&&typeof clockGuard==='function')clockGuard(px,py,hurt,T,hit);
   else if(o.kind==='glitch'&&typeof glitchKing==='function')glitchKing(px,py,fr,o.d===2?2:3,hurt,!!o.spotted,hit);
@@ -447,9 +449,13 @@ function draw(){try{drawFrame()}catch(e){const er=window.__errs=window.__errs||[
  if(!manualDraw)requestAnimationFrame(draw)}
 // mirror maze: draw where the light actually goes (source → mirrors → where it stops), so you can see which mirror to turn
 function lightBeams(){if(!V2()||typeof beam!=='function'||!S.zone||!WE.traceBeams)return;const Z=W.maps[S.m].zones.find(z=>z.id===S.zone);if(!Z)return;
- const P=WE.traceBeams(W,S,Z);if(!P.length)return;const OPP=[1,0,3,2],half=(px,py,d,ax)=>{o.save();o.beginPath();o.rect(d===3?px+8:px,d===1?py+8:py,d>=2?8:16,d<2?8:16);o.clip();beam(px,py,ax,'light',T);o.restore()};
- o.globalAlpha=.85;for(const [x,y,di,dd] of P){const px=Math.round((x-cam.ox)*16),py=Math.round((y-cam.oy)*16);
-  if(di===dd)beam(px,py,dd<2?'v':'h','light',T);else{if(di>=0)half(px,py,OPP[di],di<2?'v':'h');half(px,py,dd,dd<2?'v':'h')}}o.globalAlpha=1}
+ const P=WE.traceBeams(W,S,Z);if(!P.length)return;// boss zone (mirror king alive): light that has bounced off a mirror is drawn RED = the light that hurts the king; straight light stays yellow (harmless)
+ const king=(S.bosses||[]).some(b=>b.kind==='phantom'&&b.hp>0&&b.m===S.m&&b.x>=Z.x&&b.x<Z.x+Z.w&&b.y>=Z.y&&b.y<Z.y+Z.h),col=b=>king&&b?'fire':'light';
+ const OPP=[1,0,3,2],half=(px,py,d,ax,c)=>{o.save();o.beginPath();o.rect(d===3?px+8:px,d===1?py+8:py,d>=2?8:16,d<2?8:16);o.clip();beam(px,py,ax,c,T);o.restore()};
+ o.globalAlpha=.85;const mir=[];let pb=0;for(const [x,y,di,dd,b] of P){if(di<0)pb=0;const px=Math.round((x-cam.ox)*16),py=Math.round((y-cam.oy)*16);
+  if(di===dd)beam(px,py,dd<2?'v':'h',col(b),T);else{if(di>=0){half(px,py,OPP[di],di<2?'v':'h',col(pb));mir.push([px,py])}half(px,py,dd,dd<2?'v':'h',col(b))}pb=b}o.globalAlpha=1;
+ // in the boss room, a mirror the light touches blinks white corners = "you can turn this one" (face it and press 按)
+ if(king&&Math.floor(T*2.5)%2===0)for(const [px,py] of mir){for(const [a,c] of [[0,0],[13,0],[0,13],[13,13]]){R(px+a,py+c,3,1,E32.white);R(px+a+(a?2:0),py+c+(c?-2:0),1,3,E32.white)}}}
 function drawFrame(){if(ending){endingFrame();return}const now=performance.now()/1000,dt=Math.min(.05,now-(stamp||now));stamp=now;T+=dt;fuseFrame(dt);
  TH=WORLDS[W.maps[S.m].theme]||WORLDS.grass;if(V2())ensureSceneArt(S.m);buildView();if(!legendDone&&st){const th=TH;TH=WORLDS.grass;renderLegend();TH=th}
  const [tx,ty]=camTarget();if(!cam.init){cam.x=tx;cam.y=ty;cam.init=true}{const k=1-Math.exp(-dt*5),mx=dt*14;cam.x+=Math.max(-mx,Math.min(mx,(tx-cam.x)*k));cam.y+=Math.max(-mx,Math.min(mx,(ty-cam.y)*k))} // smooth pan, capped speed (no jump on zone change)
