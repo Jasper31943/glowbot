@@ -83,7 +83,7 @@
 | `swamp-art.js`、`mine-art.js`、`volcano-art.js`、`sea-art.js`、`castle-art.js`、`sky-art.js`、`mirror-art.js`、`power-art.js`、`clock-art.js`、`factory-art.js`、`core-art.js` | 各場景的美術，進到該場景才載入（`world.js` 的 `SCENE_ART`） |
 | `ending-art.js` | 結局動畫，在核心裡先預載，最後載入 |
 | `music.js` | 程式產生的 8-bit 背景音樂（Web Audio，沒有音檔） |
-| `share.js`、`share-clear.html` | 破關分享：只打開玩家自己的分享選單或 X 發文頁，不會替人發文 |
+| `share.js`、`share-clear.html` | 破關分享：手機打開系統分享選單；電腦複製分享文字＋連結並打開 X 發文頁，畫面下方會提示「已複製連結」。只打開玩家自己的選單或發文頁，不會替人發文 |
 | `levels.html`、`game.js`、`logic.js`、`levels.js` | 30 關模式 |
 | `og.png`、`og-clear.png` | 分享到社群時的預覽大圖（未破關／破關） |
 | `favicon.ico`、`favicon-32.png` | 分頁小圖示 |
