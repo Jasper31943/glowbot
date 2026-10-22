@@ -3,7 +3,7 @@
 // non-consumed keys, tunnels (digits 1-9, each exactly twice in the world), puzzle zones with local reset/limit.
 (function(root){
 const DIRS={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]};
-const ITEMS={c:'key',m:'key',n:'key',k:'claws',f:'fragment',g:'glove',U:'upgrade',E:'battery','*':'bolt',F:'fire',L:'lamp'}; // F = 吐火 (desert/forest maps write it 'f'; renamed at parse so it can't clash with the ice rune fragment), L = lighthouse lamp
+const ITEMS={c:'key',m:'key',n:'key',k:'claws',f:'fragment',g:'glove',U:'upgrade',E:'battery','*':'bolt',F:'fire',L:'lamp',Q:'bat'}; // F = 吐火 (desert/forest maps write it 'f'; renamed at parse so it can't clash with the ice rune fragment), L = lighthouse lamp
 const REGROW=+((typeof process!=='undefined'&&process.env&&process.env.REGROW)||6); // burnt vines grow back after 6 counted actions
 const FUSE=3,FUSE_MS=3000,FUSE_MODEL=+((typeof process!=='undefined'&&process.env&&process.env.FUSE_N)||4); // real-time fuse: 3,2,1 (1s each), boom exactly at 0 (3.0s). Solver: <=FUSE_MODEL actions between place and blast
 // ---------- parse ----------
@@ -34,9 +34,10 @@ function parseWorld(def){TUNALIAS=Object.assign({},def.tunnelAlias||{});
     else if(c==='['){W.clouds0.push({m:id,x,y,d:3});g[y][x]=','}
     else if(c===']'){W.clouds0.push({m:id,x,y,d:2});g[y][x]=','}
     else if(c==='f')g[y][x]='F'}
+   if(c==='Q')W.batAt={m:id,x,y};
    if(c!=='0'&&isTun(c))(W.tunnels[tunId(c)]=W.tunnels[tunId(c)]||[]).push({m:id,x,y,c})}
   // zones given 1-based inclusive {r1,r2,c1,c2}; stored 0-based
-  (md.zones||[]).forEach((z,i)=>{const Z={id:id+'#'+(z.id||i),name:z.name||'',x:z.c1-1,y:z.r1-1,w:z.c2-z.c1+1,h:z.r2-z.r1+1,limit:z.limit||0,entry:z.entry?[z.entry[1]-1,z.entry[0]-1]:null,exit:z.exit?[z.exit[1]-1,z.exit[0]-1]:null,tutorial:!!z.tutorial};
+  (md.zones||[]).forEach((z,i)=>{const Z={id:id+'#'+(z.id||i),name:z.name||'',x:z.c1-1,y:z.r1-1,w:z.c2-z.c1+1,h:z.r2-z.r1+1,limit:z.limit||0,entry:z.entry?[z.entry[1]-1,z.entry[0]-1]:null,exit:z.exit?[z.exit[1]-1,z.exit[0]-1]:null,tutorial:!!z.tutorial,iron:!!z.iron};
    if(Z.w>7||Z.h>9)W.errors.push(`zone ${Z.id} is ${Z.w}x${Z.h} (max 7 wide x 9 high)`);m.zones.push(Z)});
   W.maps[id]=m}
  [W.dunes0,W.bugs0,W.bosses0,W.clouds0].forEach(a=>a.forEach((o,i)=>{o.i=i;const Z=zoneAt(W,o.m,o.x,o.y);o.zone=Z?Z.id:null;if(!Z)W.errors.push(`mover at ${o.m} ${o.x},${o.y} is outside every zone`)}));
@@ -75,8 +76,12 @@ function clone(s){return{m:s.m,x:s.x,y:s.y,f:s.f,held:s.held,inv:s.inv,got:s.got
 // fills desert/forest fields (also used to upgrade v3 saves, which never reached those maps)
 const RELAYOUT={'swamp#S5':o=>o.y===12}; // zones redesigned after release: a saved creature that no longer fits the new layout resets that zone
 // sea crates ride a whole current since layout 2; A5 A6 A8 were rebuilt for it, so an older save puts those zones' crates back
-const LAYV=2,BOXRELAY=['sea#A5','sea#A6','sea#A8'];
-function relayBoxes(W,s){if((s.lay||0)>=LAYV)return;s.lay=LAYV;for(const zid of BOXRELAY){const [m]=zid.split('#'),Z=(W.maps[m]||{zones:[]}).zones.find(z=>z.id===zid);if(!Z)continue;
+const LAYV=3,BOXRELAY=['sea#A5','sea#A6','sea#A8'],ZRESET={'castle#C5':3}; // ZRESET: zone redrawn in layout version N; saves older than N restart that zone's creatures (and the robot, if standing in it) fresh
+function relayBoxes(W,s){const lay0=s.lay||0;if(lay0>=LAYV)return;s.lay=LAYV;if(lay0<3)grantBat(W,s); // layout 3 = bat release
+ for(const zid in ZRESET){if(lay0>=ZRESET[zid])continue;const [m]=zid.split('#'),Z=(W.maps[m]||{zones:[]}).zones.find(z=>z.id===zid);if(!Z||!s.bugs)continue;
+  s.bugs=s.bugs.filter(o=>o.zone!==zid).concat(W.bugs0.filter(o=>o.zone===zid).map(o=>({...o}))).sort((a,b)=>a.i-b.i);
+  if(s.m===m&&s.x>=Z.x&&s.x<Z.x+Z.w&&s.y>=Z.y&&s.y<Z.y+Z.h){s.x=Z.entry[0];s.y=Z.entry[1];s.f='left';s.zoneEntry=[s.x,s.y];s.zt=0}}
+ if(lay0<2)for(const zid of BOXRELAY){const [m]=zid.split('#'),Z=(W.maps[m]||{zones:[]}).zones.find(z=>z.id===zid);if(!Z)continue;
   const inZ=k=>{if(!k.startsWith(m+':'))return false;const [x,y]=k.split(':')[1].split(',').map(Number);return x>=Z.x&&x<Z.x+Z.w&&y>=Z.y&&y<Z.y+Z.h};
   let nb=W.boxes0.filter(inZ);if(has(s.cleared||[],zid)){const xs=[];for(let y=Z.y;y<Z.y+Z.h;y++)for(let x=Z.x;x<Z.x+Z.w;x++)if(W.maps[m].grid[y][x]==='X')xs.push(K(m,x,y));if(xs.length===nb.length)nb=xs} // cleared: crates sit on their switches
   s.boxes=(s.boxes||[]).filter(k=>!inZ(k)).concat(nb);if(s.cart)for(const k in s.cart)if(inZ(k))delete s.cart[k];
@@ -86,6 +91,10 @@ function relayout(W,s){relayBoxes(W,s);for(const zid in RELAYOUT){const ok=RELAY
   s.bugs=s.bugs.filter(o=>o.zone!==zid).concat(W.bugs0.filter(o=>o.zone===zid).map(o=>({...o}))).sort((a,b)=>a.i-b.i);
   for(const k in (s.ch||{})){const [mm,xy]=k.split(':'),[x,y]=xy.split(',').map(Number);if(mm===m&&inZ(x,y))delete s.ch[k]}
   if(s.m===m&&s.zone===zid){s.x=Z.entry[0];s.y=Z.entry[1];s.zoneEntry=[s.x,s.y];s.zt=0}}}
+// saves made after the forest but before the bat existed (layout < 3): hand the bat over once, on load (world.js shows the "got the bat" moment)
+const PREBAT=['grass','ice','desert','forest'];
+function grantBat(W,s){if(!s.inv||hasInv(s,'Q')||!W.batAt)return;const past=has(s.cleared||[],'forest#FB')||(s.visited||[]).some(m=>PREBAT.indexOf(m)<0&&W.maps[m]);if(!past)return;
+ s.inv+='Q';const k=K(W.batAt.m,W.batAt.x,W.batAt.y);if(!has(s.got,k))s.got.push(k);s.batGift=1}
 function initMovers(W,s){if(s.bugs&&(W.droppedBugs||[]).length&&s.bugs.some(o=>o.glitch&&W.maps[o.m]&&!/^(factory|core)$/.test(W.maps[o.m].theme))){ // save from before the swamp-lily fix: drop the fake movers, renumber the rest
   const D=W.droppedBugs;s.bugs=s.bugs.filter(o=>!(o.glitch&&W.maps[o.m]&&!/^(factory|core)$/.test(W.maps[o.m].theme))).map(o=>({...o,i:o.i-D.filter(d=>d<o.i).length}))}
  if(!s.dunes)s.dunes=W.dunes0.map(o=>({...o}));if(!s.bugs)s.bugs=W.bugs0.map(o=>({...o}));if(!s.bosses)s.bosses=W.bosses0.map(o=>({...o}));if(!s.clouds)s.clouds=(W.clouds0||[]).map(o=>({...o}));if(!s.ch)s.ch={};if(!s.vt)s.vt={};if(!s.rocks)s.rocks=[];if(s.lt==null)s.lt=0;if(!s.cart)s.cart={};if(s.air==null)s.air=0;if(!s.lvz)s.lvz={};if(s.zt==null)s.zt=0;relayout(W,s);return s}
@@ -227,6 +236,19 @@ function recomputeV2(W,s,Z){if(!Z){s.lit=0;s.pw=0;s.gen=0;s.bounce={};return}
  s.pw=pw;
  for(const b of (s.bosses||[])){if(b.kind!=='phantom'||b.hp<=0||b.zone!==Z.id)continue;const k=K(m,b.x,b.y);
   if(bounce[k]){if(!b.lit){b.hp--;b.hitAt=s.steps;b.lit=1}}else b.lit=0}}
+// ⚾ 球棒 (Q, picked up at the forest exit): 動作 while facing an adjacent creature or cracked wall.
+// Adjacent target → bat (beats fire there); otherwise fire. Creature: stunned BATSTUN = 3 moves, same as fire (keeps every creature puzzle's timing), no knockback. Cracked wall %: smashed.
+// Bosses are too big: the bat bonks off (no damage, no stun) so every boss fight keeps its own rule.
+const BATSTUN=3,BATBOSS=['worm','frog','mole','crab','knight','bird','spark','glitch','tree','golem','guard','core','phantom'];
+function batTarget(W,s){if(!hasInv(s,'Q'))return null;const m=s.m,[dx,dy]=DIRS[s.f],x=s.x+dx,y=s.y+dy,Z=curZone(W,s);
+ const bi=bugAt(s,m,x,y);if(bi>=0&&(!Z||inZone(Z,x,y)))return{kind:'bug',i:bi,x,y};
+ if(cell(W,s,m,x,y)==='%'){const wz=zoneAt(W,m,x,y);return{kind:wz&&wz.iron?'iron':'wall',x,y}} // iron-banded cracked walls (bomb / minecart puzzles) just clang
+ const b=(s.bosses||[]).find(o=>o.hp>0&&o.m===m&&o.x===x&&o.y===y);if(b)return{kind:'boss',x,y};
+ return null}
+function swing(W,s,ev){const t=batTarget(W,s);ev.push('swing');s.lastBat={m:s.m,x:s.x,y:s.y,f:s.f,tx:t.x,ty:t.y,kind:t.kind};
+ if(t.kind==='bug'){const b=s.bugs[t.i];b.fr=BATSTUN;b.spotted=0;ev.push('stun')}
+ else if(t.kind==='wall'){s.broken.push(K(s.m,t.x,t.y));ev.push('wall','smash')}
+ else ev.push(t.kind==='iron'?'clang':'bonk')}
 function breathe(W,s,ev){const m=s.m,M=W.maps[m],Z=curZone(W,s);let x=s.x,y=s.y,d={up:0,down:1,left:2,right:3}[s.f];if(M.theme==='volcano'){ev.push('noeffect');s.lastFire={m,x0:s.x,y0:s.y,x1:s.x,y1:s.y,f:s.f,noop:1};return}ev.push('fire');
  for(let g=0;g<80;g++){x+=DV[d][0];y+=DV[d][1];if(Z?!inZone(Z,x,y):(x<0||y<0||x>=M.W||y>=M.H))break;const k=K(m,x,y),c=cell(W,s,m,x,y);
   if(c in MIR){d=turnTrack(MIR[c],d);continue}
@@ -293,6 +315,7 @@ function stepV2(W,s0,a,opt){const ev=[];const free=!!(opt&&opt.free);
   else if(!s.held&&(uc==='j'||uc==='ǰ')){s.ch[K(m,s.x,s.y)]=uc==='j'?'ǰ':'j';ev.push('switch')}
   else if(!s.held&&fc==='b'){s.held=1;ev.push('grab')}
   else if(s.held&&(!Z||inZone(Z,fx,fy))&&placeV2(W,s,m,fx,fy,fc)&&!occV2(s,m,fx,fy)&&!isEE(Z,fx,fy)&&!isTrk(fc)){s.bombs.push({m,x:fx,y:fy,t:FUSE,ms:0});s.held=0;ev.push('place')}
+  else if(batTarget(W,s))swing(W,s,ev);
   else if(hasInv(s,'F'))breathe(W,s,ev);
   else return{state:s0,result:'noop',ev};
   result='act';s.steps++}
@@ -454,6 +477,6 @@ function* zoneStuckIter(W,s0,max){const M=W.maps[s0.m],Z=s0.zone&&M&&M.zones.fin
    if(!inZ(ns)){if(pats||ns.inv!==s.inv)return null;ns=clone(s);ns.left=Z.limit?Z.limit+(hasInv(s,'U')?10:0):null} // left the area: back in, fresh step limit
    const k=key(ns);if(seen.has(k))continue;if(seen.size>=max)return null;seen.add(k);q.push(ns)}}
  return true}
-const api={zoneStuck,zoneStuckIter,isTrk,isLava,turnTrack,isTun,tunId,tunAt,stepV2,solidV2,recomputeV2,gateShut,pendAt,MIR,duneAt,bugAt,wormAt,bossOfZone,initMovers,REGROW,mstep,patAt,resetPats,normalize,parseWorld,initState,step,advance,FUSE_MS,cell,base,zoneAt,solid,explore,bfsPath,softlocks,key,hasInv,DIRS,FUSE,ITEMS,switchDoorOpen,bombAt,boxAt,K,cloudAt,spikeUp,trapOpen,hazardV2,CUR,WND};
+const api={batTarget,BATSTUN,zoneStuck,zoneStuckIter,isTrk,isLava,turnTrack,isTun,tunId,tunAt,stepV2,solidV2,recomputeV2,gateShut,pendAt,MIR,duneAt,bugAt,wormAt,bossOfZone,initMovers,REGROW,mstep,patAt,resetPats,normalize,parseWorld,initState,step,advance,FUSE_MS,cell,base,zoneAt,solid,explore,bfsPath,softlocks,key,hasInv,DIRS,FUSE,ITEMS,switchDoorOpen,bombAt,boxAt,K,cloudAt,spikeUp,trapOpen,hazardV2,CUR,WND};
 if(typeof module!=='undefined')module.exports=api;else root.WorldEngine=api;
 })(this);
