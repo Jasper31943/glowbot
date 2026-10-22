@@ -20,7 +20,7 @@ function mineBeam(px,py,x,y){mineRock(px,py,x,y,0);const B=MINE_THEME.beam;R(px+
 function mineLantern(px,py,t){const L=MINE_THEME.lamp,fl=Math.floor((t||0)*6)%2;o.globalAlpha=.25;R(px+3,py+3,10,10,L[0]);o.globalAlpha=1;
  R(px+7,py+1,2,2,L[2]);R(px+5,py+3,6,8,E32.ink);R(px+6,py+4,4,6,L[0]);R(px+7,py+5+fl,2,3,L[1]);R(px+5,py+11,6,1,L[2])}
 // tracks. kind: 'h','v', corner 'ne','nw','se','sw' (connects those sides), junction 'j' + state 0/1 (which branch)
-function mineTrack(px,py,x,y,kind,state){mineFloor(px,py,x,y);const Rl=MINE_THEME.rail,T2=MINE_THEME.tie;
+function mineTrack(px,py,x,y,kind,state,noFloor){if(!noFloor)mineFloor(px,py,x,y);const Rl=MINE_THEME.rail,T2=MINE_THEME.tie;
  const H=()=>{for(let i=1;i<16;i+=4)R(px+i,py+4,2,8,T2[1]);R(px,py+5,16,1,Rl[0]);R(px,py+10,16,1,Rl[0])};
  const V=()=>{for(let i=1;i<16;i+=4)R(px+4,py+i,8,2,T2[1]);R(px+5,py,1,16,Rl[0]);R(px+10,py,1,16,Rl[0])};
  if(kind==='h')return H();if(kind==='v')return V();
