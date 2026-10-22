@@ -360,8 +360,8 @@ function v2Tile(c,px,py,x,y){ // desert-art.js / forest-art.js tiles; anything e
  if(c==='◎'){v2Floor(px,py,x,y);const hit=!!(S.beamLit&&S.beamLit[S.m+':'+x+','+y]);if(typeof lightTarget==='function')lightTarget(px,py,hit);else R(px+4,py+4,8,8,hit?E32.yellow:E32.grey3);return true}
  if(c==='▤'){if(typeof lightDoor==='function')lightDoor(px,py,!!S.lit,T);else{v2Floor(px,py,x,y);if(!S.lit)bars(px,py,0)}return true}
  if(c==='⊕'||c==='⊛'){v2Floor(px,py,x,y);if(typeof generator==='function')generator(px,py,c==='⊛',T);else R(px+3,py+3,10,10,c==='⊛'?E32.amber:E32.grey3);return true}
- if(c==='═'){if(typeof wire==='function')wire(px,py,x,y,'h',!!S.pw,T);else{v2Floor(px,py,x,y);R(px,py+7,16,2,E32.amber)}return true}
- if(c==='┊'){if(typeof wireGap==='function')wireGap(px,py,x,y,WE.boxAt(S,S.m,x,y)>=0,T);else{v2Floor(px,py,x,y);R(px+7,py,2,5,E32.grey4);R(px+7,py+11,2,5,E32.grey4)}return true}
+ if(c==='═'){if(typeof wire==='function'){const A=wireNb(x,y);wire(px,py,x,y,'h',A.live,T,A.arms)}else{v2Floor(px,py,x,y);R(px,py+7,16,2,E32.amber)}return true}
+ if(c==='┊'){if(typeof wireGap==='function'){const A=wireNb(x,y);wireGap(px,py,x,y,WE.boxAt(S,S.m,x,y)>=0,T,A.arms,A.live)}else{v2Floor(px,py,x,y);R(px+7,py,2,5,E32.grey4);R(px+7,py+11,2,5,E32.grey4)}return true}
  if(c==='▣'){if(typeof powerDoor==='function')powerDoor(px,py,!!S.pw,T);else{v2Floor(px,py,x,y);if(!S.pw)bars(px,py,0)}return true}
  if(c==='n'||c==='s'){v2Floor(px,py,x,y);const phase=S.zt||0;if(typeof pendulum==='function')pendulum(px,py,c==='n'?(phase%2?2:0):(phase%2?0:2));else R(px+6,py+2,4,12,E32.grey2);return true}
  if(c==='¤'||c==='¢'){const open=!WE.gateShut(S,c);if(typeof gearGate==='function')gearGate(px,py,open,S.zt||0,T);else{v2Floor(px,py,x,y);if(!open)bars(px,py,0)}return true}
@@ -392,6 +392,10 @@ let tipShown=null;function tipAt(gx,gy){const t=anim?null:interactTip(),el=$('ti
  if(t!==tipShown){tipShown=t;el.textContent=t||'';el.style.display=t?'block':'none';$('act').classList.toggle('glow',!!t)}}
 function ironBands(px,py){const I=E32.ink,G=E32.grey2;R(px+1,py+1,14,2,I);R(px+1,py+13,14,2,I);R(px+1,py+1,2,14,I);R(px+13,py+1,2,14,I);R(px+2,py+2,12,1,G);R(px+2,py+13,12,1,G);R(px+2,py+2,1,12,G);R(px+13,py+2,1,12,G);[[2,2],[12,2],[2,12],[12,12]].forEach(([u,v])=>{R(px+u,py+v,2,2,E32.grey4);R(px+u,py+v,1,1,E32.white)})} // 鐵箍: bomb/minecart-only cracked wall (the bat clangs off)
 function ironAt(x,y){const z=WE.zoneAt(W,S.m,x,y);return !!(z&&z.iron)}
+// power wires: which sides connect (so cables bend where power really flows) and whether this piece is live (connected to a generator that is ON); render only
+let _pnet={k:null,seen:{}};function wireNb(x,y){const Z=S.zone&&W.maps[S.m].zones.find(z=>z.id===S.zone),key=S.m+'|'+S.zone+'|'+S.steps+'|'+JSON.stringify(S.ch||{})+'|'+S.boxes.length+'|'+S.boxes.join(';');
+ if(_pnet.k!==key){_pnet={k:key,seen:Z&&WE.powerNet?WE.powerNet(W,S,Z).seen:{}}}const c=(a,b)=>WE.cell(W,S,S.m,a,b),C='═┊⊕⊛▣';
+ return {arms:[[0,-1],[0,1],[-1,0],[1,0]].map(([dx,dy])=>C.indexOf(c(x+dx,y+dy))>=0),live:!!_pnet.seen[S.m+':'+x+','+y]}}
 function tile(c,px,py,x,y){if(V2()&&v2Tile(c,px,py,x,y)){if(c==='%'&&ironAt(x,y))ironBands(px,py);return}if(TH===WORLDS.grass&&(c===undefined||(c==='#'&&deep(x,y)))){bush(px,py,x,y);return}
  if(ICY()){ // ice map: bright snow, snowy rock walls, pines outside (ice-art.js)
   if(c===undefined||(c==='#'&&deep(x,y))){icePine(px,py,x,y);return}
