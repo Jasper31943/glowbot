@@ -8,7 +8,7 @@ const REGROW=+((typeof process!=='undefined'&&process.env&&process.env.REGROW)||
 const FUSE=3,FUSE_MS=3000,FUSE_MODEL=+((typeof process!=='undefined'&&process.env&&process.env.FUSE_N)||4); // real-time fuse: 3,2,1 (1s each), boom exactly at 0 (3.0s). Solver: <=FUSE_MODEL actions between place and blast
 // ---------- parse ----------
 function parseWorld(def){TUNALIAS=Object.assign({},def.tunnelAlias||{});
- const W={maps:{},start:null,tunnels:{},boxes0:[],pats0:[],dunes0:[],bugs0:[],bosses0:[],clouds0:[],tunnelTo:def.tunnelTo||{},errors:[],hints:def.hints||[],goal:def.goal||null,runeItem:def.runeItem||null,pending:(def.pendingTunnels||[]).slice(),tunnelMarks:def.tunnelMarks||[]};
+ const W={maps:{},start:null,tunnels:{},boxes0:[],pats0:[],dunes0:[],bugs0:[],bosses0:[],clouds0:[],tunnelTo:def.tunnelTo||{},errors:[],droppedBugs:[],hints:def.hints||[],goal:def.goal||null,runeItem:def.runeItem||null,pending:(def.pendingTunnels||[]).slice(),tunnelMarks:def.tunnelMarks||[]};
  for(const id in def.maps){const md=def.maps[id];const g=md.grid.map(r=>r.split(''));const H=g.length,Wd=Math.max(...md.grid.map(r=>r.length));
   const m={id,name:md.name,theme:md.theme||'grass',rules:md.rules||null,grid:g,W:Wd,H,zones:[]};const v2=m.rules==='v2';
   for(let y=0;y<H;y++)for(let x=0;x<Wd;x++){const c=g[y][x]||'#';g[y][x]=c;
@@ -20,7 +20,8 @@ function parseWorld(def){TUNALIAS=Object.assign({},def.tunnelAlias||{});
     else if(c==='z'||c==='Z'||c==='y'){W.bugs0.push({m:id,x,y,d:c==='z'?3:c==='Z'?2:1,fr:0});g[y][x]='.'}
     else if(c==='g'||c==='ɢ'){W.bugs0.push({m:id,x,y,d:c==='g'?3:2,fr:0,ghost:1,spotted:0});g[y][x]='.'} // armor ghost (castle); not the grass glove item
     else if(c==='x'||c==='e'){W.bugs0.push({m:id,x,y,d:c==='x'?3:2,fr:0,ghost:1,spotted:0,spark:1});g[y][x]='.'} // power spark mon (knight-sight)
-    else if(c==='p'||c==='P'){W.bugs0.push({m:id,x,y,d:c==='p'?3:2,fr:0,ghost:1,spotted:0,glitch:1});g[y][x]='.'} // factory glitch bot (presses X)
+    else if((c==='p'||c==='P')&&!(m.theme==='factory'||m.theme==='core')){W.droppedBugs.push(W.bugs0.length+W.droppedBugs.length)} // swamp lily: no mover, glyph stays (old saves: see initMovers)
+    else if(c==='p'||c==='P'){W.bugs0.push({m:id,x,y,d:c==='p'?3:2,fr:0,ghost:1,spotted:0,glitch:1});g[y][x]='.'} // factory/core glitch bot (presses X); in the swamp 'p' is a green lily pad, not a mover
     else if(c==='Y'||c==='O'||c==='&'||c==='$'||c==='¶'){W.bosses0.push({m:id,x,y,d:3,hp:2,max:2,kind:c==='O'?'frog':c==='&'?'mole':c==='$'?'crab':c==='¶'?'phantom':'worm'});g[y][x]='.'}
     else if(c==='@'){W.bosses0.push({m:id,x,y,d:3,hp:3,max:3,kind:'knight'});g[y][x]='.'}
     else if(c==='§'){W.bosses0.push({m:id,x,y,d:3,hp:3,max:3,kind:'spark',needPw:1,knight:1});g[y][x]='.'}
@@ -72,7 +73,9 @@ function initState(W){const s={m:W.start.m,x:W.start.x,y:W.start.y,f:'down',held
  enterZone(W,s);return s}
 function clone(s){return{m:s.m,x:s.x,y:s.y,f:s.f,held:s.held,inv:s.inv,got:s.got.slice(),cleared:s.cleared.slice(),boxes:s.boxes.slice(),bombs:s.bombs.map(b=>({...b})),broken:s.broken.slice(),holes:s.holes.slice(),filled:s.filled.slice(),zone:s.zone,zoneEntry:s.zoneEntry,left:s.left,visited:s.visited.slice(),steps:s.steps,pats:(s.pats||[]).map(p=>({...p})),dunes:s.dunes&&s.dunes.map(o=>({...o})),bugs:s.bugs&&s.bugs.map(o=>({...o})),bosses:s.bosses&&s.bosses.map(o=>({...o})),ch:s.ch&&{...s.ch},vt:s.vt&&{...s.vt},rocks:(s.rocks||[]).map(r=>({...r})),lt:s.lt||0,cf:s.cf||null,cart:s.cart&&{...s.cart},bossCp:s.bossCp&&{...s.bossCp,ch:{...s.bossCp.ch}},air:s.air||0,lvz:s.lvz&&{...s.lvz},clouds:s.clouds&&s.clouds.map(o=>({...o})),zt:s.zt||0,lit:s.lit||0,pw:s.pw||0,gen:s.gen||0,bounce:s.bounce&&{...s.bounce},beamLit:s.beamLit&&{...s.beamLit}}}
 // fills desert/forest fields (also used to upgrade v3 saves, which never reached those maps)
-function initMovers(W,s){if(!s.dunes)s.dunes=W.dunes0.map(o=>({...o}));if(!s.bugs)s.bugs=W.bugs0.map(o=>({...o}));if(!s.bosses)s.bosses=W.bosses0.map(o=>({...o}));if(!s.clouds)s.clouds=(W.clouds0||[]).map(o=>({...o}));if(!s.ch)s.ch={};if(!s.vt)s.vt={};if(!s.rocks)s.rocks=[];if(s.lt==null)s.lt=0;if(!s.cart)s.cart={};if(s.air==null)s.air=0;if(!s.lvz)s.lvz={};if(s.zt==null)s.zt=0;return s}
+function initMovers(W,s){if(s.bugs&&(W.droppedBugs||[]).length&&s.bugs.some(o=>o.glitch&&W.maps[o.m]&&!/^(factory|core)$/.test(W.maps[o.m].theme))){ // save from before the swamp-lily fix: drop the fake movers, renumber the rest
+  const D=W.droppedBugs;s.bugs=s.bugs.filter(o=>!(o.glitch&&W.maps[o.m]&&!/^(factory|core)$/.test(W.maps[o.m].theme))).map(o=>({...o,i:o.i-D.filter(d=>d<o.i).length}))}
+ if(!s.dunes)s.dunes=W.dunes0.map(o=>({...o}));if(!s.bugs)s.bugs=W.bugs0.map(o=>({...o}));if(!s.bosses)s.bosses=W.bosses0.map(o=>({...o}));if(!s.clouds)s.clouds=(W.clouds0||[]).map(o=>({...o}));if(!s.ch)s.ch={};if(!s.vt)s.vt={};if(!s.rocks)s.rocks=[];if(s.lt==null)s.lt=0;if(!s.cart)s.cart={};if(s.air==null)s.air=0;if(!s.lvz)s.lvz={};if(s.zt==null)s.zt=0;return s}
 const hasInv=(s,i)=>s.inv.indexOf(i)>=0;
 // ---------- patrols (snowball 'P') ----------
 function patAt(s,m,x,y){return (s.pats||[]).findIndex(p=>p.m===m&&p.x===x&&p.y===y)}
