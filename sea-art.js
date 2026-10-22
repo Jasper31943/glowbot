@@ -18,11 +18,18 @@ function seaCoral(px,py,x,y){seaSand(px,py,x,y);const C=SEA_THEME.coral,c=C[Math
  [[3,2],[7,4],[11,1]].forEach(([a,b])=>R(px+a,py+b,2,1,C[0]))}
 function seaweed(px,py,x,y,frame){seaSand(px,py,x,y);const G=SEA_THEME.weed,s=frame?1:-1;
  [[4,0],[9,1],[12,0]].forEach(([a,ph])=>{for(let j=2;j<15;j++){const dx=Math.round(Math.sin(j*.6+ph*2)*1.2*s);R(px+a+dx,py+j,2,1,j%3?G[1]:G[0])}R(px+a,py+15,2,1,G[1])})}
-// current: dir 0 up 1 down 2 left 3 right, frame 0/1 scrolls chevrons
-function seaCurrent(px,py,x,y,dir,frame){const W=SEA_THEME.water,off=frame?4:0;R(px,py,16,16,'#1f7fb8');R(px,py,16,1,'#2a90c8');R(px,py+15,16,1,'#1a6ea3');
- for(let k=0;k<2;k++){const t=(k*8+off)%16;for(let j=0;j<4;j++){
-  let a,b,c,d;if(dir===3){a=t+j;b=4+j;c=t+j;d=11-j}else if(dir===2){a=15-t-j;b=4+j;c=15-t-j;d=11-j}else if(dir===1){a=4+j;b=t+j;c=11-j;d=t+j}else{a=4+j;b=15-t-j;c=11-j;d=15-t-j}
-  const th=dir>=2?[1,2]:[2,1];[[a,b],[c,d]].forEach(([u,v])=>{if(u>=0&&u<16&&v>=0&&v<16)R(px+u,py+v,Math.min(th[0],16-u),Math.min(th[1],16-v),j===0?E32.white:W[2])})}}}
+// current: dir 0 up 1 down 2 left 3 right. Water streaks flow in the current's direction and one bold outlined arrow
+// sits in the middle, nudging forward, so the direction reads at a glance even on a phone. frame kept for old callers.
+function seaCurrent(px,py,x,y,dir,frame){const W=SEA_THEME.water,t=typeof T==='number'?T:(frame?.17:0);
+ R(px,py,16,16,'#1f7fb8');R(px,py,16,1,'#2a90c8');R(px,py+15,16,1,'#1a6ea3');
+ // u = along the flow (0..15, 15 = downstream), v = across; map to screen per direction
+ const P=(u,v,w,h,c)=>{let X,Y,WW,HH;if(dir===3){X=u;Y=v;WW=w;HH=h}else if(dir===2){X=16-u-w;Y=v;WW=w;HH=h}else if(dir===1){X=v;Y=u;WW=h;HH=w}else{X=v;Y=16-u-w;WW=h;HH=w}
+  if(X<0){WW+=X;X=0}if(Y<0){HH+=Y;Y=0}WW=Math.min(WW,16-X);HH=Math.min(HH,16-Y);if(WW>0&&HH>0)R(px+X,py+Y,WW,HH,c)};
+ const sh=(t*14)%16;[[1,0],[13,7],[3,11],[11,4]].forEach(([v,ph])=>{const u=Math.floor((sh+ph+(x+y)*3)%16);P(u-3,v,4,1,W[2]);P(u,v,1,1,E32.white)});
+ const b=Math.floor(t*4)%4<2?0:1; // arrow nudges one pixel downstream
+ // outline (ink) then white arrow: shaft u 3..8, head u 8..12 tapering
+ P(2+b,6,8,4,E32.navy);[[8,2,12],[9,3,10],[10,4,8],[11,5,6],[12,6,4],[13,7,2]].forEach(([u,v,h])=>P(u+b,v,1,h,E32.navy));
+ P(3+b,7,6,2,E32.white);[[8,3,10],[9,4,8],[10,5,6],[11,6,4],[12,7,2]].forEach(([u,v,h])=>P(u+b,v,1,h,E32.white))}
 // air bubble pickup / platform; t (s) for bob
 function airBubble(px,py,t){const B=SEA_THEME.bubble,b=Math.round(Math.sin((t||0)*3));py+=b;
  const disc=(r,c)=>{for(let j=-r;j<=r;j++){const w=Math.round(Math.sqrt(r*r-j*j+r*.6));R(px+8-w,py+8+j,w*2,1,c)}};
