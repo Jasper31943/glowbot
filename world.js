@@ -227,15 +227,16 @@ function smoke(f){const p=(T-f.t0)/.5;if(p>=1)return false;const fr=Math.min(3,M
 let movPrev={},movT0=0;function snapMovers(prev){movPrev={};['dunes','bugs','bosses','clouds'].forEach(k=>(prev[k]||[]).forEach(o=>movPrev[k+o.i]=[o.x,o.y]));movT0=T}
 let knock=null; // ⚾ bat knockback in flight: {i,x0,y0,x1,y1,t0}
 const KNOCK_DELAY=.07,KNOCK_DUR=.26; // starts on the swing's impact frame, flies 1 tile in a little arc
-function knockPos(o){if(!knock||knock.i!==o.i||knock.m!==S.m)return null;const t=T-knock.t0;if(t>=KNOCK_DELAY+KNOCK_DUR)return null;
+function knockPos(o,k){if(!knock||knock.i!==o.i||knock.m!==S.m||(knock.k||'bugs')!==(k||'bugs'))return null;const t=T-knock.t0;if(t>=KNOCK_DELAY+KNOCK_DUR)return null;
  const p=Math.max(0,t-KNOCK_DELAY)/KNOCK_DUR,e=1-(1-p)*(1-p);return{x:knock.x0+(knock.x1-knock.x0)*e,y:knock.y0+(knock.y1-knock.y0)*e,lift:Math.round(Math.sin(p*Math.PI)*5),p}}
-function mpos(k,o){if(k==='bugs'){const kp=knockPos(o);if(kp)return[Math.round((kp.x-cam.ox)*16),Math.round((kp.y-cam.oy)*16)-kp.lift]}
+function mpos(k,o){if(k==='bugs'||k==='bosses'){const kp=knockPos(o,k);if(kp)return[Math.round((kp.x-cam.ox)*16),Math.round((kp.y-cam.oy)*16)-kp.lift]}
  const q=Math.min(1,(T-movT0)/.12),p=movPrev[k+o.i];let x=o.x,y=o.y;if(p&&q<1&&Math.abs(p[0]-o.x)+Math.abs(p[1]-o.y)<=2){/* movers step at most 1 tile: a far 'previous' tile means a stale/shared id, never slide across the map */x=p[0]+(o.x-p[0])*q;y=p[1]+(o.y-p[1])*q}return[Math.round((x-cam.ox)*16),Math.round((y-cam.oy)*16)]}
-function knockLines(g,px,py){const kp=knockPos(g);if(!kp||kp.p<=0||kp.p>=.95)return;const dx=Math.sign(knock.x1-knock.x0),dy=Math.sign(knock.y1-knock.y0),a=1-kp.p;o_alpha(.9*a);
+function knockLines(g,px,py,k){const kp=knockPos(g,k);if(!kp||kp.p<=0||kp.p>=.95)return;const dx=Math.sign(knock.x1-knock.x0),dy=Math.sign(knock.y1-knock.y0),a=1-kp.p;o_alpha(.9*a);
  for(const s of [-4,0,4]){const L=6+Math.round(4*a);if(dx)R(px+(dx>0?-L+2:14),py+8+s,L,1,E32.white);else R(px+8+s,py+(dy>0?-L+2:14),1,L,E32.white)}o_alpha(1)} // speed lines behind the flying creature
 const o_alpha=a=>{o.globalAlpha=a};
 let bossHitT={};
 function stunStars(px,py,n){for(let i=0;i<n;i++){const a=T*6+i*2.094,sx=px+7+Math.round(Math.cos(a)*5),sy=py-2+Math.round(Math.sin(a)*1.5);R(sx-1,sy-1,4,4,E32.ink);R(sx,sy,2,2,E32.yellow);R(sx-1,sy,1,1,E32.amber);R(sx+2,sy+1,1,1,E32.amber)}}
+function bossStars(){if(!V2())return;(S.bosses||[]).forEach(o=>{if(o.m!==S.m||o.hp<=0||!(o.fr>0))return;const [px,py]=mpos('bosses',o);stunStars(px,py,o.fr)})} // stunned boss: same spinning stars as a stunned creature, on top of everything
 function drawMovers(){if(!V2())return;const fr=Math.floor(T*3)%2;
  if(MIN()&&typeof minecart==='function')(S.boxes||[]).forEach(k=>{if(!k.startsWith(S.m+':'))return;const [x,y]=k.split(':')[1].split(',').map(Number),d=S.cart&&S.cart[k]!=null?S.cart[k]:1;
   minecart(Math.round((x-cam.ox)*16),Math.round((y-cam.oy)*16),d,fr)});
@@ -251,7 +252,7 @@ function drawMovers(){if(!V2())return;const fr=Math.floor(T*3)%2;
   if(o.fr>0)stunStars(px,py,o.fr)}); // knights / sparks / glitch bots show the same spinning stars as a stunned beetle (before: no sign the fire worked)
  (S.rocks||[]).forEach(r=>{if(r.m!==S.m)return;const px=Math.round((r.x-cam.ox)*16),py=Math.round((r.y-cam.oy)*16);
   R(px+3,py+4,10,9,E32.ink);R(px+4,py+5,8,7,'#9a7a6c');R(px+5,py+6,3,3,'#b08e7e');R(px+9,py+8,2,2,E32.orange)});
- (S.bosses||[]).forEach(o=>{if(o.m!==S.m||o.hp<=0)return;const [px,py]=mpos('bosses',o),hit=T-(bossHitT[o.i]||-9)<.25,hurt=o.max-o.hp;
+ (S.bosses||[]).forEach(o=>{if(o.m!==S.m||o.hp<=0)return;const [px,py]=mpos('bosses',o),hit=T-(bossHitT[o.i]||-9)<.25,hurt=o.max-o.hp,dz=o.fr>0,fr0=fr;{const fr=dz?0:fr0;if(dz)knockLines(o,px,py,'bosses');
   if(o.kind==='worm')sandwormKing(px-8,py-16,fr,hit,o.hp,o.max);
   else if(o.kind==='tree')elderTree(px-8,py-16,fr,hit,o.hp,o.max);
   else if(o.kind==='frog'&&typeof mudFrogKing==='function')mudFrogKing(px,py,fr,o.d===2?2:3,hurt,T);
@@ -268,7 +269,7 @@ function drawMovers(){if(!V2())return;const fr=Math.floor(T*3)%2;
   else if(o.kind==='guard'&&typeof clockGuard==='function')clockGuard(px,py,hurt,T,hit);
   else if(o.kind==='glitch'&&typeof glitchKing==='function')glitchKing(px,py,fr,o.d===2?2:3,hurt,!!o.spotted,hit);
   else if(o.kind==='core'&&typeof glitchCore==='function'){const phase=o.phase!=null?o.phase:(o.max-o.hp);glitchCore(px-16,py-16,phase,hit,T);
-   if(S.bossCp&&S.bossCp.zone===o.zone&&typeof bossCheckpointFlame==='function')bossCheckpointFlame(px+28,py-8,true,T)}});
+   if(S.bossCp&&S.bossCp.zone===o.zone&&typeof bossCheckpointFlame==='function')bossCheckpointFlame(px+28,py-8,true,T)}}}); // stunned charging boss: stands still; its stars are drawn by bossStars() after the robot so they're never hidden behind it
 }
 
 const V2FX={
@@ -285,7 +286,7 @@ const V2FX={
  splash:f=>{const p=(T-f.t0)/.5;if(p>=1)return false;sandSplash(Math.round((f.x-cam.ox)*16),Math.round((f.y-cam.oy)*16),p);return true}};
 function v2Fx(r,prev){if(!V2()&&!(prev&&W.maps[prev.m].rules==='v2'))return;snapMovers(prev);const ev=r.ev||[];
  if(ev.indexOf('noeffect')>=0&&S.lastFire){fx.push({type:'noeffect',x:S.lastFire.x0,y:S.lastFire.y0,t0:T});delete S.lastFire}
- if(ev.indexOf('swing')>=0&&S.lastBat){fx.push(Object.assign({type:'swing',t0:T},S.lastBat));if(ev.indexOf('knock')>=0){const b=S.lastBat,g=(S.bugs||[]).find(q=>q.m===S.m&&q.x===b.kx&&q.y===b.ky);if(g)knock={i:g.i,m:S.m,x0:b.tx,y0:b.ty,x1:b.kx,y1:b.ky,t0:T}}if(ev.indexOf('smash')>=0){const b=S.lastBat;setTimeout(()=>{fx.push({type:'smoke',x:b.tx,y:b.ty,t0:T});shake=3;sfx('crumble')},90)}else if(ev.indexOf('stun')>=0)setTimeout(()=>{shake=2;sfx('bump')},70);else if(ev.indexOf('bonk')>=0)flash('⚾ 王太大了，球棒打不動');else if(ev.indexOf('clang')>=0){sfx('bump');flash('⚾ 鐵箍裂牆打不破：要用炸彈'+(W.maps[S.m].theme==='mine'?'或礦車':''))}delete S.lastBat}
+ if(ev.indexOf('swing')>=0&&S.lastBat){fx.push(Object.assign({type:'swing',t0:T},S.lastBat));if(ev.indexOf('knock')>=0){const b=S.lastBat,g=(b.boss?S.bosses:S.bugs||[]).find(q=>q.m===S.m&&q.x===b.kx&&q.y===b.ky);if(g)knock={i:g.i,k:b.boss?'bosses':'bugs',m:S.m,x0:b.tx,y0:b.ty,x1:b.kx,y1:b.ky,t0:T}}if(ev.indexOf('smash')>=0){const b=S.lastBat;setTimeout(()=>{fx.push({type:'smoke',x:b.tx,y:b.ty,t0:T});shake=3;sfx('crumble')},90)}else if(ev.indexOf('stun')>=0)setTimeout(()=>{shake=2;sfx('bump')},70);else if(ev.indexOf('bonk')>=0)flash('⚾ 王太大了，球棒打不動');else if(ev.indexOf('clang')>=0){sfx('bump');flash('⚾ 鐵箍裂牆打不破：要用炸彈'+(W.maps[S.m].theme==='mine'?'或礦車':''))}delete S.lastBat}
  const clk=W.maps[S.m].theme==='clock'&&S.zone,waited=clk&&ev.indexOf('fire')>=0&&!['burn','melt','stun','bosshit'].some(e=>ev.indexOf(e)>=0);
  if(waited){fx.push({type:'wait',x:S.x,y:S.y,t0:T});delete S.lastFire} // clock tower: 動作 with nothing to hit = wait one tick (little clock, no fire puff)
  if(ev.indexOf('fire')>=0&&S.lastFire){fx.push(Object.assign({type:'fire',t0:T},S.lastFire));delete S.lastFire}
@@ -406,6 +407,10 @@ const _trk={};function trackShape(c,x,y){const id=S.m+':'+x+','+y+c;if(_trk[id])
 function interactTip(){if(!S||ending||failAnim)return null;const c=WE.cell(W,S,S.m,S.x,S.y);if(c==='j'||c==='ǰ')return '按動作換方向';
  const d={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]}[S.f]||null;if(!d)return null;const fc=WE.cell(W,S,S.m,S.x+d[0],S.y+d[1]);
  const bt=WE.batTarget&&!S.held?WE.batTarget(W,S):null;if(bt&&bt.kind==='wall')return '按動作揮棒打破裂牆';if(bt&&bt.kind==='bug'){const kb=WE.knockTo&&WE.knockTo(W,S,S.bugs[bt.i]);if(kb)return '按動作揮棒把牠打退';if(!(S.bugs[bt.i].fr>0))return '按動作揮棒打昏牠'};
+ if(bt&&bt.kind==='bossbat'){const B=S.bosses[bt.i],kb=WE.DIRS[S.f][1]===0&&WE.knockTo&&WE.knockTo(W,S,B);if(kb)return '按動作揮棒把王打退';if(!(B.fr>0))return '按動作揮棒打昏王'}
+ if(WE.canStunBoss&&!bt&&!S.held&&WE.hasInv(S,'F')&&W.maps[S.m].theme!=='volcano'&&S.zone){const Z=W.maps[S.m].zones.find(z=>z.id===S.zone);let x=S.x,y=S.y; // fire in a straight line reaches a charging boss → 「吐火打昏王」
+  for(let g=0;Z&&g<12;g++){x+=d[0];y+=d[1];if(x<Z.x||y<Z.y||x>=Z.x+Z.w||y>=Z.y+Z.h)break;const B=(S.bosses||[]).find(o=>o.hp>0&&o.m===S.m&&o.x===x&&o.y===y);if(B){if(WE.canStunBoss(S,B)&&!(B.fr>0))return '按動作吐火打昏王';break}
+   if(WE.solidV2(W,S,S.m,x,y)||WE.boxAt(S,S.m,x,y)>=0||WE.bombAt(S,S.m,x,y)>=0||WE.bugAt(S,S.m,x,y)>=0||'╱╲'.indexOf(WE.cell(W,S,S.m,x,y))>=0)break}}
  if(W.maps[S.m].theme==='clock'&&S.zone){if((fc==='n'||fc==='s')&&clockNext(S.x+d[0],S.y+d[1],fc))return '下一步鐘擺會打到這格：按動作等一拍';
   if((fc==='¤'||fc==='¢')&&(WE.gateShut(S,fc)||WE.gateShut({zt:(S.zt||0)+1},fc)))return WE.gateShut(S,fc)?'齒輪門關著：按動作等一拍':'這扇門下一步就關：按動作等它下次打開';
   const here=WE.cell(W,S,S.m,S.x,S.y);if((here==='n'||here==='s')&&clockNext(S.x,S.y,here))return '鐘擺要來了：快離開這格';if((here==='¤'||here==='¢')&&WE.gateShut({zt:(S.zt||0)+1},here))return '門要關了：快走出去'}
@@ -559,7 +564,7 @@ function drawFrame(){if(ending){endingFrame();return}const now=performance.now()
  else{robot(gx+shk,gy+Math.round(Math.sin(T*2.4))-1-hop,react&&react.type==='hop'?'norm':face,anim&&anim.type==='bump'?'down':facing,frame,look,1);if(S.air>0&&typeof robotBubbleHelmet==='function')robotBubbleHelmet(gx+shk,gy+Math.round(Math.sin(T*2.4))-1-hop)}
  if(bang){const bx=gx+12,by=gy-6-hop;R(bx-1,by-1,4,9,TH.outline);R(bx,by,2,5,E32.amber);R(bx,by+6,2,1,E32.amber)}
  if(S.held&&!failAnim){R(gx+11,gy+1-hop,5,5,TH.outline);R(gx+12,gy+2-hop,3,3,E32.grey4)}
- if(!failAnim)tipAt(gx,gy);else tipAt(-99,-99);
+ bossStars();if(!failAnim)tipAt(gx,gy);else tipAt(-99,-99);
  runeSigns();shortcutMarks();drawGuide();drawPats(); // guide above robot
  fx=fx.filter(f=>f.type==='defeat'?defeat(f):f.type in V2FX?V2FX[f.type](f):smoke(f));
  // blit with shake + tunnel fade
