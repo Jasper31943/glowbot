@@ -138,7 +138,7 @@ const KEYS={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',w:
 const helpOn=()=>$('help').classList.contains('on');let helpT=performance.now();
 // title screen (og.png look) comes first; any key / tap -> help panel -> game
 const titleOn=()=>$('title').classList.contains('on');
-function giveBatMoment(){if(!batGift)return;batGift=false;setTimeout(()=>{flash('⚾ 你拿到了球棒！面對裂牆或面前的生物按動作揮棒');react={type:'hop',t0:T};sfx('key');hud()},500)}
+function giveBatMoment(){if(!batGift)return;batGift=false;setTimeout(()=>{flash('⚾ 你拿到了球棒！面對裂牆或生物按動作：打碎牆、把生物打退');react={type:'hop',t0:T};sfx('key');hud()},500)}
 function closeTitle(e){giveBatMoment();if(e){e.preventDefault();e.stopImmediatePropagation()}$('title').classList.remove('on');helpT=performance.now()}
 // title choices: with a valid save -> [繼續上次][新遊戲] (+confirm); without -> any key/tap = new game
 let tsel=0,csel=1;const confOn=()=>$('tconf').classList.contains('on');
@@ -219,7 +219,15 @@ function smoke(f){const p=(T-f.t0)/.5;if(p>=1)return false;const fr=Math.min(3,M
  R(px+8-sizes[0]/2,py+8-sizes[1]/2,sizes[0],sizes[1],cols[fr]);R(px+8-sizes[0]/2+2,py+8-sizes[1]/2-1,sizes[0]-4,sizes[1]+2,cols[fr]);if(fr<2)R(px+6,py+6,4,4,E32.white);o.globalAlpha=1;return true}
 // desert/forest movers: dunes, beetles (stun stars), bosses (2x2, flash on hit, HP pips). Slide 0.12s from the previous cell.
 let movPrev={},movT0=0;function snapMovers(prev){movPrev={};['dunes','bugs','bosses','clouds'].forEach(k=>(prev[k]||[]).forEach(o=>movPrev[k+o.i]=[o.x,o.y]));movT0=T}
-function mpos(k,o){const q=Math.min(1,(T-movT0)/.12),p=movPrev[k+o.i];let x=o.x,y=o.y;if(p&&q<1){x=p[0]+(o.x-p[0])*q;y=p[1]+(o.y-p[1])*q}return[Math.round((x-cam.ox)*16),Math.round((y-cam.oy)*16)]}
+let knock=null; // ⚾ bat knockback in flight: {i,x0,y0,x1,y1,t0}
+const KNOCK_DELAY=.07,KNOCK_DUR=.26; // starts on the swing's impact frame, flies 1 tile in a little arc
+function knockPos(o){if(!knock||knock.i!==o.i||knock.m!==S.m)return null;const t=T-knock.t0;if(t>=KNOCK_DELAY+KNOCK_DUR)return null;
+ const p=Math.max(0,t-KNOCK_DELAY)/KNOCK_DUR,e=1-(1-p)*(1-p);return{x:knock.x0+(knock.x1-knock.x0)*e,y:knock.y0+(knock.y1-knock.y0)*e,lift:Math.round(Math.sin(p*Math.PI)*5),p}}
+function mpos(k,o){if(k==='bugs'){const kp=knockPos(o);if(kp)return[Math.round((kp.x-cam.ox)*16),Math.round((kp.y-cam.oy)*16)-kp.lift]}
+ const q=Math.min(1,(T-movT0)/.12),p=movPrev[k+o.i];let x=o.x,y=o.y;if(p&&q<1){x=p[0]+(o.x-p[0])*q;y=p[1]+(o.y-p[1])*q}return[Math.round((x-cam.ox)*16),Math.round((y-cam.oy)*16)]}
+function knockLines(g,px,py){const kp=knockPos(g);if(!kp||kp.p<=0||kp.p>=.95)return;const dx=Math.sign(knock.x1-knock.x0),dy=Math.sign(knock.y1-knock.y0),a=1-kp.p;o_alpha(.9*a);
+ for(const s of [-4,0,4]){const L=6+Math.round(4*a);if(dx)R(px+(dx>0?-L+2:14),py+8+s,L,1,E32.white);else R(px+8+s,py+(dy>0?-L+2:14),1,L,E32.white)}o_alpha(1)} // speed lines behind the flying creature
+const o_alpha=a=>{o.globalAlpha=a};
 let bossHitT={};
 function stunStars(px,py,n){for(let i=0;i<n;i++){const a=T*6+i*2.094,sx=px+7+Math.round(Math.cos(a)*5),sy=py-2+Math.round(Math.sin(a)*1.5);R(sx-1,sy-1,4,4,E32.ink);R(sx,sy,2,2,E32.yellow);R(sx-1,sy,1,1,E32.amber);R(sx+2,sy+1,1,1,E32.amber)}}
 function drawMovers(){if(!V2())return;const fr=Math.floor(T*3)%2;
@@ -227,7 +235,7 @@ function drawMovers(){if(!V2())return;const fr=Math.floor(T*3)%2;
   minecart(Math.round((x-cam.ox)*16),Math.round((y-cam.oy)*16),d,fr)});
  (S.clouds||[]).forEach(o=>{if(o.m!==S.m)return;const [px,py]=mpos('clouds',o);if(typeof cloudPlatform==='function')cloudPlatform(px,py,fr)});
  (S.dunes||[]).forEach(o=>{if(o.m!==S.m)return;const [px,py]=mpos('dunes',o);dune(px,py,fr,L.grid[o.y]&&L.grid[o.y][o.x]==='X')});
- (S.bugs||[]).forEach(o=>{if(o.m!==S.m)return;const [px,py]=mpos('bugs',o);
+ (S.bugs||[]).forEach(o=>{if(o.m!==S.m)return;const [px,py]=mpos('bugs',o);knockLines(o,px,py);
   const f2=o.fr>0?0:fr; // stunned: stands still
   if(o.glitch&&typeof glitchBot==='function')glitchBot(px,py,f2,!!o.spotted,T);
   else if(o.spark&&typeof sparkMon==='function')sparkMon(px,py,f2,!!o.spotted);
@@ -267,14 +275,14 @@ const V2FX={
  splash:f=>{const p=(T-f.t0)/.5;if(p>=1)return false;sandSplash(Math.round((f.x-cam.ox)*16),Math.round((f.y-cam.oy)*16),p);return true}};
 function v2Fx(r,prev){if(!V2()&&!(prev&&W.maps[prev.m].rules==='v2'))return;snapMovers(prev);const ev=r.ev||[];
  if(ev.indexOf('noeffect')>=0&&S.lastFire){fx.push({type:'noeffect',x:S.lastFire.x0,y:S.lastFire.y0,t0:T});delete S.lastFire}
- if(ev.indexOf('swing')>=0&&S.lastBat){fx.push(Object.assign({type:'swing',t0:T},S.lastBat));if(ev.indexOf('smash')>=0){const b=S.lastBat;setTimeout(()=>{fx.push({type:'smoke',x:b.tx,y:b.ty,t0:T});shake=3;sfx('crumble')},90)}else if(ev.indexOf('stun')>=0)setTimeout(()=>{shake=2;sfx('bump')},70);else if(ev.indexOf('bonk')>=0)flash('⚾ 王太大了，球棒打不動');else if(ev.indexOf('clang')>=0){sfx('bump');flash('⚾ 鐵箍裂牆打不破：要用炸彈'+(W.maps[S.m].theme==='mine'?'或礦車':''))}delete S.lastBat}
+ if(ev.indexOf('swing')>=0&&S.lastBat){fx.push(Object.assign({type:'swing',t0:T},S.lastBat));if(ev.indexOf('knock')>=0){const b=S.lastBat,g=(S.bugs||[]).find(q=>q.m===S.m&&q.x===b.kx&&q.y===b.ky);if(g)knock={i:g.i,m:S.m,x0:b.tx,y0:b.ty,x1:b.kx,y1:b.ky,t0:T}}if(ev.indexOf('smash')>=0){const b=S.lastBat;setTimeout(()=>{fx.push({type:'smoke',x:b.tx,y:b.ty,t0:T});shake=3;sfx('crumble')},90)}else if(ev.indexOf('stun')>=0)setTimeout(()=>{shake=2;sfx('bump')},70);else if(ev.indexOf('bonk')>=0)flash('⚾ 王太大了，球棒打不動');else if(ev.indexOf('clang')>=0){sfx('bump');flash('⚾ 鐵箍裂牆打不破：要用炸彈'+(W.maps[S.m].theme==='mine'?'或礦車':''))}delete S.lastBat}
  if(ev.indexOf('fire')>=0&&S.lastFire){fx.push(Object.assign({type:'fire',t0:T},S.lastFire));delete S.lastFire}
  (S.sunk||[]).forEach(k=>{if(k.m===S.m)fx.push({type:k.box?'boxsink':'splash',x:k.x,y:k.y,t0:T});setTimeout(()=>sfx('crumble'),80)});delete S.sunk;
  (S.scattered||[]).concat(S.squashed||[]).forEach(k=>{if(k.m===S.m)fx.push({type:'splash',x:k.x,y:k.y,t0:T})});delete S.scattered;delete S.squashed;
  if(ev.indexOf('bosshit')>=0)(S.bosses||[]).forEach(o=>{if(o.m===S.m&&o.hitAt===S.steps)bossHitT[o.i]=T});
  if(ev.indexOf('bossdown')>=0){shake=4;setTimeout(()=>sfx('door'),200)}
  if(ev.indexOf('lamp')>=0)react={type:'hop',t0:T}
- if(ev.indexOf('bat')>=0){react={type:'hop',t0:T};flash('⚾ 拿到球棒！面對裂牆或面前的生物按動作揮棒')}
+ if(ev.indexOf('bat')>=0){react={type:'hop',t0:T};flash('⚾ 拿到球棒！面對裂牆或生物按動作：打碎牆、把生物打退')}
  if(ev.indexOf('ending')>=0||r.result==='ending')setTimeout(()=>startEnding(),800)}
 let shortcut=null;(function(){const M=W.maps.ice;if(!M)return;const t=(W.tunnels['1']||[]).find(p=>p.m==='ice');if(!t)return;
  for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++)if(WE.base(W,'ice',t.x+dx,t.y+dy)==='M'){const d=[t.x+dx,t.y+dy];let y=d[1]-1;while(y>0&&WE.base(W,'ice',d[0],y-1)!=='#')y--;
@@ -373,7 +381,7 @@ const _trk={};function trackShape(c,x,y){const id=S.m+':'+x+','+y+c;if(_trk[id])
 // stand-on / facing interactables -> small 「按動作…」 bubble above the robot + 動作 button glows
 function interactTip(){if(!S||ending||failAnim)return null;const c=WE.cell(W,S,S.m,S.x,S.y);if(c==='j'||c==='ǰ')return '按動作換方向';
  const d={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]}[S.f]||null;if(!d)return null;const fc=WE.cell(W,S,S.m,S.x+d[0],S.y+d[1]);
- const bt=WE.batTarget&&!S.held?WE.batTarget(W,S):null;if(bt&&(bt.kind==='wall'||(bt.kind==='bug'&&!(S.bugs[bt.i].fr>0))))return bt.kind==='wall'?'按動作揮棒打破裂牆':'按動作揮棒打昏牠';
+ const bt=WE.batTarget&&!S.held?WE.batTarget(W,S):null;if(bt&&bt.kind==='wall')return '按動作揮棒打破裂牆';if(bt&&bt.kind==='bug'){const kb=WE.knockTo&&WE.knockTo(W,S,S.bugs[bt.i]);if(kb)return '按動作揮棒把牠打退';if(!(S.bugs[bt.i].fr>0))return '按動作揮棒打昏牠'};
  if(fc==='r')return '按動作拉拉桿';if(fc==='╱'||fc==='╲')return '按動作轉鏡子';if(fc==='⊕'||fc==='⊛')return '按動作開關發電機';return null}
 let tipShown=null;function tipAt(gx,gy){const t=anim?null:interactTip(),el=$('tip');if(!el)return;
  if(t){const c=WE.cell(W,S,S.m,S.x,S.y);if(c==='j'||c==='ǰ'){const a=.5+.5*Math.sin(T*6);o.globalAlpha=a;R(gx,gy,16,1,E32.yellow);R(gx,gy+15,16,1,E32.yellow);R(gx,gy,1,16,E32.yellow);R(gx+15,gy,1,16,E32.yellow);o.globalAlpha=1}
@@ -441,6 +449,7 @@ function drawFrame(){if(ending){endingFrame();return}const now=performance.now()
  TH=WORLDS[W.maps[S.m].theme]||WORLDS.grass;if(V2())ensureSceneArt(S.m);buildView();if(!legendDone&&st){const th=TH;TH=WORLDS.grass;renderLegend();TH=th}
  const [tx,ty]=camTarget();if(!cam.init){cam.x=tx;cam.y=ty;cam.init=true}{const k=1-Math.exp(-dt*5),mx=dt*14;cam.x+=Math.max(-mx,Math.min(mx,(tx-cam.x)*k));cam.y+=Math.max(-mx,Math.min(mx,(ty-cam.y)*k))} // smooth pan, capped speed (no jump on zone change)
  cam.ox=Math.round(cam.x*16)/16;cam.oy=Math.round(cam.y*16)/16;
+ o.setTransform(1,0,0,1,0,0);o.globalAlpha=1;o.globalCompositeOperation='source-over'; // every frame starts from a clean, fully opaque clear: a leaked alpha/transform from a half-finished frame must never let the last frame show through (robot afterimages)
  o.fillStyle=V2()?(DES()?E32.tan:VOL()?E32.brown2:MIN()?E32.grey4:SWA()?E32.green3:SEA()?E32.blue1:CAS()?E32.navy:SKY()?E32.blue2:MIR()?'#b5aed8':POW()?E32.grey2:CLK()?'#c4935f':FAC()?E32.grey3:COR()?E32.ink:E32.green3):TH===WORLDS.grass?E32.green2:ICY()?E32.white:E32.ink;o.fillRect(0,0,off.width,off.height);
  const x0=Math.floor(cam.ox),y0=Math.floor(cam.oy);
  for(let y=y0-1;y<=y0+VIEWH+1;y++)for(let x=x0-1;x<=x0+VW+1;x++){if((x<0||y<0||x>=L.W||y>=L.H)&&TH!==WORLDS.grass&&!ICY()&&!V2())continue;tile((L.grid[y]||[])[x],Math.round((x-cam.ox)*16),Math.round((y-cam.oy)*16),x,y)}
@@ -477,7 +486,7 @@ function drawFrame(){if(ending){endingFrame();return}const now=performance.now()
  runeSigns();shortcutMarks();drawGuide();drawPats(); // guide above robot
  fx=fx.filter(f=>f.type==='defeat'?defeat(f):f.type in V2FX?V2FX[f.type](f):smoke(f));
  // blit with shake + tunnel fade
- const sh=shake>0?(shake--%2?2:-2)*SC:0;ctx.imageSmoothingEnabled=false;ctx.fillStyle=E32.ink;ctx.fillRect(0,0,cv.width,cv.height);ctx.drawImage(off,sh,0,cv.width,cv.height);
+ const sh=shake>0?(shake--%2?2:-2)*SC:0;ctx.imageSmoothingEnabled=false;ctx.setTransform(1,0,0,1,0,0);ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';o.globalAlpha=1;ctx.fillStyle=E32.ink;ctx.fillRect(0,0,cv.width,cv.height);ctx.drawImage(off,sh,0,cv.width,cv.height);
  if(fade>0){ctx.fillStyle=`rgba(24,20,37,${fade})`;ctx.fillRect(0,0,cv.width,cv.height);fade=Math.max(0,fade-dt/0.3)}
  drawMini();lastDraw=performance.now()}
 let lastDraw=0,manualDraw=false;
