@@ -76,9 +76,9 @@ function clone(s){return{m:s.m,x:s.x,y:s.y,f:s.f,held:s.held,inv:s.inv,got:s.got
 // fills desert/forest fields (also used to upgrade v3 saves, which never reached those maps)
 const RELAYOUT={'swamp#S5':o=>o.y===12}; // zones redesigned after release: a saved creature that no longer fits the new layout resets that zone
 // sea crates ride a whole current since layout 2; A5 A6 A8 were rebuilt for it, so an older save puts those zones' crates back
-const LAYV=5,BOXRELAY=['sea#A5','sea#A6','sea#A8'],ZRESET={'castle#C5':3,'castle#C10':4,'castle#C9':5}; // 4 = bat knockback release (C10 redrawn so the bat can't skip its bomb); 5 = C9 redrawn (crate + trapdoor + ghost you bat into a corner) // ZRESET: zone redrawn in layout version N; saves older than N restart that zone's creatures (and the robot, if standing in it) fresh
+const LAYV=6,BOXRELAY=['sea#A5','sea#A6','sea#A8'],ZRESET={'castle#C5':3,'castle#C10':4,'castle#C9':5,'mirror#R7':6}; // 6 = mirror R7 redrawn (three-bounce light, no crates) // 4 = bat knockback release (C10 redrawn so the bat can't skip its bomb); 5 = C9 redrawn (crate + trapdoor + ghost you bat into a corner) // ZRESET: zone redrawn in layout version N; saves older than N restart that zone's creatures (and the robot, if standing in it) fresh
 function relayBoxes(W,s){const lay0=s.lay||0;if(lay0>=LAYV)return;s.lay=LAYV;if(lay0<3){grantBat(W,s);if(s.bugs&&!s.bugs.some(o=>o.zone==='forest#F14'))s.bugs=s.bugs.concat(W.bugs0.filter(o=>o.zone==='forest#F14').map(o=>({...o}))).sort((a,b)=>a.i-b.i)} // layout 3 = bat release (+ the F14 tutorial beetle older saves never had)
- for(const zid in ZRESET){if(lay0>=ZRESET[zid])continue;const [m]=zid.split('#'),Z=(W.maps[m]||{zones:[]}).zones.find(z=>z.id===zid);if(!Z||!s.bugs)continue;
+ for(const zid in ZRESET){if(lay0>=ZRESET[zid])continue;const [m]=zid.split('#'),Z=(W.maps[m]||{zones:[]}).zones.find(z=>z.id===zid);if(!Z)continue;if(!s.bugs)s.bugs=[];
   s.bugs=s.bugs.filter(o=>o.zone!==zid).concat(W.bugs0.filter(o=>o.zone===zid).map(o=>({...o}))).sort((a,b)=>a.i-b.i);
   {const inZ=k=>{if(!k.startsWith(m+':'))return false;const [x,y]=k.split(':')[1].split(',').map(Number);return x>=Z.x&&x<Z.x+Z.w&&y>=Z.y&&y<Z.y+Z.h}; // the old layout's crates, filled trapdoors and lever position no longer fit the new walls
    s.boxes=(s.boxes||[]).filter(k=>!inZ(k)).concat(W.boxes0.filter(inZ));for(const f of ['holes','filled','broken'])if(s[f])s[f]=s[f].filter(k=>!inZ(k));for(const k in (s.ch||{}))if(inZ(k))delete s.ch[k];for(const k in (s.vt||{}))if(inZ(k))delete s.vt[k];if(s.lvz)delete s.lvz[zid]}
@@ -235,6 +235,14 @@ const itemHere=(W,s,m,x,y)=>{const c=base(W,m,x,y);if(W.maps[m].theme==='clock'&
 const placeV2=(W,s,m,x,y,c)=>{if(isTrk(c)||c in CUR||c==='r')return false;if(c===',')return W.maps[m].theme==='sky'?cloudAt(s,m,x,y)>=0:true;/* rubble placeable off-sky, as live */return '.=Xa_pl═'.indexOf(c)>=0||c==='┊'||(c in WND)||(!!ITEMS[c]&&has(s.got,K(m,x,y)))};
 function curZone(W,s){return s.zone?W.maps[s.m].zones.find(z=>z.id===s.zone)||null:null}
 // light beams + power circuits for the robot's current zone
+// traceBeams: the same light paths as recomputeV2, as drawable pieces [x,y,dIn,dOut] (dIn -1 = the source itself; dIn≠dOut = a mirror bounce). Renderer only.
+function traceBeams(W,s,Z){const out=[];if(!Z)return out;const m=s.m;
+ for(let y=Z.y;y<Z.y+Z.h;y++)for(let x=Z.x;x<Z.x+Z.w;x++){if(cell(W,s,m,x,y)!=='☼')continue;for(let d0=0;d0<4;d0++){let cx=x,cy=y,d=d0;const seg=[[x,y,-1,d0]];
+  for(let g=0;g<80;g++){const nx=cx+DV[d][0],ny=cy+DV[d][1];if(!inZone(Z,nx,ny))break;const t=cell(W,s,m,nx,ny);
+   if(t in MIR){const nd=turnTrack(MIR[t],d);seg.push([nx,ny,d,nd]);d=nd;cx=nx;cy=ny;continue}
+   if('#%bKwTR~V○r╱╲☼⊕⊛£Ω'.indexOf(t)>=0||boxAt(s,m,nx,ny)>=0||bombAt(s,m,nx,ny)>=0||(t==='D'&&!switchDoorOpen(W,s,m,nx,ny)))break;
+   seg.push([nx,ny,d,d]);cx=nx;cy=ny}
+  if(seg.length>1)out.push(...seg)}}return out}
 function recomputeV2(W,s,Z){if(!Z){s.lit=0;s.pw=0;s.gen=0;s.bounce={};return}
  const m=s.m,lit={},bounce={},TG=[];
  for(let y=Z.y;y<Z.y+Z.h;y++)for(let x=Z.x;x<Z.x+Z.w;x++){const c=cell(W,s,m,x,y);if(c==='◎')TG.push([x,y]);
@@ -498,6 +506,6 @@ function* zoneStuckIter(W,s0,max){const M=W.maps[s0.m],Z=s0.zone&&M&&M.zones.fin
    if(!inZ(ns)){if(pats||ns.inv!==s.inv)return null;ns=clone(s);ns.left=Z.limit?Z.limit+(hasInv(s,'U')?10:0):null} // left the area: back in, fresh step limit
    const k=key(ns);if(seen.has(k))continue;if(seen.size>=max)return null;seen.add(k);q.push(ns)}}
  return true}
-const api={fixBugIds,knockTo,batTarget,BATSTUN,zoneStuck,zoneStuckIter,isTrk,isLava,turnTrack,isTun,tunId,tunAt,stepV2,solidV2,recomputeV2,gateShut,pendAt,MIR,duneAt,bugAt,wormAt,bossOfZone,initMovers,REGROW,mstep,patAt,resetPats,normalize,parseWorld,initState,step,advance,FUSE_MS,cell,base,zoneAt,solid,explore,bfsPath,softlocks,key,hasInv,DIRS,FUSE,ITEMS,switchDoorOpen,bombAt,boxAt,K,cloudAt,spikeUp,trapOpen,hazardV2,CUR,WND};
+const api={traceBeams,fixBugIds,knockTo,batTarget,BATSTUN,zoneStuck,zoneStuckIter,isTrk,isLava,turnTrack,isTun,tunId,tunAt,stepV2,solidV2,recomputeV2,gateShut,pendAt,MIR,duneAt,bugAt,wormAt,bossOfZone,initMovers,REGROW,mstep,patAt,resetPats,normalize,parseWorld,initState,step,advance,FUSE_MS,cell,base,zoneAt,solid,explore,bfsPath,softlocks,key,hasInv,DIRS,FUSE,ITEMS,switchDoorOpen,bombAt,boxAt,K,cloudAt,spikeUp,trapOpen,hazardV2,CUR,WND};
 if(typeof module!=='undefined')module.exports=api;else root.WorldEngine=api;
 })(this);
