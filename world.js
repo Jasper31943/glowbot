@@ -224,7 +224,7 @@ const KNOCK_DELAY=.07,KNOCK_DUR=.26; // starts on the swing's impact frame, flie
 function knockPos(o){if(!knock||knock.i!==o.i||knock.m!==S.m)return null;const t=T-knock.t0;if(t>=KNOCK_DELAY+KNOCK_DUR)return null;
  const p=Math.max(0,t-KNOCK_DELAY)/KNOCK_DUR,e=1-(1-p)*(1-p);return{x:knock.x0+(knock.x1-knock.x0)*e,y:knock.y0+(knock.y1-knock.y0)*e,lift:Math.round(Math.sin(p*Math.PI)*5),p}}
 function mpos(k,o){if(k==='bugs'){const kp=knockPos(o);if(kp)return[Math.round((kp.x-cam.ox)*16),Math.round((kp.y-cam.oy)*16)-kp.lift]}
- const q=Math.min(1,(T-movT0)/.12),p=movPrev[k+o.i];let x=o.x,y=o.y;if(p&&q<1){x=p[0]+(o.x-p[0])*q;y=p[1]+(o.y-p[1])*q}return[Math.round((x-cam.ox)*16),Math.round((y-cam.oy)*16)]}
+ const q=Math.min(1,(T-movT0)/.12),p=movPrev[k+o.i];let x=o.x,y=o.y;if(p&&q<1&&Math.abs(p[0]-o.x)+Math.abs(p[1]-o.y)<=2){/* movers step at most 1 tile: a far 'previous' tile means a stale/shared id, never slide across the map */x=p[0]+(o.x-p[0])*q;y=p[1]+(o.y-p[1])*q}return[Math.round((x-cam.ox)*16),Math.round((y-cam.oy)*16)]}
 function knockLines(g,px,py){const kp=knockPos(g);if(!kp||kp.p<=0||kp.p>=.95)return;const dx=Math.sign(knock.x1-knock.x0),dy=Math.sign(knock.y1-knock.y0),a=1-kp.p;o_alpha(.9*a);
  for(const s of [-4,0,4]){const L=6+Math.round(4*a);if(dx)R(px+(dx>0?-L+2:14),py+8+s,L,1,E32.white);else R(px+8+s,py+(dy>0?-L+2:14),1,L,E32.white)}o_alpha(1)} // speed lines behind the flying creature
 const o_alpha=a=>{o.globalAlpha=a};
