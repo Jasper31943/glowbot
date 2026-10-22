@@ -5,7 +5,7 @@ const SAVEKEY='glowbot.world.v1',SHARE_URL='https://jasper31943.github.io/glowbo
 let save={};try{save=JSON.parse(localStorage.getItem('robotMaze.v1'))||{}}catch(e){} // shares mute setting with level mode
 const W=WE.parseWorld(WORLD_DEF);if(W.errors.length)console.warn('world errors',W.errors);
 let T=0,stamp=0,L=null,st=null,TH=WORLDS.grass,S=null; // L/st/TH are the views art.js paints from
-let anim=null,fx=[],shake=0,fade=0,react=null,failAnim=null,cam={x:0,y:0,init:false},SC=3,VW=7,VIEWH=9,facing='down',idleT=0,tutorialDone=false;
+let boxSl=null,anim=null,fx=[],shake=0,fade=0,react=null,failAnim=null,cam={x:0,y:0,init:false},SC=3,VW=7,VIEWH=9,facing='down',idleT=0,tutorialDone=false;
 // ---------- save / load ----------
 const SAVEVER=4,SAVEOK=[3,4]; // v4 = desert/forest fields; v3 saves are upgraded in place (they never reached those maps)
 function persist(){try{localStorage.setItem(SAVEKEY,JSON.stringify({v:SAVEVER,s:S,tutorialDone}))}catch(e){}}
@@ -107,12 +107,13 @@ let inq=[];function act(a,opt){if($('title').classList.contains('on')||$('menu')
  if(r.result==='tired'){sfx('bump');anim={type:'bump',dir:a,t0:T,dur:.6,face:'pant'};return}
  if(r.result==='fall'){sfx('fail');anim={type:'bump',dir:a,t0:T,dur:.8,face:'x'};return}
  const doorsBefore=doorSet();S=r.state;S.zoneSteps=(S.zone&&S.zone===prev.zone&&r.result!=='reset'?(prev.zoneSteps||0)+1:0);
- blastFx(r);v2Fx(r,prev);
+ blastFx(r);v2Fx(r,prev);if(r.ev.slides)boxSl={t0:T+.1,items:r.ev.slides.map(q=>({pts:[q.from].concat(q.pts)}))}; // crates riding a current glide tile by tile
+ const drift=r.ev.indexOf('current')>=0&&(S.x!==prev.x||S.y!==prev.y)&&S.m===prev.m; // robot nudged by a current: show it
  if(r.result==='fail'){failAnim={t0:T,from:prev,sink:r.ev.indexOf('sink')>=0};sfx('fail');return}
  if(r.ev.indexOf('rune')>=0){const [dx,dy]=WE.DIRS[S.f];fx.push({type:'smoke',x:S.x+dx,y:S.y+dy,t0:T});shake=3;sfx('crumble');hud();persist();return}
- if(r.result==='bump'){sfx('bump');anim={type:'bump',dir:a,t0:T,dur:.6,face:'x'};hud();return}
+ if(r.result==='bump'){sfx('bump');anim=drift?{type:'move',from:[prev.x,prev.y],path:[[S.x,S.y]],t0:T,dur:.2,ice:true,m:prev.m}:{type:'bump',dir:a,t0:T,dur:.6,face:'x'};hud();persist();return}
  if(r.result==='reset'){sfx('door');cam.init=true;hud();persist();return}
- if(r.result==='act'){if(r.ev.indexOf('grab')>=0)sfx('key');if(r.ev.indexOf('place')>=0){sfx('push');tutorialAssist()}if(r.ev.indexOf('fire')>=0)sfx(r.ev.indexOf('bosshit')>=0?'crumble':'slide');hud();persist();return}
+ if(r.result==='act'){if(r.ev.indexOf('grab')>=0)sfx('key');if(r.ev.indexOf('place')>=0){sfx('push');tutorialAssist()}if(r.ev.indexOf('fire')>=0)sfx(r.ev.indexOf('bosshit')>=0?'crumble':'slide');if(drift)anim={type:'move',from:[prev.x,prev.y],path:[[S.x,S.y]],t0:T,dur:.2,ice:true,m:prev.m};hud();persist();return}
  const path=r.path||[];anim={type:'move',from:[prev.x,prev.y],path,t0:T,dur:.11*path.length+.03,ice:path.length>1,m:prev.m};
  sfx(r.ev.indexOf('push')>=0?'push':path.length>1?'slide':'step');['key','bolt','crumble'].forEach(e=>{if(r.ev.indexOf(e)>=0)setTimeout(()=>sfx(e),60)});
  if(r.ev.indexOf('key')>=0||r.ev.indexOf('fragment')>=0||r.ev.indexOf('claws')>=0||r.ev.indexOf('glove')>=0||r.ev.indexOf('upgrade')>=0)react={type:'hop',t0:T};
@@ -430,7 +431,10 @@ function drawFrame(){if(ending){endingFrame();return}const now=performance.now()
  const x0=Math.floor(cam.ox),y0=Math.floor(cam.oy);
  for(let y=y0-1;y<=y0+VIEWH+1;y++)for(let x=x0-1;x<=x0+VW+1;x++){if((x<0||y<0||x>=L.W||y>=L.H)&&TH!==WORLDS.grass&&!ICY()&&!V2())continue;tile((L.grid[y]||[])[x],Math.round((x-cam.ox)*16),Math.round((y-cam.oy)*16),x,y)}
  zoneBorders();
- if(!MIN())st.boxes.forEach(b=>crate(Math.round((b[0]-cam.ox)*16),Math.round((b[1]-cam.oy)*16),L.grid[b[1]][b[0]]==='X',0));
+ if(!MIN())st.boxes.forEach(b=>{let bx=b[0],by=b[1];const sl=boxSl&&boxSl.items.find(q=>{const e=q.pts[q.pts.length-1];return e[0]===b[0]&&e[1]===b[1]});
+  if(sl){const n=sl.pts.length-1,p=Math.max(0,(T-boxSl.t0)/(.08*n));if(p<1){const f=p*n,i=Math.min(n-1,Math.floor(f)),k=f-i;bx=sl.pts[i][0]+(sl.pts[i+1][0]-sl.pts[i][0])*k;by=sl.pts[i][1]+(sl.pts[i+1][1]-sl.pts[i][1])*k}}
+  crate(Math.round((bx-cam.ox)*16),Math.round((by-cam.oy)*16),L.grid[by|0]&&L.grid[b[1]][b[0]]==='X'&&bx===b[0]&&by===b[1],0)});
+ if(boxSl&&boxSl.items.every(q=>T-boxSl.t0>=.08*(q.pts.length-1)))boxSl=null;
  if(stuck.on&&typeof stuckBoxMark==='function')stuck.boxes.forEach(([x,y])=>stuckBoxMark(Math.round((x-cam.ox)*16),Math.round((y-cam.oy)*16),T));
  drawMovers();S.bombs.filter(b=>b.m===S.m).forEach(blastWarn);S.bombs.filter(b=>b.m===S.m).forEach(b=>bombSprite(Math.round((b.x-cam.ox)*16),Math.round((b.y-cam.oy)*16),b));
  // robot
