@@ -37,9 +37,10 @@ function checkStuck(){const k=S.zone?WE.key(S):null;if(k===stuck.k)return;stuck.
  if(k){const Z=W.maps[S.m].zones.find(z=>z.id===S.zone),inZ=(x,y)=>x>=Z.x&&x<Z.x+Z.w&&y>=Z.y&&y<Z.y+Z.h;
   const zb=S.boxes.filter(b=>b.startsWith(S.m+':')).map(b=>b.split(':')[1].split(',').map(Number)).filter(([x,y])=>inZ(x,y));
   if(zb.length){const g=WE.zoneStuckIter(W,JSON.parse(JSON.stringify(S)),20000),job=stuck.job={}; // run in ~6ms slices so moving never freezes
-   const slice=()=>{if(stuck.job!==job||stuck.k!==k)return;const t=performance.now();let r;do r=g.next();while(!r.done&&performance.now()-t<6);
-    if(!r.done)return setTimeout(slice,0);stuck.job=null;if(r.value===true){stuck.on=true;stuck.boxes=zb.filter(([x,y])=>WE.base(W,S.m,x,y)!=='X');$('reset').classList.toggle('glow',true);hud()}};
-   setTimeout(slice,0)}}
+   const slice=()=>{if(stuck.job!==job||stuck.k!==k)return;if(anim||performance.now()-stuck.lastMove<500)return setTimeout(slice,200); // only while the player stands still
+    const t=performance.now();let r;do r=g.next();while(!r.done&&performance.now()-t<3);
+    if(!r.done)return setTimeout(slice,40);stuck.job=null;if(r.value===true){stuck.on=true;stuck.boxes=zb.filter(([x,y])=>WE.base(W,S.m,x,y)!=='X');$('reset').classList.toggle('glow',true);hud()}};
+   stuck.lastMove=performance.now();setTimeout(slice,500)}}
  else stuck.job=null;
  $('reset').classList.toggle('glow',stuck.on);if(was&&!stuck.on&&!stuckSeen){stuckSeen=true;try{localStorage.setItem(STUCKSEEN,'1')}catch(e){}}}
 // ice area A guide: ~4s arrow on A's entrance tile. Uses performance.now() (not game T) so 「繼續上次」 always gets a fresh window even after sitting on the title.
