@@ -2,6 +2,7 @@
 const WE=WorldEngine,$=id=>document.getElementById(id),cv=$('cv'),ctx=cv.getContext('2d'),off=document.createElement('canvas'),o=off.getContext('2d');
 const mini=$('mini'),mctx=mini.getContext('2d');
 const SAVEKEY='glowbot.world.v1',SHARE_URL='https://jasper31943.github.io/glowbot/';
+var batGift=false; // old save handed the bat on load: show the moment when play starts
 let save={};try{save=JSON.parse(localStorage.getItem('robotMaze.v1'))||{}}catch(e){} // shares mute setting with level mode
 const W=WE.parseWorld(WORLD_DEF);if(W.errors.length)console.warn('world errors',W.errors);
 let T=0,stamp=0,L=null,st=null,TH=WORLDS.grass,S=null; // L/st/TH are the views art.js paints from
@@ -12,7 +13,7 @@ function persist(){try{localStorage.setItem(SAVEKEY,JSON.stringify({v:SAVEVER,s:
 let saved=null; // valid save found at load (title offers 繼續上次)
 function loadGame(){S=WE.initState(W);tutorialDone=false;try{const d=JSON.parse(localStorage.getItem(SAVEKEY));
  if(d&&SAVEOK.indexOf(d.v)>=0&&d.s&&W.maps[d.s.m]&&typeof d.s.x==='number'){WE.initMovers(W,d.s);d.v=SAVEVER;saved=d}else localStorage.removeItem(SAVEKEY)}catch(e){try{localStorage.removeItem(SAVEKEY)}catch(_){}}}
-function newGame(){S=WE.initState(W);tutorialDone=false;cam.init=false;persist();hud()}
+function newGame(){S=WE.initState(W);batGift=false;tutorialDone=false;cam.init=false;persist();hud()}
 // ---------- view adapters for art.js ----------
 function buildView(){const M=W.maps[S.m];const g=[];for(let y=0;y<M.H;y++){const r=[];for(let x=0;x<M.W;x++)r.push(WE.cell(W,S,S.m,x,y));g.push(r)}
  L={grid:g,W:M.W,H:M.H};const pre=S.m+':',strip=a=>a.filter(k=>k.startsWith(pre)).map(k=>k.slice(pre.length));
@@ -30,7 +31,7 @@ function camTarget(){const M=W.maps[S.m];const Z=WE.zoneAt(W,S.m,S.x,S.y);let tx
  tx=Math.max(0,Math.min(M.W-VW,tx));ty=Math.max(0,Math.min(M.H-VIEWH,ty));if(M.W<=VW)tx=(M.W-VW)/2;if(M.H<=VIEWH)ty=(M.H-VIEWH)/2;return[tx,ty]}
 // ---------- HUD ----------
 const KEYMAP={c:'grass',m:'ice',k:'ice',f:'ice'}; // map-local items: chip only shown on their own map
-const ITEMNAME={c:'青鑰匙',m:'紫鑰匙',n:'粉鑰匙',k:'冰爪',f:'符文碎片',F:'🔥 吐火',g:'磁力手套',U:'電池升級'};
+const ITEMNAME={c:'青鑰匙',m:'紫鑰匙',n:'粉鑰匙',k:'冰爪',f:'符文碎片',F:'🔥 吐火',Q:'⚾ 球棒',g:'磁力手套',U:'電池升級'};
 // ---------- stuck detection: after each move in a puzzle area, exhaustive in-area search (WE.zoneStuck). Only a proven dead state is flagged.
 let stuck={k:null,on:false,boxes:[]};const STUCKSEEN='glowbot.stuckSeen';let stuckSeen=false;try{stuckSeen=localStorage.getItem(STUCKSEEN)==='1'}catch(e){}
 function checkStuck(){const k=S.zone?WE.key(S):null;if(k===stuck.k)return;stuck.k=k;const was=stuck.on;stuck.on=false;stuck.boxes=[];
@@ -137,7 +138,8 @@ const KEYS={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',w:
 const helpOn=()=>$('help').classList.contains('on');let helpT=performance.now();
 // title screen (og.png look) comes first; any key / tap -> help panel -> game
 const titleOn=()=>$('title').classList.contains('on');
-function closeTitle(e){if(e){e.preventDefault();e.stopImmediatePropagation()}$('title').classList.remove('on');helpT=performance.now()}
+function giveBatMoment(){if(!batGift)return;batGift=false;setTimeout(()=>{flash('⚾ 你拿到了球棒！面對裂牆或面前的生物按動作揮棒');react={type:'hop',t0:T};sfx('key');hud()},500)}
+function closeTitle(e){giveBatMoment();if(e){e.preventDefault();e.stopImmediatePropagation()}$('title').classList.remove('on');helpT=performance.now()}
 // title choices: with a valid save -> [繼續上次][新遊戲] (+confirm); without -> any key/tap = new game
 let tsel=0,csel=1;const confOn=()=>$('tconf').classList.contains('on');
 function tpaint(){$('tCont').classList.toggle('sel',tsel===0);$('tNew').classList.toggle('sel',tsel===1);$('cYes').classList.toggle('sel',csel===0);$('cNo').classList.toggle('sel',csel===1)}
@@ -219,16 +221,20 @@ function smoke(f){const p=(T-f.t0)/.5;if(p>=1)return false;const fr=Math.min(3,M
 let movPrev={},movT0=0;function snapMovers(prev){movPrev={};['dunes','bugs','bosses','clouds'].forEach(k=>(prev[k]||[]).forEach(o=>movPrev[k+o.i]=[o.x,o.y]));movT0=T}
 function mpos(k,o){const q=Math.min(1,(T-movT0)/.12),p=movPrev[k+o.i];let x=o.x,y=o.y;if(p&&q<1){x=p[0]+(o.x-p[0])*q;y=p[1]+(o.y-p[1])*q}return[Math.round((x-cam.ox)*16),Math.round((y-cam.oy)*16)]}
 let bossHitT={};
+function stunStars(px,py,n){for(let i=0;i<n;i++){const a=T*6+i*2.094,sx=px+7+Math.round(Math.cos(a)*5),sy=py-2+Math.round(Math.sin(a)*1.5);R(sx-1,sy-1,4,4,E32.ink);R(sx,sy,2,2,E32.yellow);R(sx-1,sy,1,1,E32.amber);R(sx+2,sy+1,1,1,E32.amber)}}
 function drawMovers(){if(!V2())return;const fr=Math.floor(T*3)%2;
  if(MIN()&&typeof minecart==='function')(S.boxes||[]).forEach(k=>{if(!k.startsWith(S.m+':'))return;const [x,y]=k.split(':')[1].split(',').map(Number),d=S.cart&&S.cart[k]!=null?S.cart[k]:1;
   minecart(Math.round((x-cam.ox)*16),Math.round((y-cam.oy)*16),d,fr)});
  (S.clouds||[]).forEach(o=>{if(o.m!==S.m)return;const [px,py]=mpos('clouds',o);if(typeof cloudPlatform==='function')cloudPlatform(px,py,fr)});
  (S.dunes||[]).forEach(o=>{if(o.m!==S.m)return;const [px,py]=mpos('dunes',o);dune(px,py,fr,L.grid[o.y]&&L.grid[o.y][o.x]==='X')});
  (S.bugs||[]).forEach(o=>{if(o.m!==S.m)return;const [px,py]=mpos('bugs',o);
-  if(o.glitch&&typeof glitchBot==='function')glitchBot(px,py,fr,!!o.spotted,T);
-  else if(o.spark&&typeof sparkMon==='function')sparkMon(px,py,fr,!!o.spotted);
-  else if(o.ghost&&typeof armorGhost==='function')armorGhost(px,py,fr,o.d===2?2:3,!!o.spotted);
-  else beetle(px,py,fr,o.fr||0,T)});
+  const f2=o.fr>0?0:fr; // stunned: stands still
+  if(o.glitch&&typeof glitchBot==='function')glitchBot(px,py,f2,!!o.spotted,T);
+  else if(o.spark&&typeof sparkMon==='function')sparkMon(px,py,f2,!!o.spotted);
+  else if(o.ghost&&typeof armorGhost==='function')armorGhost(px,py,f2,o.d===2?2:3,!!o.spotted);
+  else if(W.maps[S.m].theme==='mine'&&typeof mineBat==='function'){if(o.fr>0)mineBatStunned(px,py,T);else mineBat(px,py,fr,o.d,false,false);return}
+  else{beetle(px,py,fr,o.fr||0,T);return}
+  if(o.fr>0)stunStars(px,py,o.fr)}); // knights / sparks / glitch bots show the same spinning stars as a stunned beetle (before: no sign the fire worked)
  (S.rocks||[]).forEach(r=>{if(r.m!==S.m)return;const px=Math.round((r.x-cam.ox)*16),py=Math.round((r.y-cam.oy)*16);
   R(px+3,py+4,10,9,E32.ink);R(px+4,py+5,8,7,'#9a7a6c');R(px+5,py+6,3,3,'#b08e7e');R(px+9,py+8,2,2,E32.orange)});
  (S.bosses||[]).forEach(o=>{if(o.m!==S.m||o.hp<=0)return;const [px,py]=mpos('bosses',o),hit=T-(bossHitT[o.i]||-9)<.25,hurt=o.max-o.hp;
@@ -254,18 +260,21 @@ function drawMovers(){if(!V2())return;const fr=Math.floor(T*3)%2;
 const V2FX={
  fire:f=>{const p=(T-f.t0)/.35;if(p>=1)return false;const [dx,dy]=WE.DIRS[f.f];const n=Math.abs(f.x1-f.x0)+Math.abs(f.y1-f.y0);
   for(let i=1;i<=n;i++){const px=Math.round((f.x0+dx*i-cam.ox)*16),py=Math.round((f.y0+dy*i-cam.oy)*16);firePuff(px,py,Math.min(2,Math.floor(p*3+i*.15)))}return true},
+ swing:f=>{const t=T-f.t0;if(t>=.24)return false;if(typeof batSwing==='function')batSwing(Math.round((f.x-cam.ox)*16),Math.round((f.y-cam.oy)*16),f.f,t,.24);return true},
  noeffect:f=>{const p=(T-f.t0)/.45;if(p>=1)return false;const fr=Math.min(2,Math.floor(p*3)),[dx,dy]=WE.DIRS[S.f],px=Math.round((f.x+dx-cam.ox)*16),py=Math.round((f.y+dy-cam.oy)*16);
   if(typeof noEffectPuff==='function')noEffectPuff(px,py,fr);return true},
  boxsink:f=>{const p=(T-f.t0)/.6;if(p>=1)return false;boxSink(Math.round((f.x-cam.ox)*16),Math.round((f.y-cam.oy)*16),p);return true},
  splash:f=>{const p=(T-f.t0)/.5;if(p>=1)return false;sandSplash(Math.round((f.x-cam.ox)*16),Math.round((f.y-cam.oy)*16),p);return true}};
 function v2Fx(r,prev){if(!V2()&&!(prev&&W.maps[prev.m].rules==='v2'))return;snapMovers(prev);const ev=r.ev||[];
  if(ev.indexOf('noeffect')>=0&&S.lastFire){fx.push({type:'noeffect',x:S.lastFire.x0,y:S.lastFire.y0,t0:T});delete S.lastFire}
+ if(ev.indexOf('swing')>=0&&S.lastBat){fx.push(Object.assign({type:'swing',t0:T},S.lastBat));if(ev.indexOf('smash')>=0){const b=S.lastBat;setTimeout(()=>{fx.push({type:'smoke',x:b.tx,y:b.ty,t0:T});shake=3;sfx('crumble')},90)}else if(ev.indexOf('stun')>=0)setTimeout(()=>{shake=2;sfx('bump')},70);else if(ev.indexOf('bonk')>=0)flash('⚾ 王太大了，球棒打不動');else if(ev.indexOf('clang')>=0){sfx('bump');flash('⚾ 鐵箍裂牆打不破：要用炸彈'+(W.maps[S.m].theme==='mine'?'或礦車':''))}delete S.lastBat}
  if(ev.indexOf('fire')>=0&&S.lastFire){fx.push(Object.assign({type:'fire',t0:T},S.lastFire));delete S.lastFire}
  (S.sunk||[]).forEach(k=>{if(k.m===S.m)fx.push({type:k.box?'boxsink':'splash',x:k.x,y:k.y,t0:T});setTimeout(()=>sfx('crumble'),80)});delete S.sunk;
  (S.scattered||[]).concat(S.squashed||[]).forEach(k=>{if(k.m===S.m)fx.push({type:'splash',x:k.x,y:k.y,t0:T})});delete S.scattered;delete S.squashed;
  if(ev.indexOf('bosshit')>=0)(S.bosses||[]).forEach(o=>{if(o.m===S.m&&o.hitAt===S.steps)bossHitT[o.i]=T});
  if(ev.indexOf('bossdown')>=0){shake=4;setTimeout(()=>sfx('door'),200)}
  if(ev.indexOf('lamp')>=0)react={type:'hop',t0:T}
+ if(ev.indexOf('bat')>=0){react={type:'hop',t0:T};flash('⚾ 拿到球棒！面對裂牆或面前的生物按動作揮棒')}
  if(ev.indexOf('ending')>=0||r.result==='ending')setTimeout(()=>startEnding(),800)}
 let shortcut=null;(function(){const M=W.maps.ice;if(!M)return;const t=(W.tunnels['1']||[]).find(p=>p.m==='ice');if(!t)return;
  for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++)if(WE.base(W,'ice',t.x+dx,t.y+dy)==='M'){const d=[t.x+dx,t.y+dy];let y=d[1]-1;while(y>0&&WE.base(W,'ice',d[0],y-1)!=='#')y--;
@@ -282,7 +291,7 @@ function bush(px,py,x,y){const h=((x*73856093)^(y*19349663))>>>0;R(px,py,16,16,E
  if(h%7===0){R(px+5,py+6,1,1,E32.yellow);R(px+11,py+4,1,1,E32.pink)}}
 const ICY=()=>TH===WORLDS.snow;
 // lazy-load per-scene art (swamp/mine/volcano/core). ice/desert/forest stay eager in world.html.
-const SCENE_ART={swamp:['swamp-art.js'],mine:['mine-art.js'],volcano:['volcano-art.js','core-art.js'],sea:['sea-art.js'],castle:['castle-art.js'],sky:['sky-art.js'],mirror:['mirror-art.js'],power:['power-art.js'],clock:['clock-art.js'],factory:['factory-art.js'],core:['core-art.js','factory-art.js']};
+const SCENE_ART={forest:['bat-art.js'],swamp:['swamp-art.js','bat-art.js'],mine:['mine-art.js','bat-art.js'],volcano:['volcano-art.js','core-art.js','bat-art.js'],sea:['sea-art.js','bat-art.js'],castle:['castle-art.js','bat-art.js'],sky:['sky-art.js','bat-art.js'],mirror:['mirror-art.js','bat-art.js'],power:['power-art.js','bat-art.js'],clock:['clock-art.js','bat-art.js'],factory:['factory-art.js','bat-art.js'],core:['core-art.js','factory-art.js','bat-art.js']}; // bat-art: ⚾ pickup, swing, mine bat
 const vsrc=f=>{const v=(window.ASSET_V||{})[f];return v?f+'?v='+v:f}; // dist build stamps file hashes so a new push never mixes with cached old JS
 const _artLoaded={};async function ensureSceneArt(m){if(m==='core'&&!_artLoaded._end){_artLoaded._end=1;setTimeout(preloadEnding,1500)}const list=SCENE_ART[m];if(!list)return;for(const f of list){if(_artLoaded[f]||document.querySelector('script[src="'+vsrc(f)+'"]'))continue;_artLoaded[f]=1;await new Promise((ok,no)=>{const e=document.createElement('script');e.src=vsrc(f);e.onload=ok;e.onerror=()=>no(new Error(f));document.head.appendChild(e)})}}
 const DES=()=>W.maps[S.m].theme==='desert',FOR=()=>W.maps[S.m].theme==='forest',SWA=()=>W.maps[S.m].theme==='swamp',MIN=()=>W.maps[S.m].theme==='mine',VOL=()=>W.maps[S.m].theme==='volcano',SEA=()=>W.maps[S.m].theme==='sea',CAS=()=>W.maps[S.m].theme==='castle',SKY=()=>W.maps[S.m].theme==='sky',MIR=()=>W.maps[S.m].theme==='mirror',POW=()=>W.maps[S.m].theme==='power',CLK=()=>W.maps[S.m].theme==='clock',FAC=()=>W.maps[S.m].theme==='factory',COR=()=>W.maps[S.m].theme==='core',V2=()=>W.maps[S.m].rules==='v2';
@@ -313,6 +322,7 @@ function v2Tile(c,px,py,x,y){ // desert-art.js / forest-art.js tiles; anything e
  if(c==='T'){v2Floor(px,py,x,y);return true} // tree drawn by drawMovers (2x2 sprite)
  if(WE.isTun(c)||c==='0'){const tid=WE.tunAt?WE.tunAt(W,S.m,x,y):(WE.isTun(c)?WE.tunId(c):null);const pair=tid&&W.tunnels[tid];v2Floor(px,py,x,y);if(pair&&pair.length<2)boardedTunnel(px,py);else tunnel(px,py,x,y,tid||c);return true}
  if(c==='G'){v2Floor(px,py,x,y);if(WE.solid(W,S,S.m,x,y))bars(px,py,0);return true}
+ if(c==='Q'&&st.got.indexOf(x+','+y)<0){v2Floor(px,py,x,y);if(typeof baseballBatItem==='function')baseballBatItem(px,py,T);return true}
  if(c==='F'&&st.got.indexOf(x+','+y)<0){v2Floor(px,py,x,y);const b=Math.round(Math.sin(T*3));firePuff(px,py+b-1,Math.floor(T*4)%3);return true}
   if(c==='~'){if(typeof swampWater==='function')swampWater(px,py,x,y,Math.floor(T*2)%2);else R(px,py,16,16,E32.blue2);return true}
  if(c==='p'||c==='l'){if(typeof lilyPad==='function')lilyPad(px,py,x,y,Math.floor(T*2)%2,c==='l',0);else v2Floor(px,py,x,y);return true}
@@ -363,12 +373,16 @@ const _trk={};function trackShape(c,x,y){const id=S.m+':'+x+','+y+c;if(_trk[id])
 // stand-on / facing interactables -> small 「按動作…」 bubble above the robot + 動作 button glows
 function interactTip(){if(!S||ending||failAnim)return null;const c=WE.cell(W,S,S.m,S.x,S.y);if(c==='j'||c==='ǰ')return '按動作換方向';
  const d={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]}[S.f]||null;if(!d)return null;const fc=WE.cell(W,S,S.m,S.x+d[0],S.y+d[1]);
+ const bt=WE.batTarget&&!S.held?WE.batTarget(W,S):null;if(bt&&(bt.kind==='wall'||(bt.kind==='bug'&&!(S.bugs[bt.i].fr>0))))return bt.kind==='wall'?'按動作揮棒打破裂牆':'按動作揮棒打昏牠';
  if(fc==='r')return '按動作拉拉桿';if(fc==='╱'||fc==='╲')return '按動作轉鏡子';if(fc==='⊕'||fc==='⊛')return '按動作開關發電機';return null}
 let tipShown=null;function tipAt(gx,gy){const t=anim?null:interactTip(),el=$('tip');if(!el)return;
  if(t){const c=WE.cell(W,S,S.m,S.x,S.y);if(c==='j'||c==='ǰ'){const a=.5+.5*Math.sin(T*6);o.globalAlpha=a;R(gx,gy,16,1,E32.yellow);R(gx,gy+15,16,1,E32.yellow);R(gx,gy,1,16,E32.yellow);R(gx+15,gy,1,16,E32.yellow);o.globalAlpha=1}
-  const r=cv.getBoundingClientRect(),k=r.width/off.width;el.style.left=Math.round(r.left+(gx+8)*k)+'px';el.style.top=Math.round(r.top+(gy-2)*k)+'px'}
+  if(/揮棒/.test(t)){const [dx,dy]=WE.DIRS[S.f],tx=gx+dx*16,ty=gy+dy*16,a=.55+.45*Math.sin(T*6);o.globalAlpha=a;[[0,0],[12,0],[0,15],[12,15]].forEach(([u,v])=>R(tx+u,ty+v,4,1,E32.yellow));[[0,0],[15,0],[0,12],[15,12]].forEach(([u,v])=>R(tx+u,ty+v,1,4,E32.yellow));o.globalAlpha=1} // bat target: blinking corner brackets on the tile you'll hit
+  const r=cv.getBoundingClientRect(),k=r.width/off.width;const hw=(el.offsetWidth||0)/2+4;el.style.left=Math.round(Math.max(hw,Math.min(innerWidth-hw,r.left+(gx+8)*k)))+'px';el.style.top=Math.round(r.top+(gy-2)*k)+'px'} // keep the bubble on screen near the edges
  if(t!==tipShown){tipShown=t;el.textContent=t||'';el.style.display=t?'block':'none';$('act').classList.toggle('glow',!!t)}}
-function tile(c,px,py,x,y){if(V2()&&v2Tile(c,px,py,x,y))return;if(TH===WORLDS.grass&&(c===undefined||(c==='#'&&deep(x,y)))){bush(px,py,x,y);return}
+function ironBands(px,py){const I=E32.ink,G=E32.grey2;R(px+1,py+1,14,2,I);R(px+1,py+13,14,2,I);R(px+1,py+1,2,14,I);R(px+13,py+1,2,14,I);R(px+2,py+2,12,1,G);R(px+2,py+13,12,1,G);R(px+2,py+2,1,12,G);R(px+13,py+2,1,12,G);[[2,2],[12,2],[2,12],[12,12]].forEach(([u,v])=>{R(px+u,py+v,2,2,E32.grey4);R(px+u,py+v,1,1,E32.white)})} // 鐵箍: bomb/minecart-only cracked wall (the bat clangs off)
+function ironAt(x,y){const z=WE.zoneAt(W,S.m,x,y);return !!(z&&z.iron)}
+function tile(c,px,py,x,y){if(V2()&&v2Tile(c,px,py,x,y)){if(c==='%'&&ironAt(x,y))ironBands(px,py);return}if(TH===WORLDS.grass&&(c===undefined||(c==='#'&&deep(x,y)))){bush(px,py,x,y);return}
  if(ICY()){ // ice map: bright snow, snowy rock walls, pines outside (ice-art.js)
   if(c===undefined||(c==='#'&&deep(x,y))){icePine(px,py,x,y);return}
   if(c==='#'){const up=(L.grid[y-1]||[])[x];iceRock(px,py,x,y,up===undefined||up!=='#'||deep(x,y-1));return}
@@ -476,7 +490,7 @@ function drawMini(){const M=W.maps[S.m];mctx.clearRect(0,0,mini.width,mini.heigh
 const _endQ=/(?:^|[?&])ending(?:=|&|$)/.test(location.search),_endT=(_=>{const m=location.search.match(/[?&]t=([^&]*)/);return m?+decodeURIComponent(m[1]):null})();
 loadGame();
 if(_endQ){const t=$('title'),h=$('help');t.classList.remove('on','has');t.style.display='none';h.classList.remove('on');h.style.display='none'}
-else if(saved){$('title').classList.add('has');tpaint();S=JSON.parse(JSON.stringify(saved.s));WE.initMovers(W,S);tutorialDone=!!saved.tutorialDone;cam.init=false;$('help').classList.remove('on')}
+else if(saved){$('title').classList.add('has');tpaint();S=JSON.parse(JSON.stringify(saved.s));WE.initMovers(W,S);if(S.batGift){delete S.batGift;delete saved.s.batGift;persist();batGift=true}/* old save past the forest: the bat is handed over now */tutorialDone=!!saved.tutorialDone;cam.init=false;$('help').classList.remove('on')}
 resize();hud();requestAnimationFrame(draw);
 if(_endQ)Promise.resolve(startEnding({t:_endT})).catch(e=>console.error('ending failed',e));
 setInterval(()=>{if(performance.now()-lastDraw>100){manualDraw=true;try{draw()}finally{manualDraw=false}}},50);
