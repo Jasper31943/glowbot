@@ -73,9 +73,15 @@ function initState(W){const s={m:W.start.m,x:W.start.x,y:W.start.y,f:'down',held
  enterZone(W,s);return s}
 function clone(s){return{m:s.m,x:s.x,y:s.y,f:s.f,held:s.held,inv:s.inv,got:s.got.slice(),cleared:s.cleared.slice(),boxes:s.boxes.slice(),bombs:s.bombs.map(b=>({...b})),broken:s.broken.slice(),holes:s.holes.slice(),filled:s.filled.slice(),zone:s.zone,zoneEntry:s.zoneEntry,left:s.left,visited:s.visited.slice(),steps:s.steps,pats:(s.pats||[]).map(p=>({...p})),dunes:s.dunes&&s.dunes.map(o=>({...o})),bugs:s.bugs&&s.bugs.map(o=>({...o})),bosses:s.bosses&&s.bosses.map(o=>({...o})),ch:s.ch&&{...s.ch},vt:s.vt&&{...s.vt},rocks:(s.rocks||[]).map(r=>({...r})),lt:s.lt||0,cf:s.cf||null,cart:s.cart&&{...s.cart},bossCp:s.bossCp&&{...s.bossCp,ch:{...s.bossCp.ch}},air:s.air||0,lvz:s.lvz&&{...s.lvz},clouds:s.clouds&&s.clouds.map(o=>({...o})),zt:s.zt||0,lit:s.lit||0,pw:s.pw||0,gen:s.gen||0,bounce:s.bounce&&{...s.bounce},beamLit:s.beamLit&&{...s.beamLit}}}
 // fills desert/forest fields (also used to upgrade v3 saves, which never reached those maps)
+const RELAYOUT={'swamp#S5':o=>o.y===12}; // zones redesigned after release: a saved creature that no longer fits the new layout resets that zone
+function relayout(W,s){for(const zid in RELAYOUT){const ok=RELAYOUT[zid],old=(s.bugs||[]).filter(o=>o.zone===zid);if(!old.length||old.every(ok))continue;
+  const [m]=zid.split('#'),Z=(W.maps[m]||{zones:[]}).zones.find(z=>z.id===zid);if(!Z)continue;const inZ=(x,y)=>x>=Z.x&&x<Z.x+Z.w&&y>=Z.y&&y<Z.y+Z.h;
+  s.bugs=s.bugs.filter(o=>o.zone!==zid).concat(W.bugs0.filter(o=>o.zone===zid).map(o=>({...o}))).sort((a,b)=>a.i-b.i);
+  for(const k in (s.ch||{})){const [mm,xy]=k.split(':'),[x,y]=xy.split(',').map(Number);if(mm===m&&inZ(x,y))delete s.ch[k]}
+  if(s.m===m&&s.zone===zid){s.x=Z.entry[0];s.y=Z.entry[1];s.zoneEntry=[s.x,s.y];s.zt=0}}}
 function initMovers(W,s){if(s.bugs&&(W.droppedBugs||[]).length&&s.bugs.some(o=>o.glitch&&W.maps[o.m]&&!/^(factory|core)$/.test(W.maps[o.m].theme))){ // save from before the swamp-lily fix: drop the fake movers, renumber the rest
   const D=W.droppedBugs;s.bugs=s.bugs.filter(o=>!(o.glitch&&W.maps[o.m]&&!/^(factory|core)$/.test(W.maps[o.m].theme))).map(o=>({...o,i:o.i-D.filter(d=>d<o.i).length}))}
- if(!s.dunes)s.dunes=W.dunes0.map(o=>({...o}));if(!s.bugs)s.bugs=W.bugs0.map(o=>({...o}));if(!s.bosses)s.bosses=W.bosses0.map(o=>({...o}));if(!s.clouds)s.clouds=(W.clouds0||[]).map(o=>({...o}));if(!s.ch)s.ch={};if(!s.vt)s.vt={};if(!s.rocks)s.rocks=[];if(s.lt==null)s.lt=0;if(!s.cart)s.cart={};if(s.air==null)s.air=0;if(!s.lvz)s.lvz={};if(s.zt==null)s.zt=0;return s}
+ if(!s.dunes)s.dunes=W.dunes0.map(o=>({...o}));if(!s.bugs)s.bugs=W.bugs0.map(o=>({...o}));if(!s.bosses)s.bosses=W.bosses0.map(o=>({...o}));if(!s.clouds)s.clouds=(W.clouds0||[]).map(o=>({...o}));if(!s.ch)s.ch={};if(!s.vt)s.vt={};if(!s.rocks)s.rocks=[];if(s.lt==null)s.lt=0;if(!s.cart)s.cart={};if(s.air==null)s.air=0;if(!s.lvz)s.lvz={};if(s.zt==null)s.zt=0;relayout(W,s);return s}
 const hasInv=(s,i)=>s.inv.indexOf(i)>=0;
 // ---------- patrols (snowball 'P') ----------
 function patAt(s,m,x,y){return (s.pats||[]).findIndex(p=>p.m===m&&p.x===x&&p.y===y)}
