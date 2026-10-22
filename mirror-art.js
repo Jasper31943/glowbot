@@ -13,11 +13,11 @@ function mirror(px,py,kind,t){const G=MIRROR_THEME.glass;R(px+6,py+13,4,2,E32.gr
 function beam(px,py,axis,color,t){const c=color==='fire'?[E32.orange,E32.red3]:[E32.yellow,E32.amber],p=Math.floor((t||0)*10)%4;
  if(axis==='h'){R(px,py+6,16,4,c[1]);R(px,py+7,16,2,c[0]);for(let i=p;i<16;i+=4)R(px+i,py+7,1,2,E32.white)}else{R(px+6,py,4,16,c[1]);R(px+7,py,2,16,c[0]);for(let i=p;i<16;i+=4)R(px+7,py+i,2,1,E32.white)}}
 // light receiver / target: lit bool
-function lightTarget(px,py,lit){R(px+2,py+2,12,12,E32.ink);R(px+3,py+3,10,10,lit?E32.amber:E32.grey3);R(px+5,py+5,6,6,lit?E32.yellow:E32.grey2);R(px+7,py+7,2,2,lit?E32.white:E32.grey4)}
+function lightTarget(px,py,lit){R(px+2,py+2,12,12,E32.ink);R(px+3,py+3,10,10,lit?E32.amber:'#9a7a3c');R(px+5,py+5,6,6,lit?E32.yellow:E32.grey2);R(px+7,py+7,2,2,lit?E32.white:E32.grey4)}
 // light door ▤: open=false solid shutter, open=true recessed glowing frame
 function lightDoor(px,py,open,t){R(px,py,16,16,E32.ink);R(px+1,py+1,14,14,E32.grey3);
  if(open){R(px+3,py+2,10,12,E32.navy);R(px+4,py+3,8,10,E32.yellow);o.globalAlpha=.4;R(px+5,py+4,6,8,E32.white);o.globalAlpha=1}
- else{R(px+2,py+2,12,12,E32.purple);R(px+3,py+3,10,10,E32.grey2);R(px+4,py+4,8,8,'#8a6fb8');R(px+6,py+6,4,4,E32.ink);R(px+7,py+7,2,2,E32.amber)}}
+ else{R(px+2,py+2,12,12,E32.purple);R(px+3,py+3,10,10,E32.grey2);R(px+4,py+4,8,8,'#8a6fb8');for(const bx of [4,7,10])R(px+bx,py+3,2,10,E32.ink)}} // closed: shutter bars (no amber dot, so it no longer looks like a lamp/target)
 // ---- 鏡影王 ¶: 16x16 (crown +2 above). frame 0/1 mirror-step, dir 2/3, hit 0..1 (2 HP), flash
 // v2 contrast: 1px grey4 halo outside the ink line + soft navy floor shadow so it pops on the pale lilac floor;
 // body toned slightly cool and no pure-white highlights (小光 stays the brightest thing on screen).
