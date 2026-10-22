@@ -76,10 +76,12 @@ function clone(s){return{m:s.m,x:s.x,y:s.y,f:s.f,held:s.held,inv:s.inv,got:s.got
 // fills desert/forest fields (also used to upgrade v3 saves, which never reached those maps)
 const RELAYOUT={'swamp#S5':o=>o.y===12}; // zones redesigned after release: a saved creature that no longer fits the new layout resets that zone
 // sea crates ride a whole current since layout 2; A5 A6 A8 were rebuilt for it, so an older save puts those zones' crates back
-const LAYV=4,BOXRELAY=['sea#A5','sea#A6','sea#A8'],ZRESET={'castle#C5':3,'castle#C10':4}; // 4 = bat knockback release (C10 redrawn so the bat can't skip its bomb) // ZRESET: zone redrawn in layout version N; saves older than N restart that zone's creatures (and the robot, if standing in it) fresh
-function relayBoxes(W,s){const lay0=s.lay||0;if(lay0>=LAYV)return;s.lay=LAYV;if(lay0<3)grantBat(W,s); // layout 3 = bat release
+const LAYV=5,BOXRELAY=['sea#A5','sea#A6','sea#A8'],ZRESET={'castle#C5':3,'castle#C10':4,'castle#C9':5}; // 4 = bat knockback release (C10 redrawn so the bat can't skip its bomb); 5 = C9 redrawn (crate + trapdoor + ghost you bat into a corner) // ZRESET: zone redrawn in layout version N; saves older than N restart that zone's creatures (and the robot, if standing in it) fresh
+function relayBoxes(W,s){const lay0=s.lay||0;if(lay0>=LAYV)return;s.lay=LAYV;if(lay0<3){grantBat(W,s);if(s.bugs&&!s.bugs.some(o=>o.zone==='forest#F14'))s.bugs=s.bugs.concat(W.bugs0.filter(o=>o.zone==='forest#F14').map(o=>({...o}))).sort((a,b)=>a.i-b.i)} // layout 3 = bat release (+ the F14 tutorial beetle older saves never had)
  for(const zid in ZRESET){if(lay0>=ZRESET[zid])continue;const [m]=zid.split('#'),Z=(W.maps[m]||{zones:[]}).zones.find(z=>z.id===zid);if(!Z||!s.bugs)continue;
   s.bugs=s.bugs.filter(o=>o.zone!==zid).concat(W.bugs0.filter(o=>o.zone===zid).map(o=>({...o}))).sort((a,b)=>a.i-b.i);
+  {const inZ=k=>{if(!k.startsWith(m+':'))return false;const [x,y]=k.split(':')[1].split(',').map(Number);return x>=Z.x&&x<Z.x+Z.w&&y>=Z.y&&y<Z.y+Z.h}; // the old layout's crates, filled trapdoors and lever position no longer fit the new walls
+   s.boxes=(s.boxes||[]).filter(k=>!inZ(k)).concat(W.boxes0.filter(inZ));for(const f of ['holes','filled','broken'])if(s[f])s[f]=s[f].filter(k=>!inZ(k));for(const k in (s.ch||{}))if(inZ(k))delete s.ch[k];for(const k in (s.vt||{}))if(inZ(k))delete s.vt[k];if(s.lvz)delete s.lvz[zid]}
   if(s.m===m&&s.x>=Z.x&&s.x<Z.x+Z.w&&s.y>=Z.y&&s.y<Z.y+Z.h){s.zone=zid;s.zoneEntry=Z.entry.slice();Object.assign(s,resetZone(W,s).state); // standing inside: the whole zone restarts (bombs, crates, creatures)
    const [ex,ey]=Z.entry;s.f=ex===Z.x?'right':ex===Z.x+Z.w-1?'left':ey===Z.y?'down':'up';s.zoneEntry=[s.x,s.y];s.zt=0}}
  if(lay0<2)for(const zid of BOXRELAY){const [m]=zid.split('#'),Z=(W.maps[m]||{zones:[]}).zones.find(z=>z.id===zid);if(!Z)continue;
@@ -87,9 +89,21 @@ function relayBoxes(W,s){const lay0=s.lay||0;if(lay0>=LAYV)return;s.lay=LAYV;if(
   let nb=W.boxes0.filter(inZ);if(has(s.cleared||[],zid)){const xs=[];for(let y=Z.y;y<Z.y+Z.h;y++)for(let x=Z.x;x<Z.x+Z.w;x++)if(W.maps[m].grid[y][x]==='X')xs.push(K(m,x,y));if(xs.length===nb.length)nb=xs} // cleared: crates sit on their switches
   s.boxes=(s.boxes||[]).filter(k=>!inZ(k)).concat(nb);if(s.cart)for(const k in s.cart)if(inZ(k))delete s.cart[k];
   for(const k in (s.ch||{}))if(inZ(k))delete s.ch[k];if(s.m===m&&s.zone===zid){s.x=Z.entry[0];s.y=Z.entry[1];s.zoneEntry=[s.x,s.y];s.zt=0;s.air=0}}}
-function relayout(W,s){relayBoxes(W,s);for(const zid in RELAYOUT){const ok=RELAYOUT[zid],old=(s.bugs||[]).filter(o=>o.zone===zid);if(!old.length||old.every(ok))continue;
+// creature ids (o.i) must match W.bugs0: the bat release inserted the F14 beetle (i 7), so every later creature in an older save kept an id one too small.
+// The C5/C10 layout restarts then added fresh creatures with the NEW ids → two creatures shared an id (C8+C5, C9+C10), and world.js tweens movers by id,
+// so one of them was drawn sliding in from the other's tile on every step (the afterimage trail along the castle's middle row).
+// Fix: re-key saved creatures zone by zone (in their saved order; nearest free id when some were defeated); drop creatures of zones that no longer exist.
+function fixBugIds(W,s){if(!s.bugs||!W.bugs0)return;const seen={};let ok=true;for(const o of s.bugs){const b=W.bugs0[o.i];if(!b||b.zone!==o.zone||b.m!==o.m||seen[o.i]){ok=false;break}seen[o.i]=1}if(ok)return;
+ const byZ={},sz={},out=[];W.bugs0.forEach(b=>{(byZ[b.zone]=byZ[b.zone]||[]).push(b.i)});s.bugs.forEach(o=>{(sz[o.zone]=sz[o.zone]||[]).push(o)});
+ for(const z in sz){const ids=byZ[z];if(!ids)continue;const g=sz[z].sort((a,b)=>a.i-b.i);
+  if(g.length===ids.length){g.forEach((o,k)=>out.push({...o,i:ids[k]}));continue} // same count: same order inside the zone
+  const used={};for(const o of g){const c=ids.filter(j=>!used[j]);if(!c.length)break;let j=c[0];for(const q of c)if(Math.abs(q-o.i)<Math.abs(j-o.i))j=q;used[j]=1;out.push({...o,i:j})}} // some were defeated: nearest free id
+ s.bugs=out.sort((a,b)=>a.i-b.i)}
+function relayout(W,s){fixBugIds(W,s);relayBoxes(W,s);for(const zid in RELAYOUT){const ok=RELAYOUT[zid],old=(s.bugs||[]).filter(o=>o.zone===zid);if(!old.length||old.every(ok))continue;
   const [m]=zid.split('#'),Z=(W.maps[m]||{zones:[]}).zones.find(z=>z.id===zid);if(!Z)continue;const inZ=(x,y)=>x>=Z.x&&x<Z.x+Z.w&&y>=Z.y&&y<Z.y+Z.h;
   s.bugs=s.bugs.filter(o=>o.zone!==zid).concat(W.bugs0.filter(o=>o.zone===zid).map(o=>({...o}))).sort((a,b)=>a.i-b.i);
+  {const inZ=k=>{if(!k.startsWith(m+':'))return false;const [x,y]=k.split(':')[1].split(',').map(Number);return x>=Z.x&&x<Z.x+Z.w&&y>=Z.y&&y<Z.y+Z.h}; // the old layout's crates, filled trapdoors and lever position no longer fit the new walls
+   s.boxes=(s.boxes||[]).filter(k=>!inZ(k)).concat(W.boxes0.filter(inZ));for(const f of ['holes','filled','broken'])if(s[f])s[f]=s[f].filter(k=>!inZ(k));for(const k in (s.ch||{}))if(inZ(k))delete s.ch[k];for(const k in (s.vt||{}))if(inZ(k))delete s.vt[k];if(s.lvz)delete s.lvz[zid]}
   for(const k in (s.ch||{})){const [mm,xy]=k.split(':'),[x,y]=xy.split(',').map(Number);if(mm===m&&inZ(x,y))delete s.ch[k]}
   if(s.m===m&&s.zone===zid){s.x=Z.entry[0];s.y=Z.entry[1];s.zoneEntry=[s.x,s.y];s.zt=0}}}
 // saves made after the forest but before the bat existed (layout < 3): hand the bat over once, on load (world.js shows the "got the bat" moment)
@@ -484,6 +498,6 @@ function* zoneStuckIter(W,s0,max){const M=W.maps[s0.m],Z=s0.zone&&M&&M.zones.fin
    if(!inZ(ns)){if(pats||ns.inv!==s.inv)return null;ns=clone(s);ns.left=Z.limit?Z.limit+(hasInv(s,'U')?10:0):null} // left the area: back in, fresh step limit
    const k=key(ns);if(seen.has(k))continue;if(seen.size>=max)return null;seen.add(k);q.push(ns)}}
  return true}
-const api={knockTo,batTarget,BATSTUN,zoneStuck,zoneStuckIter,isTrk,isLava,turnTrack,isTun,tunId,tunAt,stepV2,solidV2,recomputeV2,gateShut,pendAt,MIR,duneAt,bugAt,wormAt,bossOfZone,initMovers,REGROW,mstep,patAt,resetPats,normalize,parseWorld,initState,step,advance,FUSE_MS,cell,base,zoneAt,solid,explore,bfsPath,softlocks,key,hasInv,DIRS,FUSE,ITEMS,switchDoorOpen,bombAt,boxAt,K,cloudAt,spikeUp,trapOpen,hazardV2,CUR,WND};
+const api={fixBugIds,knockTo,batTarget,BATSTUN,zoneStuck,zoneStuckIter,isTrk,isLava,turnTrack,isTun,tunId,tunAt,stepV2,solidV2,recomputeV2,gateShut,pendAt,MIR,duneAt,bugAt,wormAt,bossOfZone,initMovers,REGROW,mstep,patAt,resetPats,normalize,parseWorld,initState,step,advance,FUSE_MS,cell,base,zoneAt,solid,explore,bfsPath,softlocks,key,hasInv,DIRS,FUSE,ITEMS,switchDoorOpen,bombAt,boxAt,K,cloudAt,spikeUp,trapOpen,hazardV2,CUR,WND};
 if(typeof module!=='undefined')module.exports=api;else root.WorldEngine=api;
 })(this);
