@@ -268,12 +268,16 @@ function recomputeV2(W,s,Z){if(!Z){s.lit=0;s.pw=0;s.gen=0;s.bounce={};return}
 // Adjacent target → bat (beats fire there); otherwise fire. Creature: knocked back 1 tile (away from the robot) and stunned BATSTUN = 3 moves.
 // Knockback only lands on a tile the creature could walk onto itself AND that is safe: inside its zone, not the entry/exit, not solid/occupied/item,
 // not water/sand-pit/lava, not any castle spike or trapdoor tile (raised or not), not a sky void / pendulum. Otherwise it just gets stunned in place. Cracked wall %: smashed.
-// Bosses are too big: the bat bonks off (no damage, no stun) so every boss fight keeps its own rule.
-const BATSTUN=3,BATBOSS=['worm','frog','mole','crab','knight','bird','spark','glitch','tree','golem','guard','core','phantom'];
+// Bosses are too big to hurt with the bat. The three CHARGING bosses (盔甲騎士王 knight, 電火花王 spark, 故障機王 glitch) can be stunned:
+// bat → stunned BATSTUN moves + knocked back 1 tile, but ONLY sideways along the row they patrol (hit from above/below = stun in place, so a boss
+// can never be parked in a side pocket where it can't move); fire → stunned 3 moves. 電火花王 only reacts while the generator is on (same as bombs).
+// Stun never hurts: bombs still do the damage. Every other boss: the bat bonks off (no damage, no stun) and fire does nothing, as before.
+const BATSTUN=3,BATBOSS=['worm','frog','mole','crab','knight','bird','spark','glitch','tree','golem','guard','core','phantom'],STUNBOSS=['knight','spark','glitch'];
+const canStunBoss=(s,b)=>STUNBOSS.indexOf(b.kind)>=0&&!(b.needPw&&!s.gen);
 function batTarget(W,s){if(!hasInv(s,'Q'))return null;const m=s.m,[dx,dy]=DIRS[s.f],x=s.x+dx,y=s.y+dy,Z=curZone(W,s);
  const bi=bugAt(s,m,x,y);if(bi>=0&&(!Z||inZone(Z,x,y)))return{kind:'bug',i:bi,x,y};
  if(cell(W,s,m,x,y)==='%'){const wz=zoneAt(W,m,x,y);return{kind:wz&&wz.iron?'iron':'wall',x,y}} // iron-banded cracked walls (bomb / minecart puzzles) just clang
- const b=(s.bosses||[]).find(o=>o.hp>0&&o.m===m&&o.x===x&&o.y===y);if(b)return{kind:'boss',x,y};
+ const bi2=(s.bosses||[]).findIndex(o=>o.hp>0&&o.m===m&&o.x===x&&o.y===y);if(bi2>=0)return canStunBoss(s,s.bosses[bi2])?{kind:'bossbat',i:bi2,x,y}:{kind:'boss',x,y};
  return null}
 function knockTo(W,s,b){const m=b.m,[dx,dy]=DIRS[s.f],nx=b.x+dx,ny=b.y+dy,Z=W.maps[m].zones.find(z=>z.id===b.zone),c=cell(W,s,m,nx,ny);
  if(!Z||!inZone(Z,nx,ny)||isEE(Z,nx,ny)||(nx===s.x&&ny===s.y))return null;
@@ -281,6 +285,7 @@ function knockTo(W,s,b){const m=b.m,[dx,dy]=DIRS[s.f],nx=b.x+dx,ny=b.y+dy,Z=W.ma
  return [nx,ny]}
 function swing(W,s,ev){const t=batTarget(W,s);ev.push('swing');s.lastBat={m:s.m,x:s.x,y:s.y,f:s.f,tx:t.x,ty:t.y,kind:t.kind};
  if(t.kind==='bug'){const b=s.bugs[t.i];b.fr=BATSTUN;b.spotted=0;ev.push('stun');const kb=knockTo(W,s,b);if(kb){b.x=kb[0];b.y=kb[1];s.lastBat.kx=kb[0];s.lastBat.ky=kb[1];ev.push('knock')}}
+ else if(t.kind==='bossbat'){const b=s.bosses[t.i];b.fr=BATSTUN;b.spotted=0;ev.push('stun','bossstun');const kb=DIRS[s.f][1]===0?knockTo(W,s,b):null;if(kb){b.x=kb[0];b.y=kb[1];s.lastBat.kx=kb[0];s.lastBat.ky=kb[1];s.lastBat.boss=1;ev.push('knock')}}
  else if(t.kind==='wall'){s.broken.push(K(s.m,t.x,t.y));ev.push('wall','smash')}
  else ev.push(t.kind==='iron'?'clang':'bonk')}
 function breathe(W,s,ev){const m=s.m,M=W.maps[m],Z=curZone(W,s);let x=s.x,y=s.y,d={up:0,down:1,left:2,right:3}[s.f];if(M.theme==='volcano'){ev.push('noeffect');s.lastFire={m,x0:s.x,y0:s.y,x1:s.x,y1:s.y,f:s.f,noop:1};return}ev.push('fire');
@@ -292,6 +297,7 @@ function breathe(W,s,ev){const m=s.m,M=W.maps[m],Z=curZone(W,s);let x=s.x,y=s.y,
   const tb=(s.bosses||[]).find(o=>o.kind==='tree'&&o.hp>0&&o.m===m&&o.x===x&&o.y===y);
   if(tb){tb.hp--;tb.hitAt=s.steps;ev.push('bosshit');for(const kk of Object.keys(s.vt)){const [mm,xy]=kk.split(':'),[vx,vy]=xy.split(',').map(Number);if(mm===m&&(!Z||inZone(Z,vx,vy))){delete s.ch[kk];delete s.vt[kk];ev.push('regrow')}}
    if(tb.hp<=0){s.ch[k]='.';ev.push('bossdown')}break}
+  const sb=(s.bosses||[]).find(o=>o.hp>0&&o.m===m&&o.x===x&&o.y===y);if(sb&&canStunBoss(s,sb)){sb.fr=3;sb.spotted=0;ev.push('stun','bossstun');break}
   if(solidV2(W,s,m,x,y)||occV2(s,m,x,y))break}
  s.lastFire={m,x0:s.x,y0:s.y,x1:x,y1:y,f:s.f}}
 // everything that moves takes one step (after the robot). Returns 'caught' if a beetle walks into the robot.
@@ -311,6 +317,7 @@ function moveV2(W,s,Z,ev){const m=s.m,P=(x,y)=>x===s.x&&y===s.y,nxt=o=>[o.x+DV[o
   const hazNoPend=spikeUp(W,s,m,nx,ny,Z)||trapOpen(W,s,m,nx,ny,Z)||isVoid(W,s,m,nx,ny);
   if(!inZone(Z,nx,ny)||solidV2(W,s,m,nx,ny)||occV2(s,m,nx,ny)||bad(cell(W,s,m,nx,ny))||hazNoPend||itemHere(W,s,m,nx,ny)){bg.d^=1;continue}bg.x=nx;bg.y=ny}
  for(const b of s.bosses){if(b.hp<=0||b.m!==m||b.zone!==Z.id)continue;
+  if(b.fr>0){b.fr--;b.spotted=0;continue} // charging boss stunned by fire / bat: stands still, doesn't look, can't catch you
   if(b.kind==='phantom'){ // mirror king: vertical follows, horizontal mirrors; only when robot moved
    continue} // handled after loop with last move dir
   if(b.kind==='knight'||(b.kind==='spark'&&b.knight)||(b.kind==='glitch'&&b.knight)){b.spotted=0;for(const dd of [2,3]){let x=b.x+DV[dd][0],y=b.y+DV[dd][1];
@@ -512,6 +519,6 @@ function* zoneStuckIter(W,s0,max){const M=W.maps[s0.m],Z=s0.zone&&M&&M.zones.fin
    if(!inZ(ns)){if(pats||ns.inv!==s.inv)return null;ns=clone(s);ns.left=Z.limit?Z.limit+(hasInv(s,'U')?10:0):null} // left the area: back in, fresh step limit
    const k=key(ns);if(seen.has(k))continue;if(seen.size>=max)return null;seen.add(k);q.push(ns)}}
  return true}
-const api={traceBeams,powerNet,fixBugIds,knockTo,batTarget,BATSTUN,zoneStuck,zoneStuckIter,isTrk,isLava,turnTrack,isTun,tunId,tunAt,stepV2,solidV2,recomputeV2,gateShut,pendAt,MIR,duneAt,bugAt,wormAt,bossOfZone,initMovers,REGROW,mstep,patAt,resetPats,normalize,parseWorld,initState,step,advance,FUSE_MS,cell,base,zoneAt,solid,explore,bfsPath,softlocks,key,hasInv,DIRS,FUSE,ITEMS,switchDoorOpen,bombAt,boxAt,K,cloudAt,spikeUp,trapOpen,hazardV2,CUR,WND};
+const api={traceBeams,powerNet,fixBugIds,knockTo,batTarget,BATSTUN,STUNBOSS,canStunBoss,zoneStuck,zoneStuckIter,isTrk,isLava,turnTrack,isTun,tunId,tunAt,stepV2,solidV2,recomputeV2,gateShut,pendAt,MIR,duneAt,bugAt,wormAt,bossOfZone,initMovers,REGROW,mstep,patAt,resetPats,normalize,parseWorld,initState,step,advance,FUSE_MS,cell,base,zoneAt,solid,explore,bfsPath,softlocks,key,hasInv,DIRS,FUSE,ITEMS,switchDoorOpen,bombAt,boxAt,K,cloudAt,spikeUp,trapOpen,hazardV2,CUR,WND};
 if(typeof module!=='undefined')module.exports=api;else root.WorldEngine=api;
 })(this);
