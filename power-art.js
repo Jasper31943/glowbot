@@ -4,10 +4,19 @@ const POWER_THEME={name:'發電廠',style:'power',floor:[E32.grey1,'#adb9cc',E32
 function powerFloor(px,py,x,y){const F=POWER_THEME.floor;R(px,py,16,16,F[0]);R(px,py,16,1,F[1]);R(px,py,1,16,F[1]);[[2,2],[13,2],[2,13],[13,13]].forEach(([a,b])=>R(px+a,py+b,1,1,F[2]))}
 function powerWall(px,py,x,y){const W=POWER_THEME.wall;R(px,py,16,16,W[1]);R(px+1,py+1,14,10,W[0]);for(let i=0;i<16;i+=4){R(px+i,py+12,2,3,W[2]);R(px+i+2,py+12,2,3,W[3])}R(px+3,py+3,10,1,E32.grey1)}
 // wire tile: axis 'h'|'v'; powered -> pulse dot travels (t)
-function wire(px,py,x,y,axis,powered,t){powerFloor(px,py,x,y);const Wr=POWER_THEME.wire,p=Math.floor((t||0)*16+(axis==='h'?x:y)*16)%16;
+function wire(px,py,x,y,axis,powered,t,arms){if(arms&&arms.some(Boolean)){powerFloor(px,py,x,y);wireArms(px,py,arms,powered,t,0);return}powerFloor(px,py,x,y);const Wr=POWER_THEME.wire,p=Math.floor((t||0)*16+(axis==='h'?x:y)*16)%16;
  if(axis==='h'){R(px,py+7,16,3,Wr[0]);R(px,py+8,16,1,powered?Wr[1]:E32.grey3);if(powered)R(px+p,py+7,2,3,Wr[2])}else{R(px+7,py,3,16,Wr[0]);R(px+8,py,1,16,powered?Wr[1]:E32.grey3);if(powered)R(px+7,py+p,3,2,Wr[2])}}
-function generator(px,py,on,t){R(px+1,py+2,14,13,E32.ink);R(px+2,py+3,12,11,E32.grey2);R(px+4,py+5,8,6,E32.ink);
- const f=Math.floor((t||0)*8)%2;R(px+5,py+6,6,4,on?(f?E32.amber:E32.yellow):E32.grey4);R(px+3,py+12,10,1,on?E32.green1:E32.red3)}
+// wire arms: arms=[up,down,left,right] (true = a wire/gap/generator/door is next to it on that side), so the cable bends and joins exactly where the power can flow.
+// live = this piece carries power (amber core + running spark); gap>0 stops each arm that many px short of the centre (the break of a ┊).
+function wireArms(px,py,arms,live,t,gap){const Wr=POWER_THEME.wire,core=live?Wr[1]:E32.grey3,g=gap||0,p=Math.floor((t||0)*14)%8;
+ const seg=[[7,0,3,7-g],[7,9+g,3,7-g],[0,7,7-g,3],[9+g,7,7-g,3]];
+ arms.forEach((a,i)=>{if(!a)return;const [sx,sy,w,h]=seg[i];R(px+sx,py+sy,w,h,Wr[0]);if(w===3)R(px+sx+1,py+sy,1,h,core);else R(px+sx,py+sy+1,w,1,core);
+  if(live&&w*h>3){const k=Math.min(p,(w===3?h:w)-2);if(w===3)R(px+sx,py+sy+(i===0?h-2-k:k),3,2,Wr[2]);else R(px+sx+(i===2?w-2-k:k),py+sy,2,3,Wr[2])}});
+ if(!g){R(px+7,py+7,3,3,Wr[0]);R(px+8,py+8,1,1,core)}}
+function generator(px,py,on,t){R(px+1,py+2,14,13,E32.ink);R(px+2,py+3,12,11,on?E32.grey2:E32.grey3);R(px+4,py+4,8,8,E32.ink);
+ const f=Math.floor((t||0)*8)%2,b=on?(f?E32.yellow:E32.amber):E32.grey2; // lightning bolt = generator (grey when off, glowing when on)
+ R(px+8,py+5,2,1,b);R(px+7,py+6,2,1,b);R(px+6,py+7,4,1,b);R(px+7,py+8,2,1,b);R(px+6,py+9,2,1,b);R(px+6,py+10,1,1,b);
+ R(px+3,py+12,10,2,E32.ink);R(px+4,py+12,8,1,on?E32.green1:E32.red3);if(on){o.globalAlpha=.25;R(px,py+1,16,15,E32.yellow);o.globalAlpha=1}}
 // spark monster: frame 0/1 crackle; spotted '!'
 function sparkMon(px,py,frame,spotted){const S=POWER_THEME.spark,b=frame?1:0;
  R(px+4,py+4+b,8,8,E32.blue1);R(px+5,py+5+b,6,6,S[2]);R(px+6,py+6+b,4,4,S[1]);R(px+6,py+7+b,1,1,E32.ink);R(px+9,py+7+b,1,1,E32.ink);
@@ -20,13 +29,19 @@ function sparkDefeat(px,py,t,awayDir){if(t<.8){sparkMon(px,py,0,false);for(let i
 function firefly(px,py,t){const g=Math.floor((t||0)*6)%2;o.globalAlpha=.35;R(px+5,py+7,6,6,E32.yellow);o.globalAlpha=1;
  R(px+7,py+7,3,2,E32.ink);R(px+7,py+9,3,3,g?E32.yellow:E32.amber);R(px+6,py+6,2,2,E32.grey1);R(px+9,py+6,2,2,E32.grey1)}
 // wire gap ┊: empty slot; bridged=true when a box sits on it
-function wireGap(px,py,x,y,bridged,t){powerFloor(px,py,x,y);R(px+6,py,4,5,E32.ink);R(px+6,py+11,4,5,E32.ink);R(px+7,py,2,5,E32.grey4);R(px+7,py+11,2,5,E32.grey4);
+function wireGap(px,py,x,y,bridged,t,arms,live){powerFloor(px,py,x,y);
+ if(arms){wireArms(px,py,arms,live,t,3); // cable ends stop short: the break in the middle needs a crate on it
+  if(bridged){R(px+4,py+4,8,8,E32.ink);R(px+5,py+5,6,6,live?E32.amber:E32.grey3)}
+  else{R(px+4,py+4,8,8,E32.ink);R(px+5,py+5,6,6,E32.grey1);for(let i=0;i<4;i++){R(px+5+i,py+5+i,2,1,E32.red3);R(px+9-i,py+5+i,2,1,E32.red3)}} // empty socket with a red ✕ = "push a crate here"
+  return}
+ R(px+6,py,4,5,E32.ink);R(px+6,py+11,4,5,E32.ink);R(px+7,py,2,5,E32.grey4);R(px+7,py+11,2,5,E32.grey4);
  if(bridged){R(px+6,py+5,4,6,E32.ink);R(px+7,py+5,2,6,E32.amber);const p=Math.floor((t||0)*8)%6;R(px+7,py+5+p,2,1,E32.yellow)}
  else{R(px+7,py+6,2,1,E32.red3);R(px+7,py+9,2,1,E32.red3)}}
 // power door ▣: open when powered
 function powerDoor(px,py,open,t){R(px,py,16,16,E32.ink);R(px+1,py+1,14,14,E32.grey3);
  if(open){R(px+3,py+2,10,12,E32.navy);R(px+4,py+3,8,10,E32.amber);o.globalAlpha=.35;R(px+5,py+4,6,8,E32.yellow);o.globalAlpha=1}
- else{R(px+2,py+2,12,12,E32.grey2);R(px+3,py+3,10,10,E32.grey4);[[4,4],[10,4],[4,10],[10,10]].forEach(([a,b])=>R(px+a,py+b,2,2,E32.amber));R(px+6,py+6,4,4,E32.ink)}}
+ else{R(px+2,py+2,12,12,E32.navy);for(const bx of [3,7,11])R(px+bx,py+2,2,12,E32.grey2); // shut: a barred door (not a box), opens when power reaches it
+  R(px+5,py+5,6,6,E32.ink);R(px+6,py+6,4,4,E32.red3);R(px+7,py+7,2,2,E32.grey1)}}
 // ---- 電火花王 §: 16x16 (sparks ±2). frame 0/1 crackle/walk, dir 2/3, hit 0..2 (3 HP), spotted "!".
 // powered=true (generator ON): charged look, engine may patrol + bombs deal damage.
 // powered=false (generator OFF): visually dimmed overlay; invulnerable (bombs do nothing). Art only dims — engine enforces damage.
