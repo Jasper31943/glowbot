@@ -299,7 +299,7 @@ function stepV2(W,s0,a,opt){const ev=[];const free=!!(opt&&opt.free);
  else{const [dx,dy]=DIRS[a];if(s0.left!=null&&s0.left<=0)return{state:s0,result:'tired',ev,path:[]};
   s.f=a;const nx=s.x+dx,ny=s.y+dy,nc=cell(W,s,m,nx,ny);
   if(solidV2(W,s,m,nx,ny)||duneAt(s,m,nx,ny)>=0||bossBodyAt(s,m,nx,ny)>=0){ev.push('bump');result='bump'}
-  else if(bugAt(s,m,nx,ny)>=0){ev.push('caught');return{state:s,result:'fail',ev,path:[]}}
+  else if(bugAt(s,m,nx,ny)>=0){ev.push('bump');result='bump'} // pressing toward a creature only turns you to face it (so you can breathe fire); it still catches you if it steps onto you
   else if(nc==='q'){s.x=nx;s.y=ny;ev.push('sink');return{state:s,result:'fail',ev,path:[[nx,ny]],sink:true}}
   else if(isLava(nc)){s.x=nx;s.y=ny;ev.push('burn');return{state:s,result:'fail',ev,path:[[nx,ny]]}}
   else{const bi=boxAt(s,m,nx,ny),mi=bombAt(s,m,nx,ny);let ok=true;
