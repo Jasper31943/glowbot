@@ -419,15 +419,17 @@ function softlocks(W,goalPred,start,max){const G=explore(W,start,max);const rev=
 // stuck check for a puzzle area: can it still be cleared WITHOUT ↺?  true = provably stuck, false = still solvable, null = unknown (bound hit / patrols).
 // Searches the full in-area state space with the real step rules (mstep). Walking out of the area is modelled as "come straight back with the
 // step limit refilled" (areas are self-contained: nothing outside changes what's inside). Only returns true after exhausting every state.
-function zoneStuck(W,s0,max){const M=W.maps[s0.m],Z=s0.zone&&M&&M.zones.find(z=>z.id===s0.zone);if(!Z||!Z.exit||has(s0.cleared,Z.id))return false;
+function zoneStuck(W,s0,max){const g=zoneStuckIter(W,s0,max);let r;do r=g.next();while(!r.done);return r.value}
+// same search as a generator: yields every ~200 expanded states so the game can run it in small slices without freezing
+function* zoneStuckIter(W,s0,max){const M=W.maps[s0.m],Z=s0.zone&&M&&M.zones.find(z=>z.id===s0.zone);if(!Z||!Z.exit||has(s0.cleared,Z.id))return false;
  const inZ=s=>s.m===s0.m&&s.x>=Z.x&&s.x<Z.x+Z.w&&s.y>=Z.y&&s.y<Z.y+Z.h,pats=(s0.pats||[]).some(p=>p.zone===Z.id)||(s0.dunes||[]).concat(s0.bugs||[],s0.bosses||[]).some(o=>o.zone===Z.id);
  max=max||60000;const seen=new Set([key(s0)]),q=[s0];
- for(let qi=0;qi<q.length;qi++){const s=q[qi];
+ for(let qi=0;qi<q.length;qi++){const s=q[qi];if(qi%200===199)yield;
   for(const a of ACTIONS){if(a==='reset')continue;const r=mstep(W,s,a);if(r.result==='noop'||r.result==='fail'||r.result==='fall'||r.state===s)continue;let ns=r.state;
    if(has(ns.cleared,Z.id))return false;
    if(!inZ(ns)){if(pats||ns.inv!==s.inv)return null;ns=clone(s);ns.left=Z.limit?Z.limit+(hasInv(s,'U')?10:0):null} // left the area: back in, fresh step limit
    const k=key(ns);if(seen.has(k))continue;if(seen.size>=max)return null;seen.add(k);q.push(ns)}}
  return true}
-const api={zoneStuck,isTrk,isLava,turnTrack,isTun,tunId,tunAt,stepV2,solidV2,recomputeV2,gateShut,pendAt,MIR,duneAt,bugAt,wormAt,bossOfZone,initMovers,REGROW,mstep,patAt,resetPats,normalize,parseWorld,initState,step,advance,FUSE_MS,cell,base,zoneAt,solid,explore,bfsPath,softlocks,key,hasInv,DIRS,FUSE,ITEMS,switchDoorOpen,bombAt,boxAt,K,cloudAt,spikeUp,trapOpen,hazardV2,CUR,WND};
+const api={zoneStuck,zoneStuckIter,isTrk,isLava,turnTrack,isTun,tunId,tunAt,stepV2,solidV2,recomputeV2,gateShut,pendAt,MIR,duneAt,bugAt,wormAt,bossOfZone,initMovers,REGROW,mstep,patAt,resetPats,normalize,parseWorld,initState,step,advance,FUSE_MS,cell,base,zoneAt,solid,explore,bfsPath,softlocks,key,hasInv,DIRS,FUSE,ITEMS,switchDoorOpen,bombAt,boxAt,K,cloudAt,spikeUp,trapOpen,hazardV2,CUR,WND};
 if(typeof module!=='undefined')module.exports=api;else root.WorldEngine=api;
 })(this);
