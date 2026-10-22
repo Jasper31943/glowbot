@@ -22,7 +22,7 @@ function parseWorld(def){TUNALIAS=Object.assign({},def.tunnelAlias||{});
     else if(c==='x'||c==='e'){W.bugs0.push({m:id,x,y,d:c==='x'?3:2,fr:0,ghost:1,spotted:0,spark:1});g[y][x]='.'} // power spark mon (knight-sight)
     else if((c==='p'||c==='P')&&!(m.theme==='factory'||m.theme==='core')){W.droppedBugs.push(W.bugs0.length+W.droppedBugs.length)} // swamp lily: no mover, glyph stays (old saves: see initMovers)
     else if(c==='p'||c==='P'){W.bugs0.push({m:id,x,y,d:c==='p'?3:2,fr:0,ghost:1,spotted:0,glitch:1});g[y][x]='.'} // factory/core glitch bot (presses X); in the swamp 'p' is a green lily pad, not a mover
-    else if(c==='Y'||c==='O'||c==='&'||c==='$'||c==='¶'){W.bosses0.push({m:id,x,y,d:3,hp:2,max:2,kind:c==='O'?'frog':c==='&'?'mole':c==='$'?'crab':c==='¶'?'phantom':'worm'});g[y][x]='.'}
+    else if(c==='Y'||c==='O'||c==='&'||c==='$'||c==='¶'){{const hp=c==='¶'?3:2;W.bosses0.push({m:id,x,y,d:3,hp,max:hp,kind:c==='O'?'frog':c==='&'?'mole':c==='$'?'crab':c==='¶'?'phantom':'worm'})}g[y][x]='.'}
     else if(c==='@'){W.bosses0.push({m:id,x,y,d:3,hp:3,max:3,kind:'knight'});g[y][x]='.'}
     else if(c==='§'){W.bosses0.push({m:id,x,y,d:3,hp:3,max:3,kind:'spark',needPw:1,knight:1});g[y][x]='.'}
     else if(c==='¥'){W.bosses0.push({m:id,x,y,d:3,hp:3,max:3,kind:'glitch',knight:1});g[y][x]='.'}
@@ -76,12 +76,13 @@ function clone(s){return{m:s.m,x:s.x,y:s.y,f:s.f,held:s.held,inv:s.inv,got:s.got
 // fills desert/forest fields (also used to upgrade v3 saves, which never reached those maps)
 const RELAYOUT={'swamp#S5':o=>o.y===12}; // zones redesigned after release: a saved creature that no longer fits the new layout resets that zone
 // sea crates ride a whole current since layout 2; A5 A6 A8 were rebuilt for it, so an older save puts those zones' crates back
-const LAYV=6,BOXRELAY=['sea#A5','sea#A6','sea#A8'],ZRESET={'castle#C5':3,'castle#C10':4,'castle#C9':5,'mirror#R7':6}; // 6 = mirror R7 redrawn (three-bounce light, no crates) // 4 = bat knockback release (C10 redrawn so the bat can't skip its bomb); 5 = C9 redrawn (crate + trapdoor + ghost you bat into a corner) // ZRESET: zone redrawn in layout version N; saves older than N restart that zone's creatures (and the robot, if standing in it) fresh
+const LAYV=7,BOXRELAY=['sea#A5','sea#A6','sea#A8'],ZRESET={'castle#C5':3,'castle#C10':4,'castle#C9':5,'mirror#R7':6,'mirror#RB':7}; // 7 = mirror king room redrawn (two mirrors you flip onto it, 3 HP) // 6 = mirror R7 redrawn (three-bounce light, no crates) // 4 = bat knockback release (C10 redrawn so the bat can't skip its bomb); 5 = C9 redrawn (crate + trapdoor + ghost you bat into a corner) // ZRESET: zone redrawn in layout version N; saves older than N restart that zone's creatures (and the robot, if standing in it) fresh
 function relayBoxes(W,s){const lay0=s.lay||0;if(lay0>=LAYV)return;s.lay=LAYV;if(lay0<3){grantBat(W,s);if(s.bugs&&!s.bugs.some(o=>o.zone==='forest#F14'))s.bugs=s.bugs.concat(W.bugs0.filter(o=>o.zone==='forest#F14').map(o=>({...o}))).sort((a,b)=>a.i-b.i)} // layout 3 = bat release (+ the F14 tutorial beetle older saves never had)
  for(const zid in ZRESET){if(lay0>=ZRESET[zid])continue;const [m]=zid.split('#'),Z=(W.maps[m]||{zones:[]}).zones.find(z=>z.id===zid);if(!Z)continue;if(!s.bugs)s.bugs=[];
   s.bugs=s.bugs.filter(o=>o.zone!==zid).concat(W.bugs0.filter(o=>o.zone===zid).map(o=>({...o}))).sort((a,b)=>a.i-b.i);
   {const inZ=k=>{if(!k.startsWith(m+':'))return false;const [x,y]=k.split(':')[1].split(',').map(Number);return x>=Z.x&&x<Z.x+Z.w&&y>=Z.y&&y<Z.y+Z.h}; // the old layout's crates, filled trapdoors and lever position no longer fit the new walls
-   s.boxes=(s.boxes||[]).filter(k=>!inZ(k)).concat(W.boxes0.filter(inZ));for(const f of ['holes','filled','broken'])if(s[f])s[f]=s[f].filter(k=>!inZ(k));for(const k in (s.ch||{}))if(inZ(k))delete s.ch[k];for(const k in (s.vt||{}))if(inZ(k))delete s.vt[k];if(s.lvz)delete s.lvz[zid]}
+   s.boxes=(s.boxes||[]).filter(k=>!inZ(k)).concat(W.boxes0.filter(inZ));for(const f of ['holes','filled','broken'])if(s[f])s[f]=s[f].filter(k=>!inZ(k));for(const k in (s.ch||{}))if(inZ(k))delete s.ch[k];for(const k in (s.vt||{}))if(inZ(k))delete s.vt[k];if(s.lvz)delete s.lvz[zid];
+   if(s.bosses&&W.bosses0.some(o=>o.zone===zid))s.bosses=s.bosses.filter(o=>o.zone!==zid).concat(W.bosses0.filter(o=>o.zone===zid).map(o=>({...o}))).sort((a,b)=>a.i-b.i);if(s.bossCp&&s.bossCp.zone===zid)delete s.bossCp}
   if(s.m===m&&s.x>=Z.x&&s.x<Z.x+Z.w&&s.y>=Z.y&&s.y<Z.y+Z.h){s.zone=zid;s.zoneEntry=Z.entry.slice();Object.assign(s,resetZone(W,s).state); // standing inside: the whole zone restarts (bombs, crates, creatures)
    const [ex,ey]=Z.entry;s.f=ex===Z.x?'right':ex===Z.x+Z.w-1?'left':ey===Z.y?'down':'up';s.zoneEntry=[s.x,s.y];s.zt=0}}
  if(lay0<2)for(const zid of BOXRELAY){const [m]=zid.split('#'),Z=(W.maps[m]||{zones:[]}).zones.find(z=>z.id===zid);if(!Z)continue;
@@ -103,7 +104,8 @@ function relayout(W,s){fixBugIds(W,s);relayBoxes(W,s);for(const zid in RELAYOUT)
   const [m]=zid.split('#'),Z=(W.maps[m]||{zones:[]}).zones.find(z=>z.id===zid);if(!Z)continue;const inZ=(x,y)=>x>=Z.x&&x<Z.x+Z.w&&y>=Z.y&&y<Z.y+Z.h;
   s.bugs=s.bugs.filter(o=>o.zone!==zid).concat(W.bugs0.filter(o=>o.zone===zid).map(o=>({...o}))).sort((a,b)=>a.i-b.i);
   {const inZ=k=>{if(!k.startsWith(m+':'))return false;const [x,y]=k.split(':')[1].split(',').map(Number);return x>=Z.x&&x<Z.x+Z.w&&y>=Z.y&&y<Z.y+Z.h}; // the old layout's crates, filled trapdoors and lever position no longer fit the new walls
-   s.boxes=(s.boxes||[]).filter(k=>!inZ(k)).concat(W.boxes0.filter(inZ));for(const f of ['holes','filled','broken'])if(s[f])s[f]=s[f].filter(k=>!inZ(k));for(const k in (s.ch||{}))if(inZ(k))delete s.ch[k];for(const k in (s.vt||{}))if(inZ(k))delete s.vt[k];if(s.lvz)delete s.lvz[zid]}
+   s.boxes=(s.boxes||[]).filter(k=>!inZ(k)).concat(W.boxes0.filter(inZ));for(const f of ['holes','filled','broken'])if(s[f])s[f]=s[f].filter(k=>!inZ(k));for(const k in (s.ch||{}))if(inZ(k))delete s.ch[k];for(const k in (s.vt||{}))if(inZ(k))delete s.vt[k];if(s.lvz)delete s.lvz[zid];
+   if(s.bosses&&W.bosses0.some(o=>o.zone===zid))s.bosses=s.bosses.filter(o=>o.zone!==zid).concat(W.bosses0.filter(o=>o.zone===zid).map(o=>({...o}))).sort((a,b)=>a.i-b.i);if(s.bossCp&&s.bossCp.zone===zid)delete s.bossCp}
   for(const k in (s.ch||{})){const [mm,xy]=k.split(':'),[x,y]=xy.split(',').map(Number);if(mm===m&&inZ(x,y))delete s.ch[k]}
   if(s.m===m&&s.zone===zid){s.x=Z.entry[0];s.y=Z.entry[1];s.zoneEntry=[s.x,s.y];s.zt=0}}}
 // saves made after the forest but before the bat existed (layout < 3): hand the bat over once, on load (world.js shows the "got the bat" moment)
@@ -235,13 +237,13 @@ const itemHere=(W,s,m,x,y)=>{const c=base(W,m,x,y);if(W.maps[m].theme==='clock'&
 const placeV2=(W,s,m,x,y,c)=>{if(isTrk(c)||c in CUR||c==='r')return false;if(c===',')return W.maps[m].theme==='sky'?cloudAt(s,m,x,y)>=0:true;/* rubble placeable off-sky, as live */return '.=Xa_pl═'.indexOf(c)>=0||c==='┊'||(c in WND)||(!!ITEMS[c]&&has(s.got,K(m,x,y)))};
 function curZone(W,s){return s.zone?W.maps[s.m].zones.find(z=>z.id===s.zone)||null:null}
 // light beams + power circuits for the robot's current zone
-// traceBeams: the same light paths as recomputeV2, as drawable pieces [x,y,dIn,dOut] (dIn -1 = the source itself; dIn≠dOut = a mirror bounce). Renderer only.
+// traceBeams: the same light paths as recomputeV2, as drawable pieces [x,y,dIn,dOut,bounced] (dIn -1 = the source itself; dIn≠dOut = a mirror bounce; bounced = after a mirror, the light that hurts the mirror king). Renderer only.
 function traceBeams(W,s,Z){const out=[];if(!Z)return out;const m=s.m;
- for(let y=Z.y;y<Z.y+Z.h;y++)for(let x=Z.x;x<Z.x+Z.w;x++){if(cell(W,s,m,x,y)!=='☼')continue;for(let d0=0;d0<4;d0++){let cx=x,cy=y,d=d0;const seg=[[x,y,-1,d0]];
+ for(let y=Z.y;y<Z.y+Z.h;y++)for(let x=Z.x;x<Z.x+Z.w;x++){if(cell(W,s,m,x,y)!=='☼')continue;for(let d0=0;d0<4;d0++){let cx=x,cy=y,d=d0,b=0;const seg=[[x,y,-1,d0,0]];
   for(let g=0;g<80;g++){const nx=cx+DV[d][0],ny=cy+DV[d][1];if(!inZone(Z,nx,ny))break;const t=cell(W,s,m,nx,ny);
-   if(t in MIR){const nd=turnTrack(MIR[t],d);seg.push([nx,ny,d,nd]);d=nd;cx=nx;cy=ny;continue}
+   if(t in MIR){const nd=turnTrack(MIR[t],d);b=1;seg.push([nx,ny,d,nd,1]);d=nd;cx=nx;cy=ny;continue}
    if('#%bKwTR~V○r╱╲☼⊕⊛£Ω'.indexOf(t)>=0||boxAt(s,m,nx,ny)>=0||bombAt(s,m,nx,ny)>=0||(t==='D'&&!switchDoorOpen(W,s,m,nx,ny)))break;
-   seg.push([nx,ny,d,d]);cx=nx;cy=ny}
+   seg.push([nx,ny,d,d,b]);cx=nx;cy=ny}
   if(seg.length>1)out.push(...seg)}}return out}
 function recomputeV2(W,s,Z){if(!Z){s.lit=0;s.pw=0;s.gen=0;s.bounce={};return}
  const m=s.m,lit={},bounce={},TG=[];
@@ -258,7 +260,8 @@ function recomputeV2(W,s,Z){if(!Z){s.lit=0;s.pw=0;s.gen=0;s.bounce={};return}
   if(t==='▣'){pw=1;continue}if(t==='═'||(t==='┊'&&boxAt(s,m,nx,ny)>=0)){seen[k]=1;st.push([nx,ny])}}}
  s.pw=pw;
  for(const b of (s.bosses||[])){if(b.kind!=='phantom'||b.hp<=0||b.zone!==Z.id)continue;const k=K(m,b.x,b.y);
-  if(bounce[k]){if(!b.lit){b.hp--;b.hitAt=s.steps;b.lit=1}}else b.lit=0}}
+  if(b.lit&&b.lit!==k)b.lit=bounce[k]?k:0; // b.lit = still standing in the light since the last hit: one hit per time it walks INTO the red light (walking along it, or flipping the mirror away and back on the same tile, doesn't count again)
+  if(bounce[k]&&!b.lit){b.hp--;b.hitAt=s.steps;b.lit=k}}}
 // ⚾ 球棒 (Q, picked up at the forest exit): 動作 while facing an adjacent creature or cracked wall.
 // Adjacent target → bat (beats fire there); otherwise fire. Creature: knocked back 1 tile (away from the robot) and stunned BATSTUN = 3 moves.
 // Knockback only lands on a tile the creature could walk onto itself AND that is safe: inside its zone, not the entry/exit, not solid/occupied/item,
@@ -417,7 +420,8 @@ function stepV2(W,s0,a,opt){const ev=[];const free=!!(opt&&opt.free);
   if(Z&&moveV2(W,s,Z,ev)==='caught'){ev.push('caught');return{state:s,result:'fail',ev,path,moves}}
   // pendulums swat bugs
   if(Z)s.bugs=s.bugs.filter(b=>!(b.m===m&&inZone(Z,b.x,b.y)&&pendAt(W,s,m,b.x,b.y)));
-  if(Z)recomputeV2(W,s,Z);
+  if(Z){const ph0=(s.bosses||[]).map(b=>b.kind==='phantom'?b.hp:null);recomputeV2(W,s,Z); // mirror king: hurt inside recomputeV2 → report it like every other boss hit (flash, sound, stage save, bossdown)
+   (s.bosses||[]).forEach((b,i)=>{if(ph0[i]!=null&&b.hp<ph0[i]){ev.push('bosshit');if(b.hp<=0)ev.push('bossdown')}})}
   if(Z&&hazardV2(W,s,m,s.x,s.y,Z)){ev.push(spikeUp(W,s,m,s.x,s.y,Z)?'spike':trapOpen(W,s,m,s.x,s.y,Z)?'trap':pendAt(W,s,m,s.x,s.y)?'pend':'fall');return{state:s,result:'fail',ev,path,moves}}
   {const gc=cell(W,s,m,s.x,s.y);if((gc==='¤'||gc==='¢')&&gateShut(s,gc)){ev.push('gate');return{state:s,result:'fail',ev,path,moves}}}
   if((s.bugs||[]).some(b=>b.m===m&&b.x===s.x&&b.y===s.y)){ev.push('caught');return{state:s,result:'fail',ev,path,moves}}
@@ -478,7 +482,7 @@ function normalize(W,s){if(!W.solverAbstract)return s;const n=clone(s);const cur
  Object.defineProperty(n,'_mk',{value:'~'+[n.dunes,n.bugs,n.bosses].map((a,j)=>dk(a,I0.m[j],MS)).join('/'),enumerable:false});
  Object.defineProperty(n,'_ck',{value:'~'+dk(n.clouds,I0.c,CS),enumerable:false});
  n.bombs=n.bombs.filter(b=>keep(K(b.m,b.x,b.y)));n.broken=n.broken.filter(keep);n.holes=n.holes.filter(keep);n.filled=n.filled.filter(keep);return n}
-function key(s){return [s.m,s.x,s.y,s.f,s.held,s.inv,s.got.slice().sort().join(';'),(s._bk!=null?'~'+s._bk:s.boxes.slice().sort().join(';')),s.bombs.map(b=>K(b.m,b.x,b.y)+'t'+b.t).sort().join(';'),s.broken.slice().sort().join(';'),s.holes.slice().sort().join(';'),s.filled.slice().sort().join(';'),s.left,s.zone,s.cleared.slice().sort().join(';'),(s.pats||[]).map(p=>p.i+'@'+p.x+','+p.y+(p.d>0?'+':'-')).join(';'),(s._mk!=null?s._mk:[s.dunes,s.bugs,s.bosses].map(a=>(a||[]).map(o=>o.i+'@'+o.x+','+o.y+'d'+o.d+'f'+(o.fr||0)+'h'+(o.hp||0)).join(';')).join('/')),Object.keys(s.ch||{}).sort().map(k=>k+s.ch[k]).join(';'),Object.keys(s.vt||{}).sort().map(k=>k+'='+s.vt[k]).join(';'),(s.rocks||[]).map(r=>r.m+':'+r.x+','+r.y).sort().join(';'),s.lt||0,s.cf||'',s.cart&&Object.keys(s.cart).sort().map(k=>k+':'+s.cart[k]).join(';')||'',s.bossCp?s.bossCp.zone+':'+s.bossCp.hp:'',s.air||0,s.lvz&&Object.keys(s.lvz).sort().map(k=>k+s.lvz[k]).join(';')||'',(s._ck!=null?s._ck:(s.clouds||[]).map(o=>o.i+'@'+o.x+','+o.y+'d'+o.d).join(';')),s.zt||0,s.lit||0,s.pw||0,s.gen||0,(s.bosses||[]).filter(o=>o.kind==='phantom').map(o=>(o.lit?1:0)).join('')].join('|')}
+function key(s){return [s.m,s.x,s.y,s.f,s.held,s.inv,s.got.slice().sort().join(';'),(s._bk!=null?'~'+s._bk:s.boxes.slice().sort().join(';')),s.bombs.map(b=>K(b.m,b.x,b.y)+'t'+b.t).sort().join(';'),s.broken.slice().sort().join(';'),s.holes.slice().sort().join(';'),s.filled.slice().sort().join(';'),s.left,s.zone,s.cleared.slice().sort().join(';'),(s.pats||[]).map(p=>p.i+'@'+p.x+','+p.y+(p.d>0?'+':'-')).join(';'),(s._mk!=null?s._mk:[s.dunes,s.bugs,s.bosses].map(a=>(a||[]).map(o=>o.i+'@'+o.x+','+o.y+'d'+o.d+'f'+(o.fr||0)+'h'+(o.hp||0)+(o.lit?'l':'')).join(';')).join('/')),Object.keys(s.ch||{}).sort().map(k=>k+s.ch[k]).join(';'),Object.keys(s.vt||{}).sort().map(k=>k+'='+s.vt[k]).join(';'),(s.rocks||[]).map(r=>r.m+':'+r.x+','+r.y).sort().join(';'),s.lt||0,s.cf||'',s.cart&&Object.keys(s.cart).sort().map(k=>k+':'+s.cart[k]).join(';')||'',s.bossCp?s.bossCp.zone+':'+s.bossCp.hp:'',s.air||0,s.lvz&&Object.keys(s.lvz).sort().map(k=>k+s.lvz[k]).join(';')||'',(s._ck!=null?s._ck:(s.clouds||[]).map(o=>o.i+'@'+o.x+','+o.y+'d'+o.d).join(';')),s.zt||0,s.lit||0,s.pw||0,s.gen||0,(s.bosses||[]).filter(o=>o.kind==='phantom').map(o=>(o.lit?1:0)).join('')].join('|')}
 const ACTIONS=['up','down','left','right','act','reset','wait'];
 // explore the whole reachable state graph; returns {states, edges, startKey}
 function explore(W,start,max){max=max||400000;const s0=start||initState(W);const k0=key(s0);const states=new Map([[k0,s0]]),edges=new Map(),q=[k0];let trunc=false,qh=0;
