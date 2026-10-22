@@ -31,6 +31,10 @@ function camTarget(){const M=W.maps[S.m];const Z=WE.zoneAt(W,S.m,S.x,S.y);let tx
  tx=Math.max(0,Math.min(M.W-VW,tx));ty=Math.max(0,Math.min(M.H-VIEWH,ty));if(M.W<=VW)tx=(M.W-VW)/2;if(M.H<=VIEWH)ty=(M.H-VIEWH)/2;return[tx,ty]}
 // ---------- HUD ----------
 const KEYMAP={c:'grass',m:'ice',k:'ice',f:'ice'}; // map-local items: chip only shown on their own map
+// ⚾ has no glyph in the game font (shows as tofu): every UI string keeps ⚾ as a marker and batIcons() swaps it for the pixel bat icon
+const BAT_IMG='<img class="ico" src="assets/baseball_bat_icon_16.png" srcset="assets/baseball_bat_icon_16.png 1x, assets/baseball_bat_icon_32.png 2x" alt="球棒圖示">';
+const escH=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]),batHTML=s=>escH(s).replace(/⚾\uFE0F?\s?/g,BAT_IMG);
+function batIcons(el){if(el&&el.textContent.indexOf('⚾')>=0)el.innerHTML=batHTML(el.textContent)}
 const ITEMNAME={c:'青鑰匙',m:'紫鑰匙',n:'粉鑰匙',k:'冰爪',f:'符文碎片',F:'🔥 吐火',Q:'⚾ 球棒',g:'磁力手套',U:'電池升級'};
 // ---------- stuck detection: after each move in a puzzle area, exhaustive in-area search (WE.zoneStuck). Only a proven dead state is flagged.
 let stuck={k:null,on:false,boxes:[]};const STUCKSEEN='glowbot.stuckSeen';let stuckSeen=false;try{stuckSeen=localStorage.getItem(STUCKSEEN)==='1'}catch(e){}
@@ -75,7 +79,7 @@ function drawGuide(){if(!S||S.m!=='ice'||performance.now()>guide.until)return;co
  const px=Math.round((tx-cam.ox)*16),py=Math.round((ty-cam.oy)*16);
  guideArrow(px,py,dir,(4000-(guide.until-performance.now()))/1000)}
 function hud(){checkStuck();guideCheck();const M=W.maps[S.m],Z=WE.zoneAt(W,S.m,S.x,S.y);$('mapname').textContent=M.name;$('zonename').textContent=Z?Z.name:'野外';
- const k=$('keys');k.innerHTML='';const chip=t=>{const c=document.createElement('span');c.className='chip';c.innerHTML=t;k.append(c)};
+ const k=$('keys');k.innerHTML='';const chip=t=>{const c=document.createElement('span');c.className='chip';c.innerHTML=batHTML(t);k.append(c)};
  if(S.held)chip('💣 炸彈');for(const i of S.inv)if(!KEYMAP[i]||KEYMAP[i]===S.m)chip(ITEMNAME[i]||i);const bolts=S.got.filter(g=>WE.base(W,g.split(':')[0],...g.split(':')[1].split(',').map(Number))==='*').length;if(bolts)chip('🔩 '+bolts);const lamps=S.got.filter(g=>WE.base(W,g.split(':')[0],...g.split(':')[1].split(',').map(Number))==='L').length;if(lamps)chip('🏮 '+lamps);
  const lf=$('remain');if(S.left!=null){lf.style.display='';lf.innerHTML=`剩 <b class="${S.left<=3?'low':''}">${S.left}</b> 步`}else lf.style.display='none';
  const unmet=h=>h.zone?(S.zone===h.zone&&S.cleared.indexOf(h.zone)<0):(h.need&&!WE.hasInv(S,h.need))||(h.cleared&&S.cleared.indexOf(h.cleared)<0)||(h.visit&&S.visited.indexOf(h.visit)<0)||(!h.need&&!h.visit&&!h.cleared),hs=W.hints||[];let h=hs.find(h=>h.m===S.m&&unmet(h))||hs.find(h=>!h.m&&unmet(h));
@@ -90,7 +94,7 @@ function hud(){checkStuck();guideCheck();const M=W.maps[S.m],Z=WE.zoneAt(W,S.m,S
  if(bz&&bz.hp<=0){const Z=W.maps[S.m].zones.find(z=>z.id===S.zone);let lamp=false;for(let y=Z.y;y<Z.y+Z.h;y++)for(let x=Z.x;x<Z.x+Z.w;x++)if(WE.base(W,S.m,x,y)==='L'&&S.got.indexOf(S.m+':'+x+','+y)<0)lamp=true;$('hint').textContent=lamp?'🎉 王倒了！王關門打開了：去點亮燈塔燈，再走出口':'🎉 王倒了！走出口'}
  else if(S.zone&&S.zoneSteps>40&&S.cleared.indexOf(S.zone)<0)$('hint').textContent=h&&(h.zone===S.zone||h.cleared===S.zone)?'▶ '+h.text+'（卡住了就按 ↺）':'🤔 卡住了嗎？按 ↺ 重來這一區'; // this zone's own hint stays visible (the RB boss rule was being replaced by the generic line)
  if(stuck.on&&!stuckSeen)$('hint').textContent='箱子卡住了，按 ↺ 重來';if(flashT&&performance.now()<flashT.until)$('hint').textContent=flashT.t;
- const here=WE.base(W,S.m,S.x,S.y);if(WE.isTun(here)&&W.tunnels[WE.tunId(here)].length<2)$('hint').textContent='🚧 隧道 '+WE.tunId(here)+' 通往'+((W.tunnelTo||{})[WE.tunId(here)]||'下一區')+'：即將開放';}
+ const here=WE.base(W,S.m,S.x,S.y);if(WE.isTun(here)&&W.tunnels[WE.tunId(here)].length<2)$('hint').textContent='🚧 隧道 '+WE.tunId(here)+' 通往'+((W.tunnelTo||{})[WE.tunId(here)]||'下一區')+'：即將開放';batIcons($('hint'))}
 let flashT=null;function flash(t){flashT={t,until:performance.now()+2500};hud();setTimeout(hud,2600)}
 // ---------- input ----------
 let patPrev=null,patT0=0;
@@ -288,6 +292,8 @@ function v2Fx(r,prev){if(!V2()&&!(prev&&W.maps[prev.m].rules==='v2'))return;snap
  if(clk&&prev&&prev.m===S.m){const Z=W.maps[S.m].zones.find(z=>z.id===S.zone);if(Z)for(let y=Z.y;y<Z.y+Z.h;y++)for(let x=Z.x;x<Z.x+Z.w;x++){const c=WE.cell(W,S,S.m,x,y);
    if((c==='¤'||c==='¢')&&WE.gateShut(prev,c)!==WE.gateShut(S,c))fx.push({type:'tick',x,y,t0:T,open:!WE.gateShut(S,c)})} // a door just opened/shut: ring on it
   (prev.bugs||[]).forEach(b=>{if(b.m===S.m&&!(S.bugs||[]).some(q=>q.i===b.i)&&WE.pendAt(W,S,S.m,b.x,b.y))fx.push({type:'smoke',x:b.x,y:b.y,t0:T})})} // beetle swatted by a pendulum
+ if((FAC()||COR())&&prev&&prev.m===S.m&&S.zone){const N=facZones()[S.zone];if(N){const was=N.D.some(([x,y])=>WE.switchDoorOpen(W,prev,S.m,x,y)),now=N.D.some(([x,y])=>WE.switchDoorOpen(W,S,S.m,x,y));
+  if(was!==now&&(S.cleared||[]).indexOf(S.zone)<0){N.D.concat(N.X).forEach(([x,y])=>fx.push({type:'tick',x,y,t0:T,open:now}));flash(now?'開關壓住了：門打開！':'開關鬆開：門又關上了')}}} // factory: pad pressed/released → ring on pad + door, one line toast
  (S.sunk||[]).forEach(k=>{if(k.m===S.m)fx.push({type:k.box?'boxsink':'splash',x:k.x,y:k.y,t0:T});setTimeout(()=>sfx('crumble'),80)});delete S.sunk;
  (S.scattered||[]).concat(S.squashed||[]).forEach(k=>{if(k.m===S.m)fx.push({type:'splash',x:k.x,y:k.y,t0:T})});delete S.scattered;delete S.squashed;
  if(ev.indexOf('bosshit')>=0)(S.bosses||[]).forEach(o=>{if(o.m===S.m&&o.hitAt===S.steps)bossHitT[o.i]=T});
@@ -310,7 +316,7 @@ function bush(px,py,x,y){const h=((x*73856093)^(y*19349663))>>>0;R(px,py,16,16,E
  if(h%7===0){R(px+5,py+6,1,1,E32.yellow);R(px+11,py+4,1,1,E32.pink)}}
 const ICY=()=>TH===WORLDS.snow;
 // lazy-load per-scene art (swamp/mine/volcano/core). ice/desert/forest stay eager in world.html.
-const SCENE_ART={forest:['bat-art.js'],swamp:['swamp-art.js','bat-art.js'],mine:['mine-art.js','bat-art.js'],volcano:['volcano-art.js','core-art.js','bat-art.js'],sea:['sea-art.js','bat-art.js'],castle:['castle-art.js','bat-art.js'],sky:['sky-art.js','bat-art.js'],mirror:['mirror-art.js','bat-art.js'],power:['power-art.js','bat-art.js'],clock:['clock-art.js','bat-art.js'],factory:['factory-art.js','bat-art.js'],core:['core-art.js','factory-art.js','bat-art.js']}; // bat-art: ⚾ pickup, swing, mine bat
+const SCENE_ART={forest:['bat-art.js'],swamp:['swamp-art.js','bat-art.js'],mine:['mine-art.js','bat-art.js'],volcano:['volcano-art.js','core-art.js','bat-art.js'],sea:['sea-art.js','bat-art.js'],castle:['castle-art.js','bat-art.js'],sky:['sky-art.js','bat-art.js'],mirror:['mirror-art.js','bat-art.js'],power:['power-art.js','bat-art.js'],clock:['clock-art.js','clock-mech-art.js','bat-art.js'],factory:['factory-art.js','bat-art.js'],core:['core-art.js','factory-art.js','bat-art.js']}; // bat-art: ⚾ pickup, swing, mine bat
 const vsrc=f=>{const v=(window.ASSET_V||{})[f];return v?f+'?v='+v:f}; // dist build stamps file hashes so a new push never mixes with cached old JS
 const _artLoaded={};async function ensureSceneArt(m){if(m==='core'&&!_artLoaded._end){_artLoaded._end=1;setTimeout(preloadEnding,1500)}const list=SCENE_ART[m];if(!list)return;for(const f of list){if(_artLoaded[f]||document.querySelector('script[src="'+vsrc(f)+'"]'))continue;_artLoaded[f]=1;await new Promise((ok,no)=>{const e=document.createElement('script');e.src=vsrc(f);e.onload=ok;e.onerror=()=>no(new Error(f));document.head.appendChild(e)})}}
 const DES=()=>W.maps[S.m].theme==='desert',FOR=()=>W.maps[S.m].theme==='forest',SWA=()=>W.maps[S.m].theme==='swamp',MIN=()=>W.maps[S.m].theme==='mine',VOL=()=>W.maps[S.m].theme==='volcano',SEA=()=>W.maps[S.m].theme==='sea',CAS=()=>W.maps[S.m].theme==='castle',SKY=()=>W.maps[S.m].theme==='sky',MIR=()=>W.maps[S.m].theme==='mirror',POW=()=>W.maps[S.m].theme==='power',CLK=()=>W.maps[S.m].theme==='clock',FAC=()=>W.maps[S.m].theme==='factory',COR=()=>W.maps[S.m].theme==='core',V2=()=>W.maps[S.m].rules==='v2';
@@ -372,8 +378,15 @@ function v2Tile(c,px,py,x,y){ // desert-art.js / forest-art.js tiles; anything e
  if(c==='═'){if(typeof wire==='function'){const A=wireNb(x,y);wire(px,py,x,y,'h',A.live,T,A.arms)}else{v2Floor(px,py,x,y);R(px,py+7,16,2,E32.amber)}return true}
  if(c==='┊'){if(typeof wireGap==='function'){const A=wireNb(x,y);wireGap(px,py,x,y,WE.boxAt(S,S.m,x,y)>=0,T,A.arms,A.live)}else{v2Floor(px,py,x,y);R(px+7,py,2,5,E32.grey4);R(px+7,py+11,2,5,E32.grey4)}return true}
  if(c==='▣'){if(typeof powerDoor==='function')powerDoor(px,py,!!S.pw,T);else{v2Floor(px,py,x,y);if(!S.pw)bars(px,py,0)}return true}
- if(c==='n'||c==='s'){v2Floor(px,py,x,y);const phase=S.zt||0;if(typeof pendulum==='function')pendulum(px,py,c==='n'?(phase%2?2:0):(phase%2?0:2),{danger:clockNext(x,y,c),side:(phase+(c==='n'?0:1))%2});else R(px+6,py+2,4,12,E32.grey2);return true}
- if(c==='¤'||c==='¢'){const open=!WE.gateShut(S,c),z=S.zt||0;if(typeof gearGate==='function')gearGate(px,py,open,z,T,{now:open,next:!WE.gateShut({zt:z+1},c),cyc:[0,1,2,3].map(k=>!WE.gateShut({zt:k},c)),k:z%4});else{v2Floor(px,py,x,y);if(!open)bars(px,py,0)}return true}
+ if(c==='n'||c==='s'){v2Floor(px,py,x,y);const phase=S.zt||0,dang=clockNext(x,y,c);
+  if(typeof pendulumV2==='function'){ // 美術監督 v2 art: 0 = cocked, hits next step (danger marker on the floor) · 1 = parked safe; tweens through the swing for .25s after each tick
+   const z=S.zt||0;if(clkTw.zt!==z)clkTw={zt:z,t0:T};const fr=Math.min(1,(T-clkTw.t0)/.25),sd=zz=>(Math.floor((zz+(c==='n'?1:0))/2)%2)?1:-1,nx=zz=>c==='n'?(zz+1)%2===1:(zz+1)%2===0;
+   if(dang&&typeof pendulumDanger==='function')pendulumDanger(px,py,T);
+   if(fr<1&&z>0)pendulumV2(px,py,(nx(z-1)?0:1)+fr,T,sd(z-1));else pendulumV2(px,py,dang?0:1,T,sd(z))}
+  else if(typeof pendulum==='function')pendulum(px,py,c==='n'?(phase%2?2:0):(phase%2?0:2),{danger:dang,side:(phase+(c==='n'?0:1))%2});else R(px+6,py+2,4,12,E32.grey2);return true}
+ if(c==='¤'||c==='¢'){const open=!WE.gateShut(S,c),z=S.zt||0,next=!WE.gateShut({zt:z+1},c),cyc=[0,1,2,3].map(k=>!WE.gateShut({zt:k},c));
+  if(typeof gearGateV2==='function'){v2Floor(px,py,x,y);gearGateV2(px,py,open?(next?'open':'closing'):(next?'opening':'closed'),z%4,T,cyc)}
+  else if(typeof gearGate==='function')gearGate(px,py,open,z,T,{now:open,next,cyc,k:z%4});else{v2Floor(px,py,x,y);if(!open)bars(px,py,0)}return true}
  if(c==='£'){v2Floor(px,py,x,y);return true} // guard drawn in drawMovers
  if(c==='L'){v2Floor(px,py,x,y);const lit=st.got.indexOf(x+','+y)>=0,b=lit?0:Math.round(Math.sin(T*3));
   R(px+5,py+3+b,6,10,TH.outline);R(px+6,py+4+b,4,8,lit?E32.yellow:E32.amber);R(px+4,py+2+b,8,2,TH.outline);R(px+4,py+13+b,8,2,TH.outline);if(!lit&&Math.floor(T*3)%2)R(px+7,py+6+b,2,3,E32.white);return true}
@@ -405,7 +418,7 @@ let tipShown=null;function tipAt(gx,gy){const t=anim?null:interactTip(),el=$('ti
 function ironBands(px,py){const I=E32.ink,G=E32.grey2;R(px+1,py+1,14,2,I);R(px+1,py+13,14,2,I);R(px+1,py+1,2,14,I);R(px+13,py+1,2,14,I);R(px+2,py+2,12,1,G);R(px+2,py+13,12,1,G);R(px+2,py+2,1,12,G);R(px+13,py+2,1,12,G);[[2,2],[12,2],[2,12],[12,12]].forEach(([u,v])=>{R(px+u,py+v,2,2,E32.grey4);R(px+u,py+v,1,1,E32.white)})} // 鐵箍: bomb/minecart-only cracked wall (the bat clangs off)
 function ironAt(x,y){const z=WE.zoneAt(W,S.m,x,y);return !!(z&&z.iron)}
 // clock tower: is this pendulum tile swept on the NEXT tick (= stepping onto it now, or standing on it, gets you hit)? Same rule as WE.pendAt, one tick ahead.
-function clockNext(x,y,c){const z=(S.zt||0)+1;return c==='n'?z%2===1:c==='s'?z%2===0:false}
+let clkTw={zt:-1,t0:0};function clockNext(x,y,c){const z=(S.zt||0)+1;return c==='n'?z%2===1:c==='s'?z%2===0:false}
 // power wires: which sides connect (so cables bend where power really flows) and whether this piece is live (connected to a generator that is ON); render only
 let _pnet={k:null,seen:{}};function wireNb(x,y){const Z=S.zone&&W.maps[S.m].zones.find(z=>z.id===S.zone),key=S.m+'|'+S.zone+'|'+S.steps+'|'+JSON.stringify(S.ch||{})+'|'+S.boxes.length+'|'+S.boxes.join(';');
  if(_pnet.k!==key){_pnet={k:key,seen:Z&&WE.powerNet?WE.powerNet(W,S,Z).seen:{}}}const c=(a,b)=>WE.cell(W,S,S.m,a,b),C='═┊⊕⊛▣';
@@ -427,14 +440,46 @@ function tile(c,px,py,x,y){if(V2()&&v2Tile(c,px,py,x,y)){if(c==='%'&&ironAt(x,y)
  const k=x+','+y,got=st.got.indexOf(k)>=0;
  if(c==='H')spikes(px,py);
  if(c==='O'){if(st.filled.indexOf(k)>=0){R(px+2,py+2,12,12,TH.outline);R(px+3,py+3,10,10,TH.crate[1])}else if(st.holes.indexOf(k)>=0){R(px+1,py+1,14,14,TH.outline);R(px+2,py+2,12,3,E32.navy)}else{R(px+1,py+1,14,14,TH.outline);R(px+2,py+2,12,12,E32.skin2);R(px+5,py+4,1,3,TH.outline);R(px+8,py+8,1,3,TH.outline)}}
- if(c==='X')plate(px,py,st.boxes.some(b=>b[0]===x&&b[1]===y)||WE.duneAt(S,S.m,x,y)>=0);
+ if(c==='X'){if(FAC()||COR())facPlate(px,py,facPressed(x,y));else plate(px,py,st.boxes.some(b=>b[0]===x&&b[1]===y)||WE.duneAt(S,S.m,x,y)>=0)}
  if(c==='G')goal(px,py);
  if('cmn'.indexOf(c)>=0&&!got)keyItem(px,py,c);
  if(c==='E'&&!got)battery(px,py);if(c==='g'&&!got)glove(px,py);if(c==='k'&&!got)claws(px,py);if(c==='f'&&!got)fragment(px,py);if(c==='U'&&!got)upgrade(px,py);
  if(c==='*'&&!got){const b=Math.round(Math.sin(T*3+x));R(px+5,py+5+b,6,6,TH.outline);R(px+6,py+4+b,4,8,TH.outline);R(px+6,py+5+b,4,6,E32.grey1);R(px+5,py+6+b,6,4,E32.grey1);R(px+7,py+7+b,2,2,TH.outline)}
  if(c==='W')goal(px,py);
- if(c==='D'&&WE.solid(W,S,S.m,x,y))bars(px,py,0);
+ if(c==='D'){if(FAC()||COR())facDoor(px,py,x,y);else if(WE.solid(W,S,S.m,x,y))bars(px,py,0)}
  if('CMN'.indexOf(c)>=0&&WE.solid(W,S,S.m,x,y))gate(px,py,c.toLowerCase(),0)}
+// ---------- night factory / core: switch pads say "crate here", a wire runs from each pad to its door, the door shows one lamp per pad ----------
+// (Jasper F5 "這裡怎麼過": the pad looked like a grey block and nothing tied it to the bars; now pad → wire → lamp → door reads at a glance)
+let facNet={m:null,z:{}};
+function facZones(){if(facNet.m===S.m)return facNet.z;const M=W.maps[S.m],z={};
+ for(const Z of M.zones){const X=[],D=[];for(let y=Z.y;y<Z.y+Z.h;y++)for(let x=Z.x;x<Z.x+Z.w;x++){const c=M.grid[y][x];if(c==='X')X.push([x,y]);if(c==='D')D.push([x,y])}
+  if(!X.length||!D.length)continue;const wires=[];
+  for(const [sx,sy] of X){const prev={},q=[[sx,sy]];prev[sx+','+sy]=null;let end=null; // BFS over anything that is not a wall, inside the zone
+   while(q.length&&!end){const [cx,cy]=q.shift();for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){const nx=cx+dx,ny=cy+dy,k=nx+','+ny;if(k in prev||nx<Z.x||ny<Z.y||nx>=Z.x+Z.w||ny>=Z.y+Z.h)continue;const c=M.grid[ny][nx];if(c==='#'||c===undefined)continue;prev[k]=cx+','+cy;if(c==='D'){end=k;break}q.push([nx,ny])}}
+   const path=[];for(let k=end;k;k=prev[k])path.unshift(k.split(',').map(Number));wires.push({x:sx,y:sy,path})}
+  z[Z.id]={X,D,wires}}
+ facNet={m:S.m,z};return z}
+function facPressed(x,y){return WE.boxAt(S,S.m,x,y)>=0||WE.duneAt(S,S.m,x,y)>=0||(S.bugs||[]).some(b=>b.m===S.m&&b.x===x&&b.y===y&&b.glitch)}
+function facZoneOf(x,y){const Z=WE.zoneAt(W,S.m,x,y);return Z&&facZones()[Z.id]}
+function facPlate(px,py,on){const O=E32.ink,hz=(Math.floor(T*2)%2===0); // recessed pad, yellow/black hazard corners, dashed crate outline = "a crate (or a glitch bot) goes here"
+ R(px+1,py+1,14,14,O);R(px+2,py+2,12,12,on?E32.green3:E32.navy);
+ for(const [a,b] of [[1,1],[11,1],[1,11],[11,11]]){R(px+a,py+b,4,4,E32.amber);R(px+a+(a>5?0:2),py+b+(b>5?2:0),2,2,O)}
+ const c=on?E32.green1:(hz?E32.amber:E32.orange);for(let i=4;i<12;i+=2){R(px+i,py+4,1,1,c);R(px+i,py+11,1,1,c);R(px+4,py+i,1,1,c);R(px+11,py+i,1,1,c)}
+ R(px+7,py+6,2,3,on?E32.green1:c);R(px+6,py+8,4,1,on?E32.green1:c);R(px+7,py+9,2,1,on?E32.green1:c)} // little ▼ "press down"
+function facDoor(px,py,x,y){const open=!WE.solid(W,S,S.m,x,y)||WE.switchDoorOpen(W,S,S.m,x,y),N=facZoneOf(x,y),n=N?N.X.length:1,k=N?N.X.filter(([a,b])=>facPressed(a,b)).length:0,O=E32.ink,cleared=(S.cleared||[]).indexOf((WE.zoneAt(W,S.m,x,y)||{}).id)>=0;
+ if(!open)bars(px,py,0);
+ R(px,py,2,16,O);R(px+14,py,2,16,O);R(px,py,16,4,O);R(px+1,py+1,14,2,E32.grey4); // frame + lamp strip on top: one lamp per switch pad, green = pressed
+ const w=Math.min(4,Math.floor(12/Math.max(1,n))),x0=px+8-Math.floor(n*w/2);
+ for(let i=0;i<n;i++){const lit=cleared||open||i<k;R(x0+i*w+(w>2?1:0),py+1,Math.max(2,w-(w>2?1:0)),2,lit?E32.green1:(Math.floor(T*2)%2?E32.red3:E32.red2))}
+ if(open){R(px+2,py+4,1,12,E32.green1);R(px+13,py+4,1,12,E32.green1)}}
+function facLinks(){if(!(FAC()||COR()))return;const Zs=facZones(),half=(cx,cy,dx,dy,col,g)=>{g=g|0;const px=Math.round((cx-cam.ox)*16)+7,py=Math.round((cy-cam.oy)*16)+7;if(dx)R((dx>0?px:px-7)-g,py-g,8+2*g,2+2*g,col);else R(px-g,(dy>0?py:py-7)-g,2+2*g,8+2*g,col)};
+ for(const id in Zs){const N=Zs[id],Z=W.maps[S.m].zones.find(z=>z.id===id);if(!Z||Z.x>cam.ox+VW+1||Z.x+Z.w<cam.ox-1||Z.y>cam.oy+VIEWH+1||Z.y+Z.h<cam.oy-1)continue;const done=(S.cleared||[]).indexOf(id)>=0;
+  for(const w of N.wires){const on=done||facPressed(w.x,w.y),P=w.path,col=on?E32.green1:E32.red2;
+   for(let i=1;i<P.length-1;i++){const [cx,cy]=P[i];half(cx,cy,P[i-1][0]-cx,P[i-1][1]-cy,O0,1);half(cx,cy,P[i+1][0]-cx,P[i+1][1]-cy,O0,1)}
+   for(let i=1;i<P.length-1;i++){const [cx,cy]=P[i];o.globalAlpha=on?1:.8;half(cx,cy,P[i-1][0]-cx,P[i-1][1]-cy,col);half(cx,cy,P[i+1][0]-cx,P[i+1][1]-cy,col);o.globalAlpha=1}
+   if(P.length>2){const L=P.length-1,f=(T*(on?3:1.2))%L,i=Math.floor(f),a=f-i,ax=P[i][0]+(P[i+1][0]-P[i][0])*a,ay=P[i][1]+(P[i+1][1]-P[i][1])*a; // a spark runs pad → door (fast + bright when pressed)
+    R(Math.round((ax-cam.ox)*16)+6,Math.round((ay-cam.oy)*16)+6,4,4,on?E32.white:E32.red3)}}}}
+const O0='#181425';
 function zoneBorders(){const M=W.maps[S.m];for(const Z of M.zones){const x0=(Z.x-cam.ox)*16,y0=(Z.y-cam.oy)*16,w=Z.w*16,h=Z.h*16;o.globalAlpha=.55;
   for(let i=0;i<w;i+=6){R(x0+i,y0,4,1,E32.grey1);R(x0+i,y0+h-1,4,1,E32.grey1)}for(let j=0;j<h;j+=6){R(x0,y0+j,1,4,E32.grey1);R(x0+w-1,y0+j,1,4,E32.grey1)}o.globalAlpha=1;}}
 // help legend: draw each grass-map tile with the real sprite code into the help panel's little canvases (once)
@@ -482,7 +527,7 @@ function drawFrame(){if(ending){endingFrame();return}const now=performance.now()
  o.fillStyle=V2()?(DES()?E32.tan:VOL()?E32.brown2:MIN()?E32.grey4:SWA()?E32.green3:SEA()?E32.blue1:CAS()?E32.navy:SKY()?E32.blue2:MIR()?'#b5aed8':POW()?E32.grey2:CLK()?'#c4935f':FAC()?E32.grey3:COR()?E32.ink:E32.green3):TH===WORLDS.grass?E32.green2:ICY()?E32.white:E32.ink;o.fillRect(0,0,off.width,off.height);
  const x0=Math.floor(cam.ox),y0=Math.floor(cam.oy);
  for(let y=y0-1;y<=y0+VIEWH+1;y++)for(let x=x0-1;x<=x0+VW+1;x++){if((x<0||y<0||x>=L.W||y>=L.H)&&TH!==WORLDS.grass&&!ICY()&&!V2())continue;tile((L.grid[y]||[])[x],Math.round((x-cam.ox)*16),Math.round((y-cam.oy)*16),x,y)}
- zoneBorders();lightBeams();
+ zoneBorders();lightBeams();facLinks();
  if(!MIN())st.boxes.forEach(b=>{let bx=b[0],by=b[1];const sl=boxSl&&boxSl.items.find(q=>{const e=q.pts[q.pts.length-1];return e[0]===b[0]&&e[1]===b[1]});
   if(sl){const n=sl.pts.length-1,p=Math.max(0,(T-boxSl.t0)/(.08*n));if(p<1){const f=p*n,i=Math.min(n-1,Math.floor(f)),k=f-i;bx=sl.pts[i][0]+(sl.pts[i+1][0]-sl.pts[i][0])*k;by=sl.pts[i][1]+(sl.pts[i+1][1]-sl.pts[i][1])*k}}
   crate(Math.round((bx-cam.ox)*16),Math.round((by-cam.oy)*16),L.grid[by|0]&&L.grid[b[1]][b[0]]==='X'&&bx===b[0]&&by===b[1],0)});
