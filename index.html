@@ -84,14 +84,14 @@ canvas{display:block;box-sizing:content-box;image-rendering:pixelated;image-rend
 #tconf{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:#18142599;z-index:9}#tconf.on{display:flex}#tconf .card{width:min(300px,90vw)}
 #mini.big{position:fixed;left:50%;top:calc(50% + 30px);transform:translate(-50%,-50%);width:min(86vw,calc(86vh - 140px))!important;height:auto!important;z-index:7;padding:8px}
 @media (min-width:900px),(hover:hover) and (pointer:fine) and (min-width:700px){.pill{font-size:18px}#hint{font-size:17px}#keys{font-size:15px}.chip{padding:2px 8px}}
-#reset.glow{opacity:1;background:var(--amber);animation:rglow 1s ease-in-out infinite}@keyframes rglow{50%{box-shadow:0 0 0 4px #fff6,0 0 14px 4px var(--amber)}}
+#act.glow{background:var(--amber);animation:rglow 1s ease-in-out infinite}#tip{position:fixed;z-index:6;pointer-events:none;display:none;transform:translate(-50%,-100%);white-space:nowrap;font-size:13px;line-height:1.2;padding:3px 7px;color:var(--ink);background:var(--panel);border:2px solid var(--ink);box-shadow:2px 2px 0 var(--ink)}#reset.glow{opacity:1;background:var(--amber);animation:rglow 1s ease-in-out infinite}@keyframes rglow{50%{box-shadow:0 0 0 4px #fff6,0 0 14px 4px var(--amber)}}
 #miniX{display:none;position:fixed;top:12px;right:12px;z-index:9;width:46px;height:46px;font-size:22px;cursor:pointer;font-family:inherit}#miniX.on{display:grid;place-items:center}
 #title.has{background:rgba(24,20,37,.55)}#title.has img{max-height:46vh}
 </style></head><body>
 <div id="app">
 <header><div class="pill lv panel"><span id="mapname"></span> · <span id="zonename"></span></div><button class="pill panel" id="mute" aria-label="音效" style="font-size:14px;cursor:pointer;padding:5px 7px">🔊</button><button class="pill panel" id="musicBtn" aria-label="音樂" style="font-size:14px;cursor:pointer;padding:5px 7px">♪</button><button class="pill panel" id="helpBtn" aria-label="操作說明" style="font-size:14px;cursor:pointer;padding:5px 9px">?</button><button class="pill panel" id="menuBtn" style="font-size:14px;cursor:pointer">選單</button></header>
 <div id="hintbar"><div id="hint"></div><canvas id="mini"></canvas></div><div id="remain" style="display:none"></div><div id="keys"></div>
-<div id="wrap"><canvas id="cv"></canvas></div>
+<div id="wrap"><canvas id="cv"></canvas></div><div id="tip" role="status"></div>
 <div id="ctl">
  <div class="side">
   <button class="ib panel" id="reset" title="重來（這個區域）" aria-label="重來"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12a9 9 0 109-9 9 9 0 00-6.4 2.6L3 8"/><path d="M3 3v5h5"/></svg></button>
@@ -118,9 +118,9 @@ canvas{display:block;box-sizing:content-box;image-rendering:pixelated;image-rend
 <button class="btn g panel" id="mNew" style="width:100%">重新開始冒險</button>
 <a href="levels.html" class="btn g panel" style="display:block;text-decoration:none;width:100%;box-sizing:border-box">關卡模式（30 關）</a></div></div>
 
-<script>window.ASSET_V={"art.js":"ba1e3546","castle-art.js":"58df11f1","clock-art.js":"f962a7dc","core-art.js":"80edc587","desert-art.js":"2352922a","ending-art.js":"dd84c39b","factory-art.js":"a9964f77","forest-art.js":"fb94f188","game.js":"9c844ab4","ice-art.js":"fcaf821e","levels.js":"80fa9337","logic.js":"e55fa474","mine-art.js":"f053c3fc","mirror-art.js":"7189aa68","music.js":"e8e31f08","power-art.js":"00e182d9","sea-art.js":"249c194e","share.js":"0df7422f","sky-art.js":"3f1f1b69","swamp-art.js":"ec9758ff","volcano-art.js":"18eb3e42","world-engine.js":"af0b4859","world.js":"7ec9e09f","world/world-def.js":"80c1f3c5"}</script><script src="levels.js?v=80fa9337"></script><script src="logic.js?v=e55fa474"></script><script src="world-engine.js?v=af0b4859"></script><script src="world/world-def.js?v=80c1f3c5"></script><script src="art.js?v=ba1e3546"></script><script src="ice-art.js?v=fcaf821e"></script><script src="desert-art.js?v=2352922a"></script><script src="forest-art.js?v=fb94f188"></script><script src="music.js?v=e8e31f08"></script><script src="share.js?v=0df7422f"></script>
+<script>window.ASSET_V={"art.js":"ba1e3546","castle-art.js":"58df11f1","clock-art.js":"f962a7dc","core-art.js":"80edc587","desert-art.js":"2352922a","ending-art.js":"dd84c39b","factory-art.js":"a9964f77","forest-art.js":"fb94f188","game.js":"9c844ab4","ice-art.js":"fcaf821e","levels.js":"80fa9337","logic.js":"e55fa474","mine-art.js":"3e6a7ef7","mirror-art.js":"7189aa68","music.js":"e8e31f08","power-art.js":"00e182d9","sea-art.js":"249c194e","share.js":"0df7422f","sky-art.js":"3f1f1b69","swamp-art.js":"ec9758ff","volcano-art.js":"18eb3e42","world-engine.js":"af0b4859","world.js":"a0084b62","world/world-def.js":"3658a964"}</script><script src="levels.js?v=80fa9337"></script><script src="logic.js?v=e55fa474"></script><script src="world-engine.js?v=af0b4859"></script><script src="world/world-def.js?v=3658a964"></script><script src="art.js?v=ba1e3546"></script><script src="ice-art.js?v=fcaf821e"></script><script src="desert-art.js?v=2352922a"></script><script src="forest-art.js?v=fb94f188"></script><script src="music.js?v=e8e31f08"></script><script src="share.js?v=0df7422f"></script>
 <script id="endBoot">/* runs before world.js: ?ending=1 skips title/save so the ending canvas is not covered */
 (function(){var q=location.search;if(!/(?:^|[?&])ending(?:=|&|$)/.test(q))return;var t=document.getElementById('title'),hp=document.getElementById('help');
  if(t){t.classList.remove('on','has');t.style.display='none'}if(hp){hp.classList.remove('on');hp.style.display='none'}})();</script>
-<script src="world.js?v=7ec9e09f"></script>
+<script src="world.js?v=a0084b62"></script>
 </body></html>
