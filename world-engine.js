@@ -76,7 +76,7 @@ function clone(s){return{m:s.m,x:s.x,y:s.y,f:s.f,held:s.held,inv:s.inv,got:s.got
 // fills desert/forest fields (also used to upgrade v3 saves, which never reached those maps)
 const RELAYOUT={'swamp#S5':o=>o.y===12}; // zones redesigned after release: a saved creature that no longer fits the new layout resets that zone
 // sea crates ride a whole current since layout 2; A5 A6 A8 were rebuilt for it, so an older save puts those zones' crates back
-const LAYV=7,BOXRELAY=['sea#A5','sea#A6','sea#A8'],ZRESET={'castle#C5':3,'castle#C10':4,'castle#C9':5,'mirror#R7':6,'mirror#RB':7}; // 7 = mirror king room redrawn (two mirrors you flip onto it, 3 HP) // 6 = mirror R7 redrawn (three-bounce light, no crates) // 4 = bat knockback release (C10 redrawn so the bat can't skip its bomb); 5 = C9 redrawn (crate + trapdoor + ghost you bat into a corner) // ZRESET: zone redrawn in layout version N; saves older than N restart that zone's creatures (and the robot, if standing in it) fresh
+const LAYV=8,BOXRELAY=['sea#A5','sea#A6','sea#A8'],ZRESET={'castle#C5':3,'castle#C10':4,'castle#C9':5,'mirror#R7':6,'mirror#RB':7,'power#P5':8}; // 8 = power P5: four unconnected decoy generators + a stuck crate removed; 7 = mirror king room redrawn (two mirrors you flip onto it, 3 HP) // 6 = mirror R7 redrawn (three-bounce light, no crates) // 4 = bat knockback release (C10 redrawn so the bat can't skip its bomb); 5 = C9 redrawn (crate + trapdoor + ghost you bat into a corner) // ZRESET: zone redrawn in layout version N; saves older than N restart that zone's creatures (and the robot, if standing in it) fresh
 function relayBoxes(W,s){const lay0=s.lay||0;if(lay0>=LAYV)return;s.lay=LAYV;if(lay0<3){grantBat(W,s);if(s.bugs&&!s.bugs.some(o=>o.zone==='forest#F14'))s.bugs=s.bugs.concat(W.bugs0.filter(o=>o.zone==='forest#F14').map(o=>({...o}))).sort((a,b)=>a.i-b.i)} // layout 3 = bat release (+ the F14 tutorial beetle older saves never had)
  for(const zid in ZRESET){if(lay0>=ZRESET[zid])continue;const [m]=zid.split('#'),Z=(W.maps[m]||{zones:[]}).zones.find(z=>z.id===zid);if(!Z)continue;if(!s.bugs)s.bugs=[];
   s.bugs=s.bugs.filter(o=>o.zone!==zid).concat(W.bugs0.filter(o=>o.zone===zid).map(o=>({...o}))).sort((a,b)=>a.i-b.i);
@@ -245,6 +245,13 @@ function traceBeams(W,s,Z){const out=[];if(!Z)return out;const m=s.m;
    if('#%bKwTR~V○r╱╲☼⊕⊛£Ω'.indexOf(t)>=0||boxAt(s,m,nx,ny)>=0||bombAt(s,m,nx,ny)>=0||(t==='D'&&!switchDoorOpen(W,s,m,nx,ny)))break;
    seg.push([nx,ny,d,d,b]);cx=nx;cy=ny}
   if(seg.length>1)out.push(...seg)}}return out}
+// powerNet: tiles carrying power in zone Z = every ON generator ⊛ plus the wires ═ and crate-covered gaps ┊ connected to it (4 directions); pw=1 when it reaches a power door ▣. Used by recomputeV2 and (render only) by the wire art.
+function powerNet(W,s,Z){const m=s.m,seen={},st=[];let pw=0;
+ for(let y=Z.y;y<Z.y+Z.h;y++)for(let x=Z.x;x<Z.x+Z.w;x++)if(cell(W,s,m,x,y)==='⊛'){st.push([x,y]);seen[K(m,x,y)]=1}
+ const gen=st.length?1:0;
+ while(st.length){const [x,y]=st.pop();for(let d=0;d<4;d++){const nx=x+DV[d][0],ny=y+DV[d][1];if(!inZone(Z,nx,ny))continue;const k=K(m,nx,ny);if(seen[k])continue;const t=cell(W,s,m,nx,ny);
+  if(t==='▣'){pw=1;seen[k]=1;continue}if(t==='═'||(t==='┊'&&boxAt(s,m,nx,ny)>=0)){seen[k]=1;st.push([nx,ny])}}}
+ return {seen,pw,gen}}
 function recomputeV2(W,s,Z){if(!Z){s.lit=0;s.pw=0;s.gen=0;s.bounce={};return}
  const m=s.m,lit={},bounce={},TG=[];
  for(let y=Z.y;y<Z.y+Z.h;y++)for(let x=Z.x;x<Z.x+Z.w;x++){const c=cell(W,s,m,x,y);if(c==='◎')TG.push([x,y]);
@@ -253,12 +260,7 @@ function recomputeV2(W,s,Z){if(!Z){s.lit=0;s.pw=0;s.gen=0;s.bounce={};return}
    if('#%bKwTR~V○r╱╲☼⊕⊛£Ω'.indexOf(t)>=0||boxAt(s,m,nx,ny)>=0||bombAt(s,m,nx,ny)>=0||(t==='D'&&!switchDoorOpen(W,s,m,nx,ny)))break;
    const k=K(m,nx,ny);lit[k]=1;if(b)bounce[k]=1;cx=nx;cy=ny}}}}
  s.lit=TG.length>0&&TG.every(([x,y])=>lit[K(m,x,y)])?1:0;s.bounce=bounce;s.beamLit=lit;
- let pw=0;const seen={},st=[];
- for(let y=Z.y;y<Z.y+Z.h;y++)for(let x=Z.x;x<Z.x+Z.w;x++)if(cell(W,s,m,x,y)==='⊛'){st.push([x,y]);seen[K(m,x,y)]=1}
- s.gen=st.length?1:0;
- while(st.length){const [x,y]=st.pop();for(let d=0;d<4;d++){const nx=x+DV[d][0],ny=y+DV[d][1];if(!inZone(Z,nx,ny))continue;const k=K(m,nx,ny);if(seen[k])continue;const t=cell(W,s,m,nx,ny);
-  if(t==='▣'){pw=1;continue}if(t==='═'||(t==='┊'&&boxAt(s,m,nx,ny)>=0)){seen[k]=1;st.push([nx,ny])}}}
- s.pw=pw;
+ const P=powerNet(W,s,Z);s.gen=P.gen;s.pw=P.pw;
  for(const b of (s.bosses||[])){if(b.kind!=='phantom'||b.hp<=0||b.zone!==Z.id)continue;const k=K(m,b.x,b.y);
   if(b.lit&&b.lit!==k)b.lit=bounce[k]?k:0; // b.lit = still standing in the light since the last hit: one hit per time it walks INTO the red light (walking along it, or flipping the mirror away and back on the same tile, doesn't count again)
   if(bounce[k]&&!b.lit){b.hp--;b.hitAt=s.steps;b.lit=k}}}
@@ -510,6 +512,6 @@ function* zoneStuckIter(W,s0,max){const M=W.maps[s0.m],Z=s0.zone&&M&&M.zones.fin
    if(!inZ(ns)){if(pats||ns.inv!==s.inv)return null;ns=clone(s);ns.left=Z.limit?Z.limit+(hasInv(s,'U')?10:0):null} // left the area: back in, fresh step limit
    const k=key(ns);if(seen.has(k))continue;if(seen.size>=max)return null;seen.add(k);q.push(ns)}}
  return true}
-const api={traceBeams,fixBugIds,knockTo,batTarget,BATSTUN,zoneStuck,zoneStuckIter,isTrk,isLava,turnTrack,isTun,tunId,tunAt,stepV2,solidV2,recomputeV2,gateShut,pendAt,MIR,duneAt,bugAt,wormAt,bossOfZone,initMovers,REGROW,mstep,patAt,resetPats,normalize,parseWorld,initState,step,advance,FUSE_MS,cell,base,zoneAt,solid,explore,bfsPath,softlocks,key,hasInv,DIRS,FUSE,ITEMS,switchDoorOpen,bombAt,boxAt,K,cloudAt,spikeUp,trapOpen,hazardV2,CUR,WND};
+const api={traceBeams,powerNet,fixBugIds,knockTo,batTarget,BATSTUN,zoneStuck,zoneStuckIter,isTrk,isLava,turnTrack,isTun,tunId,tunAt,stepV2,solidV2,recomputeV2,gateShut,pendAt,MIR,duneAt,bugAt,wormAt,bossOfZone,initMovers,REGROW,mstep,patAt,resetPats,normalize,parseWorld,initState,step,advance,FUSE_MS,cell,base,zoneAt,solid,explore,bfsPath,softlocks,key,hasInv,DIRS,FUSE,ITEMS,switchDoorOpen,bombAt,boxAt,K,cloudAt,spikeUp,trapOpen,hazardV2,CUR,WND};
 if(typeof module!=='undefined')module.exports=api;else root.WorldEngine=api;
 })(this);
