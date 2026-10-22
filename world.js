@@ -78,8 +78,8 @@ function hud(){checkStuck();guideCheck();const M=W.maps[S.m],Z=WE.zoneAt(W,S.m,S
  if(S.held)chip('💣 炸彈');for(const i of S.inv)if(!KEYMAP[i]||KEYMAP[i]===S.m)chip(ITEMNAME[i]||i);const bolts=S.got.filter(g=>WE.base(W,g.split(':')[0],...g.split(':')[1].split(',').map(Number))==='*').length;if(bolts)chip('🔩 '+bolts);const lamps=S.got.filter(g=>WE.base(W,g.split(':')[0],...g.split(':')[1].split(',').map(Number))==='L').length;if(lamps)chip('🏮 '+lamps);
  const lf=$('remain');if(S.left!=null){lf.style.display='';lf.innerHTML=`剩 <b class="${S.left<=3?'low':''}">${S.left}</b> 步`}else lf.style.display='none';
  const unmet=h=>h.zone?(S.zone===h.zone&&S.cleared.indexOf(h.zone)<0):(h.need&&!WE.hasInv(S,h.need))||(h.cleared&&S.cleared.indexOf(h.cleared)<0)||(h.visit&&S.visited.indexOf(h.visit)<0)||(!h.need&&!h.visit&&!h.cleared),hs=W.hints||[];let h=hs.find(h=>h.m===S.m&&unmet(h))||hs.find(h=>!h.m&&unmet(h));
- // boss hint only in the boss room or once every other zone of the map is cleared; before that repeat the map's last mechanic hint
- if(h&&h.cleared&&/#[A-Z]B$/.test(h.cleared)&&S.zone!==h.cleared&&W.maps[S.m].zones.some(z=>z.id!==h.cleared&&!/#[A-Z]B$/.test(z.id)&&S.cleared.indexOf(z.id)<0)){const i=hs.indexOf(h);let f=null;for(let j=i-1;j>=0;j--){const g=hs[j];if(g.m===S.m&&g.cleared&&!/#[A-Z]B$/.test(g.cleared)&&!g.zone){f=g;break}}h=f}
+ // boss hint only in the boss room or once every other zone of the map is cleared
+ if(h&&h.cleared&&/#[A-Z]B$/.test(h.cleared)&&S.zone!==h.cleared&&W.maps[S.m].zones.some(z=>z.id!==h.cleared&&!/#[A-Z]B$/.test(z.id)&&S.cleared.indexOf(z.id)<0))h=null; // an older map hint (e.g. the C1 lever) would mislead in a later zone, so show nothing; zone hints above still win
  $('hint').textContent=h?'▶ '+h.text:'';
  if([[0,-1],[0,1],[-1,0],[1,0]].some(([dx,dy])=>WE.cell(W,S,S.m,S.x+dx,S.y+dy)==='R'))$('hint').textContent=WE.hasInv(S,'f')?'▶ 走進符文石，用符文碎片打開它':'🪧 打倒頭目，取得符文碎片';
  const near=(x,y,d)=>Math.abs(S.x-x)+Math.abs(S.y-y)<=(d||1);
