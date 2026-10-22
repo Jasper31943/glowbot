@@ -69,12 +69,19 @@ function cell(W,s,m,x,y){const c=base(W,m,x,y),k=K(m,x,y);if(s.ch&&s.ch[k]!==und
 if(c==='%'&&(has(s.broken,k)||clearedAt(W,s,m,x,y)))return W.maps[m].theme==='sky'?'.':',';if(c==='R'&&has(s.broken,k))return ',';if(c==='O'){if(has(s.filled,k))return '.';if(has(s.holes,k))return 'o'}return c}
 function clearedAt(W,s,m,x,y){const Z=zoneAt(W,m,x,y);return !!(Z&&s.cleared.length&&has(s.cleared,Z.id))}
 function zoneAt(W,m,x,y){const z=W.maps[m].zones;for(const Z of z)if(x>=Z.x&&x<Z.x+Z.w&&y>=Z.y&&y<Z.y+Z.h)return Z;return null}
-function initState(W){const s={m:W.start.m,x:W.start.x,y:W.start.y,f:'down',held:0,inv:'',got:[],cleared:[],boxes:W.boxes0.slice(),bombs:[],broken:[],holes:[],filled:[],zone:null,zoneEntry:null,left:null,visited:[W.start.m],steps:0,pats:W.pats0.map(p=>({i:p.i,m:p.m,x:p.x,y:p.y,d:p.d}))};initMovers(W,s);
+function initState(W){const s={m:W.start.m,x:W.start.x,y:W.start.y,f:'down',held:0,inv:'',got:[],cleared:[],boxes:W.boxes0.slice(),bombs:[],broken:[],holes:[],filled:[],zone:null,zoneEntry:null,left:null,visited:[W.start.m],steps:0,pats:W.pats0.map(p=>({i:p.i,m:p.m,x:p.x,y:p.y,d:p.d})),lay:LAYV};initMovers(W,s);
  enterZone(W,s);return s}
-function clone(s){return{m:s.m,x:s.x,y:s.y,f:s.f,held:s.held,inv:s.inv,got:s.got.slice(),cleared:s.cleared.slice(),boxes:s.boxes.slice(),bombs:s.bombs.map(b=>({...b})),broken:s.broken.slice(),holes:s.holes.slice(),filled:s.filled.slice(),zone:s.zone,zoneEntry:s.zoneEntry,left:s.left,visited:s.visited.slice(),steps:s.steps,pats:(s.pats||[]).map(p=>({...p})),dunes:s.dunes&&s.dunes.map(o=>({...o})),bugs:s.bugs&&s.bugs.map(o=>({...o})),bosses:s.bosses&&s.bosses.map(o=>({...o})),ch:s.ch&&{...s.ch},vt:s.vt&&{...s.vt},rocks:(s.rocks||[]).map(r=>({...r})),lt:s.lt||0,cf:s.cf||null,cart:s.cart&&{...s.cart},bossCp:s.bossCp&&{...s.bossCp,ch:{...s.bossCp.ch}},air:s.air||0,lvz:s.lvz&&{...s.lvz},clouds:s.clouds&&s.clouds.map(o=>({...o})),zt:s.zt||0,lit:s.lit||0,pw:s.pw||0,gen:s.gen||0,bounce:s.bounce&&{...s.bounce},beamLit:s.beamLit&&{...s.beamLit}}}
+function clone(s){return{m:s.m,x:s.x,y:s.y,f:s.f,held:s.held,inv:s.inv,got:s.got.slice(),cleared:s.cleared.slice(),boxes:s.boxes.slice(),bombs:s.bombs.map(b=>({...b})),broken:s.broken.slice(),holes:s.holes.slice(),filled:s.filled.slice(),zone:s.zone,zoneEntry:s.zoneEntry,left:s.left,visited:s.visited.slice(),steps:s.steps,pats:(s.pats||[]).map(p=>({...p})),dunes:s.dunes&&s.dunes.map(o=>({...o})),bugs:s.bugs&&s.bugs.map(o=>({...o})),bosses:s.bosses&&s.bosses.map(o=>({...o})),ch:s.ch&&{...s.ch},vt:s.vt&&{...s.vt},rocks:(s.rocks||[]).map(r=>({...r})),lt:s.lt||0,cf:s.cf||null,cart:s.cart&&{...s.cart},bossCp:s.bossCp&&{...s.bossCp,ch:{...s.bossCp.ch}},air:s.air||0,lvz:s.lvz&&{...s.lvz},clouds:s.clouds&&s.clouds.map(o=>({...o})),zt:s.zt||0,lit:s.lit||0,pw:s.pw||0,gen:s.gen||0,bounce:s.bounce&&{...s.bounce},beamLit:s.beamLit&&{...s.beamLit},lay:s.lay}}
 // fills desert/forest fields (also used to upgrade v3 saves, which never reached those maps)
 const RELAYOUT={'swamp#S5':o=>o.y===12}; // zones redesigned after release: a saved creature that no longer fits the new layout resets that zone
-function relayout(W,s){for(const zid in RELAYOUT){const ok=RELAYOUT[zid],old=(s.bugs||[]).filter(o=>o.zone===zid);if(!old.length||old.every(ok))continue;
+// sea crates ride a whole current since layout 2; A5 A6 A8 were rebuilt for it, so an older save puts those zones' crates back
+const LAYV=2,BOXRELAY=['sea#A5','sea#A6','sea#A8'];
+function relayBoxes(W,s){if((s.lay||0)>=LAYV)return;s.lay=LAYV;for(const zid of BOXRELAY){const [m]=zid.split('#'),Z=(W.maps[m]||{zones:[]}).zones.find(z=>z.id===zid);if(!Z)continue;
+  const inZ=k=>{if(!k.startsWith(m+':'))return false;const [x,y]=k.split(':')[1].split(',').map(Number);return x>=Z.x&&x<Z.x+Z.w&&y>=Z.y&&y<Z.y+Z.h};
+  let nb=W.boxes0.filter(inZ);if(has(s.cleared||[],zid)){const xs=[];for(let y=Z.y;y<Z.y+Z.h;y++)for(let x=Z.x;x<Z.x+Z.w;x++)if(W.maps[m].grid[y][x]==='X')xs.push(K(m,x,y));if(xs.length===nb.length)nb=xs} // cleared: crates sit on their switches
+  s.boxes=(s.boxes||[]).filter(k=>!inZ(k)).concat(nb);if(s.cart)for(const k in s.cart)if(inZ(k))delete s.cart[k];
+  for(const k in (s.ch||{}))if(inZ(k))delete s.ch[k];if(s.m===m&&s.zone===zid){s.x=Z.entry[0];s.y=Z.entry[1];s.zoneEntry=[s.x,s.y];s.zt=0;s.air=0}}}
+function relayout(W,s){relayBoxes(W,s);for(const zid in RELAYOUT){const ok=RELAYOUT[zid],old=(s.bugs||[]).filter(o=>o.zone===zid);if(!old.length||old.every(ok))continue;
   const [m]=zid.split('#'),Z=(W.maps[m]||{zones:[]}).zones.find(z=>z.id===zid);if(!Z)continue;const inZ=(x,y)=>x>=Z.x&&x<Z.x+Z.w&&y>=Z.y&&y<Z.y+Z.h;
   s.bugs=s.bugs.filter(o=>o.zone!==zid).concat(W.bugs0.filter(o=>o.zone===zid).map(o=>({...o}))).sort((a,b)=>a.i-b.i);
   for(const k in (s.ch||{})){const [mm,xy]=k.split(':'),[x,y]=xy.split(',').map(Number);if(mm===m&&inZ(x,y))delete s.ch[k]}
@@ -326,11 +333,19 @@ function stepV2(W,s0,a,opt){const ev=[];const free=!!(opt&&opt.free);
   if(s.air>0)s.air--;
   else if(Z){const ct=cell(W,s,m,s.x,s.y);if(ct in CUR){const d=CUR[ct],cx=s.x+DV[d][0],cy=s.y+DV[d][1];
    if(bugAt(s,m,cx,cy)>=0){ev.push('caught');return{state:s,result:'fail',ev,path,moves}}
-   if(inZone(Z,cx,cy)&&!solidV2(W,s,m,cx,cy)&&!occV2(s,m,cx,cy)&&!isEE(Z,cx,cy)){s.x=cx;s.y=cy;pickup(W,s,ev);ev.push('current')}}}
+   if(inZone(Z,cx,cy)&&!solidV2(W,s,m,cx,cy)&&!occV2(s,m,cx,cy)&&!isEE(Z,cx,cy)){s.x=cx;s.y=cy;pickup(W,s,ev);ev.push('current');if(result==='move')path.push([cx,cy])}}}
   if(Z){for(const b of s.bombs){if(b.m!==m||!inZone(Z,b.x,b.y))continue;const t=cell(W,s,m,b.x,b.y);if(!(t in CUR))continue;const d=CUR[t],nx=b.x+DV[d][0],ny=b.y+DV[d][1];
    if(inZone(Z,nx,ny)&&!(nx===s.x&&ny===s.y)&&!solidV2(W,s,m,nx,ny)&&!occV2(s,m,nx,ny)&&!isEE(Z,nx,ny)){b.x=nx;b.y=ny}}
-   s.boxes=s.boxes.map(k=>{if(!k.startsWith(m+':'))return k;const [x,y]=k.split(':')[1].split(',').map(Number);if(Z&&!inZone(Z,x,y))return k;const t=cell(W,s,m,x,y);if(!(t in CUR))return k;const d=CUR[t],nx=x+DV[d][0],ny=y+DV[d][1];
-    if(inZone(Z,nx,ny)&&!(nx===s.x&&ny===s.y)&&!solidV2(W,s,m,nx,ny)&&!occV2(s,m,nx,ny)&&!isEE(Z,nx,ny)&&cell(W,s,m,nx,ny)!=='~')return K(m,nx,ny);return k})}
+   // crates ride a current all the way in one action (animated via r.slides) and stop where it ends, where it is blocked,
+   // or where two currents meet head-on (calm water), so a crate never ping-pongs between opposing arrows
+   if(W.maps[m].theme!=='sea')s.boxes=s.boxes.map(k=>{if(!k.startsWith(m+':'))return k;const [x,y]=k.split(':')[1].split(',').map(Number);if(Z&&!inZone(Z,x,y))return k;const t=cell(W,s,m,x,y);if(!(t in CUR))return k;const d=CUR[t],nx=x+DV[d][0],ny=y+DV[d][1];
+    if(inZone(Z,nx,ny)&&!(nx===s.x&&ny===s.y)&&!solidV2(W,s,m,nx,ny)&&!occV2(s,m,nx,ny)&&!isEE(Z,nx,ny)&&cell(W,s,m,nx,ny)!=='~')return K(m,nx,ny);return k}); // factory/core conveyors: one tile per action
+   else for(let bi=0;bi<s.boxes.length;bi++){const k=s.boxes[bi];if(!k.startsWith(m+':'))continue;let [x,y]=k.split(':')[1].split(',').map(Number);if(Z&&!inZone(Z,x,y))continue;
+    const pts=[],seen={};seen[x+','+y]=1;
+    for(let g=0;g<64;g++){const t=cell(W,s,m,x,y);if(!(t in CUR))break;const d=CUR[t],nx=x+DV[d][0],ny=y+DV[d][1],nt=cell(W,s,m,nx,ny);
+     if(!(inZone(Z,nx,ny)&&!(nx===s.x&&ny===s.y)&&!solidV2(W,s,m,nx,ny)&&!occV2(s,m,nx,ny)&&!isEE(Z,nx,ny)&&nt!=='~'))break;
+     if(nt in CUR&&CUR[nt]===(d^1))break;if(seen[nx+','+ny])break;seen[nx+','+ny]=1;x=nx;y=ny;pts.push([x,y]);s.boxes[bi]=K(m,x,y)}
+    if(pts.length){const o=k.split(':')[1].split(',').map(Number);(ev.slides=ev.slides||[]).push({from:o,pts});ev.push('drift')}}}
   // clouds drift on sky; carry the robot
   if(Z)for(const cl of (s.clouds||[])){if(cl.m!==m||cl.zone!==Z.id)continue;const nx=cl.x+DV[cl.d][0],ny=cl.y+DV[cl.d][1];
    const ok=inZone(Z,nx,ny)&&cell(W,s,m,nx,ny)===','&&cloudAt(s,m,nx,ny)<0&&!((s.bosses||[]).some(o=>o.hp>0&&o.m===m&&o.x===nx&&o.y===ny));
