@@ -177,10 +177,11 @@ $('mute').onclick=()=>{save.mute=!save.mute;try{const g=JSON.parse(localStorage.
 const DIG={0:['111','101','101','101','111'],1:['010','110','010','010','111'],2:['111','001','111','100','111'],3:['111','001','111','001','111'],4:['101','101','111','001','001'],5:['111','100','111','001','111'],6:['111','100','111','101','111'],7:['111','001','010','010','010'],8:['111','101','111','101','111'],9:['111','101','111','001','111']};
 function digit(n,x,y,c){(DIG[n]||[]).forEach((r,j)=>r.split('').forEach((v,i)=>{if(v==='1')R(x+i,y+j,1,1,c)}))}
 function cracked(px,py,x,y){wall(px,py,x,y);const C=TH.outline;R(px+4,py+3,1,3,C);R(px+5,py+6,2,1,C);R(px+7,py+7,1,3,C);R(px+8,py+10,2,1,C);R(px+10,py+4,1,2,C);R(px+11,py+6,1,1,C)}
-function rubble(px,py,x,y){FLOORS[TH.style](px,py,x,y);const W2=TH.wall;[[3,10],[9,4],[11,11],[6,6]].forEach(([a,b],i)=>{R(px+a,py+b,3,2,TH.outline);R(px+a,py+b,2,1,W2[i%2])})}
-function bombGrass(px,py,x,y){FLOORS[TH.style](px,py,x,y);const sw=Math.round(Math.sin(T*2+x)*.6);R(px+7,py+9,2,5,E32.green3);R(px+4+sw,py+10,3,1,E32.green1);R(px+9-sw,py+11,3,1,E32.green1);
+function baseFloor(px,py,x,y){if(V2())v2Floor(px,py,x,y);else(FLOORS[TH.style]||FLOORS.grass)(px,py,x,y)} // v2 biomes (desert, forest...) have no FLOORS entry
+function rubble(px,py,x,y){baseFloor(px,py,x,y);const W2=TH.wall;[[3,10],[9,4],[11,11],[6,6]].forEach(([a,b],i)=>{R(px+a,py+b,3,2,TH.outline);R(px+a,py+b,2,1,W2[i%2])})}
+function bombGrass(px,py,x,y){baseFloor(px,py,x,y);const sw=Math.round(Math.sin(T*2+x)*.6);R(px+7,py+9,2,5,E32.green3);R(px+4+sw,py+10,3,1,E32.green1);R(px+9-sw,py+11,3,1,E32.green1);
  R(px+5,py+3,6,6,TH.outline);R(px+6,py+4,4,4,E32.grey4);R(px+6,py+4,1,1,E32.grey2);R(px+8,py+1,1,2,E32.brown1);if(Math.floor(T*3)%2)R(px+9,py+1,1,1,E32.amber)}
-function rune(px,py,x,y){FLOORS[TH.style](px,py,x,y);R(px+4,py+2,8,13,TH.outline);R(px+5,py+3,6,11,E32.grey2);R(px+5,py+3,6,1,E32.grey1);const g=.5+.5*Math.sin(T*2);o.globalAlpha=g;R(px+7,py+5,2,1,E32.cyan);R(px+7,py+7,1,3,E32.cyan);R(px+8,py+9,2,1,E32.cyan);o.globalAlpha=1}
+function rune(px,py,x,y){baseFloor(px,py,x,y);R(px+4,py+2,8,13,TH.outline);R(px+5,py+3,6,11,E32.grey2);R(px+5,py+3,6,1,E32.grey1);const g=.5+.5*Math.sin(T*2);o.globalAlpha=g;R(px+7,py+5,2,1,E32.cyan);R(px+7,py+7,1,3,E32.cyan);R(px+8,py+9,2,1,E32.cyan);o.globalAlpha=1}
 function tunnel(px,py,x,y,d){R(px,py,16,16,TH.outline);R(px+2,py+3,12,13,E32.ink);R(px+3,py+2,10,2,E32.ink);R(px+1,py+2,2,14,E32.grey3);R(px+13,py+2,2,14,E32.grey3);R(px+3,py+1,10,2,E32.grey3);{const t=String(d);if(t.length>1){digit(t[0],px+4,py+6,E32.amber);digit(t[1],px+9,py+6,E32.amber)}else digit(t,px+7,py+6,E32.amber)}}
 function hardIce(px,py,x,y){R(px,py,16,16,E32.blue1);R(px+1,py+1,14,14,E32.navy);for(let i=0;i<4;i++){R(px+7-i,py+2+i,1,1,E32.blue2);R(px+8+i,py+2+i,1,1,E32.blue2);R(px+7-i,py+13-i,1,1,E32.blue2);R(px+8+i,py+13-i,1,1,E32.blue2)}
  if((Math.floor(T*2+x*3+y))%6===0){R(px+1,py+1,2,1,E32.white);R(px+1,py+1,1,2,E32.white)}}
@@ -391,7 +392,9 @@ function endingFrame(){const E=ending;if(!E||E.loading)return;const t=endingT();
 // share button: ENDING_SHARE_BUTTON is in unscaled 256x144 coords; map the click back from the displayed size. Clickable from t>=9.8s, only on the player's own click.
 function endingTap(e){if(!ending||ending.loading)return;if(endingT()<9.8){ending.t0=performance.now()-9.8*1000;ending.dinged=ENDING_LAMP_TIMES.length;return} // tap during the animation skips to the share panelconst [x,y,s]=ending.rect,lx=(e.clientX-x)/s,ly=(e.clientY-y)/s,B=ENDING_SHARE_BUTTON;
  if(lx>=B.x&&lx<B.x+B.w&&ly>=B.y&&ly<B.y+B.h&&window.Share)Share.clear()}
-function draw(){if(ending){endingFrame();if(!manualDraw)requestAnimationFrame(draw);return}const now=performance.now()/1000,dt=Math.min(.05,now-(stamp||now));stamp=now;T+=dt;fuseFrame(dt);
+function draw(){try{drawFrame()}catch(e){const er=window.__errs=window.__errs||[];if(er.length<20)er.push(String(e));if(!draw.warned){draw.warned=1;console.error(e)}lastDraw=performance.now()} // a bad tile must never freeze the game
+ if(!manualDraw)requestAnimationFrame(draw)}
+function drawFrame(){if(ending){endingFrame();return}const now=performance.now()/1000,dt=Math.min(.05,now-(stamp||now));stamp=now;T+=dt;fuseFrame(dt);
  TH=WORLDS[W.maps[S.m].theme]||WORLDS.grass;if(V2())ensureSceneArt(S.m);buildView();if(!legendDone&&st){const th=TH;TH=WORLDS.grass;renderLegend();TH=th}
  const [tx,ty]=camTarget();if(!cam.init){cam.x=tx;cam.y=ty;cam.init=true}{const k=1-Math.exp(-dt*5),mx=dt*14;cam.x+=Math.max(-mx,Math.min(mx,(tx-cam.x)*k));cam.y+=Math.max(-mx,Math.min(mx,(ty-cam.y)*k))} // smooth pan, capped speed (no jump on zone change)
  cam.ox=Math.round(cam.x*16)/16;cam.oy=Math.round(cam.y*16)/16;
@@ -429,7 +432,7 @@ function draw(){if(ending){endingFrame();if(!manualDraw)requestAnimationFrame(dr
  // blit with shake + tunnel fade
  const sh=shake>0?(shake--%2?2:-2)*SC:0;ctx.imageSmoothingEnabled=false;ctx.fillStyle=E32.ink;ctx.fillRect(0,0,cv.width,cv.height);ctx.drawImage(off,sh,0,cv.width,cv.height);
  if(fade>0){ctx.fillStyle=`rgba(24,20,37,${fade})`;ctx.fillRect(0,0,cv.width,cv.height);fade=Math.max(0,fade-dt/0.3)}
- drawMini();lastDraw=performance.now();if(!manualDraw)requestAnimationFrame(draw)}
+ drawMini();lastDraw=performance.now()}
 let lastDraw=0,manualDraw=false;
 function drawMini(){const M=W.maps[S.m];mctx.clearRect(0,0,mini.width,mini.height);mctx.fillStyle='rgba(24,20,37,.45)';mctx.fillRect(0,0,mini.width,mini.height);
  for(let y=0;y<M.H;y++)for(let x=0;x<M.W;x++){const c=L.grid[y][x];if(c==='#'||c==='R')continue;mctx.fillStyle=c==='%'?E32.grey3:c==='I'||c==='J'?E32.blue2:WE.isTun(c)?E32.amber:c==='b'?E32.green3:'CMN'.indexOf(c)>=0?E32.magenta:E32.green1;mctx.fillRect(x*2,y*2,2,2)}
@@ -443,5 +446,5 @@ if(_endQ){const t=$('title'),h=$('help');t.classList.remove('on','has');t.style.
 else if(saved){$('title').classList.add('has');tpaint();S=JSON.parse(JSON.stringify(saved.s));WE.initMovers(W,S);tutorialDone=!!saved.tutorialDone;cam.init=false;$('help').classList.remove('on')}
 resize();hud();requestAnimationFrame(draw);
 if(_endQ)Promise.resolve(startEnding({t:_endT})).catch(e=>console.error('ending failed',e));
-setInterval(()=>{if(performance.now()-lastDraw>100){manualDraw=true;draw();manualDraw=false}},50);
+setInterval(()=>{if(performance.now()-lastDraw>100){manualDraw=true;try{draw()}finally{manualDraw=false}}},50);
 window.__world={act,state:()=>S,W,newGame,cam};
