@@ -112,7 +112,7 @@ let inq=[];function act(a,opt){if($('title').classList.contains('on')||$('menu')
  const doorsBefore=doorSet();S=r.state;S.zoneSteps=(S.zone&&S.zone===prev.zone&&r.result!=='reset'?(prev.zoneSteps||0)+1:0);
  blastFx(r);v2Fx(r,prev);if(r.ev.slides)boxSl={t0:T+.1,items:r.ev.slides.map(q=>({pts:[q.from].concat(q.pts)}))}; // crates riding a current glide tile by tile
  const drift=r.ev.indexOf('current')>=0&&(S.x!==prev.x||S.y!==prev.y)&&S.m===prev.m; // robot nudged by a current: show it
- if(r.result==='fail'){failAnim={t0:T,from:prev,sink:r.ev.indexOf('sink')>=0};sfx('fail');return}
+ if(r.result==='fail'){failAnim={t0:T,from:prev,sink:r.ev.indexOf('sink')>=0};sfx('fail');if(r.ev.indexOf('pend')>=0)flash('🕰 被鐘擺打到了：地上有紅影的格子，下一步就會被打，先按動作等一拍');else if(r.ev.indexOf('gate')>=0)flash('⚙ 被齒輪門夾到了：門框閃紅＝下一步就關，別站在門裡');return}
  if(r.ev.indexOf('rune')>=0){const [dx,dy]=WE.DIRS[S.f];fx.push({type:'smoke',x:S.x+dx,y:S.y+dy,t0:T});shake=3;sfx('crumble');hud();persist();return}
  if(r.result==='bump'){sfx('bump');anim=drift?{type:'move',from:[prev.x,prev.y],path:[[S.x,S.y]],t0:T,dur:.2,ice:true,m:prev.m}:{type:'bump',dir:a,t0:T,dur:.6,face:'x'};hud();persist();return}
  if(r.result==='reset'){sfx('door');cam.init=true;hud();persist();return}
@@ -274,11 +274,20 @@ const V2FX={
  noeffect:f=>{const p=(T-f.t0)/.45;if(p>=1)return false;const fr=Math.min(2,Math.floor(p*3)),[dx,dy]=WE.DIRS[S.f],px=Math.round((f.x+dx-cam.ox)*16),py=Math.round((f.y+dy-cam.oy)*16);
   if(typeof noEffectPuff==='function')noEffectPuff(px,py,fr);return true},
  boxsink:f=>{const p=(T-f.t0)/.6;if(p>=1)return false;boxSink(Math.round((f.x-cam.ox)*16),Math.round((f.y-cam.oy)*16),p);return true},
+ tick:f=>{const p=(T-f.t0)/.35;if(p>=1)return false;const px=Math.round((f.x-cam.ox)*16),py=Math.round((f.y-cam.oy)*16),g=Math.round(p*3);o.globalAlpha=1-p;
+  const c=f.open?E32.green1:E32.red3;R(px-g,py-g,16+2*g,1,c);R(px-g,py+15+g,16+2*g,1,c);R(px-g,py-g,1,16+2*g,c);R(px+15+g,py-g,1,16+2*g,c);o.globalAlpha=1;return true},
+ wait:f=>{const p=(T-f.t0)/.6;if(p>=1)return false;const px=Math.round((f.x-cam.ox)*16)+4,py=Math.round((f.y-cam.oy)*16)-14-Math.round(p*4);
+  R(px,py,9,9,E32.ink);R(px+1,py+1,7,7,E32.sand);R(px+4,py+2,1,3,E32.ink);R(px+4,py+4,3,1,E32.ink);return true}, // little clock = waited one tick
  splash:f=>{const p=(T-f.t0)/.5;if(p>=1)return false;sandSplash(Math.round((f.x-cam.ox)*16),Math.round((f.y-cam.oy)*16),p);return true}};
 function v2Fx(r,prev){if(!V2()&&!(prev&&W.maps[prev.m].rules==='v2'))return;snapMovers(prev);const ev=r.ev||[];
  if(ev.indexOf('noeffect')>=0&&S.lastFire){fx.push({type:'noeffect',x:S.lastFire.x0,y:S.lastFire.y0,t0:T});delete S.lastFire}
  if(ev.indexOf('swing')>=0&&S.lastBat){fx.push(Object.assign({type:'swing',t0:T},S.lastBat));if(ev.indexOf('knock')>=0){const b=S.lastBat,g=(S.bugs||[]).find(q=>q.m===S.m&&q.x===b.kx&&q.y===b.ky);if(g)knock={i:g.i,m:S.m,x0:b.tx,y0:b.ty,x1:b.kx,y1:b.ky,t0:T}}if(ev.indexOf('smash')>=0){const b=S.lastBat;setTimeout(()=>{fx.push({type:'smoke',x:b.tx,y:b.ty,t0:T});shake=3;sfx('crumble')},90)}else if(ev.indexOf('stun')>=0)setTimeout(()=>{shake=2;sfx('bump')},70);else if(ev.indexOf('bonk')>=0)flash('⚾ 王太大了，球棒打不動');else if(ev.indexOf('clang')>=0){sfx('bump');flash('⚾ 鐵箍裂牆打不破：要用炸彈'+(W.maps[S.m].theme==='mine'?'或礦車':''))}delete S.lastBat}
+ const clk=W.maps[S.m].theme==='clock'&&S.zone,waited=clk&&ev.indexOf('fire')>=0&&!['burn','melt','stun','bosshit'].some(e=>ev.indexOf(e)>=0);
+ if(waited){fx.push({type:'wait',x:S.x,y:S.y,t0:T});delete S.lastFire} // clock tower: 動作 with nothing to hit = wait one tick (little clock, no fire puff)
  if(ev.indexOf('fire')>=0&&S.lastFire){fx.push(Object.assign({type:'fire',t0:T},S.lastFire));delete S.lastFire}
+ if(clk&&prev&&prev.m===S.m){const Z=W.maps[S.m].zones.find(z=>z.id===S.zone);if(Z)for(let y=Z.y;y<Z.y+Z.h;y++)for(let x=Z.x;x<Z.x+Z.w;x++){const c=WE.cell(W,S,S.m,x,y);
+   if((c==='¤'||c==='¢')&&WE.gateShut(prev,c)!==WE.gateShut(S,c))fx.push({type:'tick',x,y,t0:T,open:!WE.gateShut(S,c)})} // a door just opened/shut: ring on it
+  (prev.bugs||[]).forEach(b=>{if(b.m===S.m&&!(S.bugs||[]).some(q=>q.i===b.i)&&WE.pendAt(W,S,S.m,b.x,b.y))fx.push({type:'smoke',x:b.x,y:b.y,t0:T})})} // beetle swatted by a pendulum
  (S.sunk||[]).forEach(k=>{if(k.m===S.m)fx.push({type:k.box?'boxsink':'splash',x:k.x,y:k.y,t0:T});setTimeout(()=>sfx('crumble'),80)});delete S.sunk;
  (S.scattered||[]).concat(S.squashed||[]).forEach(k=>{if(k.m===S.m)fx.push({type:'splash',x:k.x,y:k.y,t0:T})});delete S.scattered;delete S.squashed;
  if(ev.indexOf('bosshit')>=0)(S.bosses||[]).forEach(o=>{if(o.m===S.m&&o.hitAt===S.steps)bossHitT[o.i]=T});
@@ -363,8 +372,8 @@ function v2Tile(c,px,py,x,y){ // desert-art.js / forest-art.js tiles; anything e
  if(c==='═'){if(typeof wire==='function'){const A=wireNb(x,y);wire(px,py,x,y,'h',A.live,T,A.arms)}else{v2Floor(px,py,x,y);R(px,py+7,16,2,E32.amber)}return true}
  if(c==='┊'){if(typeof wireGap==='function'){const A=wireNb(x,y);wireGap(px,py,x,y,WE.boxAt(S,S.m,x,y)>=0,T,A.arms,A.live)}else{v2Floor(px,py,x,y);R(px+7,py,2,5,E32.grey4);R(px+7,py+11,2,5,E32.grey4)}return true}
  if(c==='▣'){if(typeof powerDoor==='function')powerDoor(px,py,!!S.pw,T);else{v2Floor(px,py,x,y);if(!S.pw)bars(px,py,0)}return true}
- if(c==='n'||c==='s'){v2Floor(px,py,x,y);const phase=S.zt||0;if(typeof pendulum==='function')pendulum(px,py,c==='n'?(phase%2?2:0):(phase%2?0:2));else R(px+6,py+2,4,12,E32.grey2);return true}
- if(c==='¤'||c==='¢'){const open=!WE.gateShut(S,c);if(typeof gearGate==='function')gearGate(px,py,open,S.zt||0,T);else{v2Floor(px,py,x,y);if(!open)bars(px,py,0)}return true}
+ if(c==='n'||c==='s'){v2Floor(px,py,x,y);const phase=S.zt||0;if(typeof pendulum==='function')pendulum(px,py,c==='n'?(phase%2?2:0):(phase%2?0:2),{danger:clockNext(x,y,c),side:(phase+(c==='n'?0:1))%2});else R(px+6,py+2,4,12,E32.grey2);return true}
+ if(c==='¤'||c==='¢'){const open=!WE.gateShut(S,c),z=S.zt||0;if(typeof gearGate==='function')gearGate(px,py,open,z,T,{now:open,next:!WE.gateShut({zt:z+1},c),cyc:[0,1,2,3].map(k=>!WE.gateShut({zt:k},c)),k:z%4});else{v2Floor(px,py,x,y);if(!open)bars(px,py,0)}return true}
  if(c==='£'){v2Floor(px,py,x,y);return true} // guard drawn in drawMovers
  if(c==='L'){v2Floor(px,py,x,y);const lit=st.got.indexOf(x+','+y)>=0,b=lit?0:Math.round(Math.sin(T*3));
   R(px+5,py+3+b,6,10,TH.outline);R(px+6,py+4+b,4,8,lit?E32.yellow:E32.amber);R(px+4,py+2+b,8,2,TH.outline);R(px+4,py+13+b,8,2,TH.outline);if(!lit&&Math.floor(T*3)%2)R(px+7,py+6+b,2,3,E32.white);return true}
@@ -384,6 +393,9 @@ const _trk={};function trackShape(c,x,y){const id=S.m+':'+x+','+y+c;if(_trk[id])
 function interactTip(){if(!S||ending||failAnim)return null;const c=WE.cell(W,S,S.m,S.x,S.y);if(c==='j'||c==='ǰ')return '按動作換方向';
  const d={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]}[S.f]||null;if(!d)return null;const fc=WE.cell(W,S,S.m,S.x+d[0],S.y+d[1]);
  const bt=WE.batTarget&&!S.held?WE.batTarget(W,S):null;if(bt&&bt.kind==='wall')return '按動作揮棒打破裂牆';if(bt&&bt.kind==='bug'){const kb=WE.knockTo&&WE.knockTo(W,S,S.bugs[bt.i]);if(kb)return '按動作揮棒把牠打退';if(!(S.bugs[bt.i].fr>0))return '按動作揮棒打昏牠'};
+ if(W.maps[S.m].theme==='clock'&&S.zone){if((fc==='n'||fc==='s')&&clockNext(S.x+d[0],S.y+d[1],fc))return '下一步鐘擺會打到這格：按動作等一拍';
+  if((fc==='¤'||fc==='¢')&&(WE.gateShut(S,fc)||WE.gateShut({zt:(S.zt||0)+1},fc)))return WE.gateShut(S,fc)?'齒輪門關著：按動作等一拍':'這扇門下一步就關：按動作等它下次打開';
+  const here=WE.cell(W,S,S.m,S.x,S.y);if((here==='n'||here==='s')&&clockNext(S.x,S.y,here))return '鐘擺要來了：快離開這格';if((here==='¤'||here==='¢')&&WE.gateShut({zt:(S.zt||0)+1},here))return '門要關了：快走出去'}
  if(fc==='r')return '按動作拉拉桿';if(fc==='╱'||fc==='╲')return '按動作轉鏡子';if(fc==='⊕'||fc==='⊛')return '按動作開關發電機';return null}
 let tipShown=null;function tipAt(gx,gy){const t=anim?null:interactTip(),el=$('tip');if(!el)return;
  if(t){const c=WE.cell(W,S,S.m,S.x,S.y);if(c==='j'||c==='ǰ'){const a=.5+.5*Math.sin(T*6);o.globalAlpha=a;R(gx,gy,16,1,E32.yellow);R(gx,gy+15,16,1,E32.yellow);R(gx,gy,1,16,E32.yellow);R(gx+15,gy,1,16,E32.yellow);o.globalAlpha=1}
@@ -392,6 +404,8 @@ let tipShown=null;function tipAt(gx,gy){const t=anim?null:interactTip(),el=$('ti
  if(t!==tipShown){tipShown=t;el.textContent=t||'';el.style.display=t?'block':'none';$('act').classList.toggle('glow',!!t)}}
 function ironBands(px,py){const I=E32.ink,G=E32.grey2;R(px+1,py+1,14,2,I);R(px+1,py+13,14,2,I);R(px+1,py+1,2,14,I);R(px+13,py+1,2,14,I);R(px+2,py+2,12,1,G);R(px+2,py+13,12,1,G);R(px+2,py+2,1,12,G);R(px+13,py+2,1,12,G);[[2,2],[12,2],[2,12],[12,12]].forEach(([u,v])=>{R(px+u,py+v,2,2,E32.grey4);R(px+u,py+v,1,1,E32.white)})} // 鐵箍: bomb/minecart-only cracked wall (the bat clangs off)
 function ironAt(x,y){const z=WE.zoneAt(W,S.m,x,y);return !!(z&&z.iron)}
+// clock tower: is this pendulum tile swept on the NEXT tick (= stepping onto it now, or standing on it, gets you hit)? Same rule as WE.pendAt, one tick ahead.
+function clockNext(x,y,c){const z=(S.zt||0)+1;return c==='n'?z%2===1:c==='s'?z%2===0:false}
 // power wires: which sides connect (so cables bend where power really flows) and whether this piece is live (connected to a generator that is ON); render only
 let _pnet={k:null,seen:{}};function wireNb(x,y){const Z=S.zone&&W.maps[S.m].zones.find(z=>z.id===S.zone),key=S.m+'|'+S.zone+'|'+S.steps+'|'+JSON.stringify(S.ch||{})+'|'+S.boxes.length+'|'+S.boxes.join(';');
  if(_pnet.k!==key){_pnet={k:key,seen:Z&&WE.powerNet?WE.powerNet(W,S,Z).seen:{}}}const c=(a,b)=>WE.cell(W,S,S.m,a,b),C='═┊⊕⊛▣';
