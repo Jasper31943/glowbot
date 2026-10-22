@@ -454,9 +454,11 @@ let facNet={m:null,z:{}};
 function facZones(){if(facNet.m===S.m)return facNet.z;const M=W.maps[S.m],z={};
  for(const Z of M.zones){const X=[],D=[];for(let y=Z.y;y<Z.y+Z.h;y++)for(let x=Z.x;x<Z.x+Z.w;x++){const c=M.grid[y][x];if(c==='X')X.push([x,y]);if(c==='D')D.push([x,y])}
   if(!X.length||!D.length)continue;const wires=[];
-  for(const [sx,sy] of X){const prev={},q=[[sx,sy]];prev[sx+','+sy]=null;let end=null; // BFS over anything that is not a wall, inside the zone
-   while(q.length&&!end){const [cx,cy]=q.shift();for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){const nx=cx+dx,ny=cy+dy,k=nx+','+ny;if(k in prev||nx<Z.x||ny<Z.y||nx>=Z.x+Z.w||ny>=Z.y+Z.h)continue;const c=M.grid[ny][nx];if(c==='#'||c===undefined)continue;prev[k]=cx+','+cy;if(c==='D'){end=k;break}q.push([nx,ny])}}
-   const path=[];for(let k=end;k;k=prev[k])path.unshift(k.split(',').map(Number));wires.push({x:sx,y:sy,path})}
+  for(const [sx,sy] of X){let prev,end=null; // BFS inside the zone; first over plain floor only (the wire never runs across a belt, pad or other block), belts only if there is no other way
+   for(const belts of [false,true]){prev={};const q=[[sx,sy]];prev[sx+','+sy]=null;end=null;
+    while(q.length&&!end){const [cx,cy]=q.shift();for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){const nx=cx+dx,ny=cy+dy,k=nx+','+ny;if(k in prev||nx<Z.x||ny<Z.y||nx>=Z.x+Z.w||ny>=Z.y+Z.h)continue;const c=M.grid[ny][nx];if(c==='#'||c===undefined||c==='X')continue;if(!belts&&c!=='.'&&c!=='D')continue;prev[k]=cx+','+cy;if(c==='D'){end=k;break}q.push([nx,ny])}}
+    if(end)break}
+   const path=[];for(let k=end;k;k=prev[k])path.unshift(k.split(',').map(Number));if(path.length)wires.push({x:sx,y:sy,path})}
   z[Z.id]={X,D,wires}}
  facNet={m:S.m,z};return z}
 function facPressed(x,y){return WE.boxAt(S,S.m,x,y)>=0||WE.duneAt(S,S.m,x,y)>=0||(S.bugs||[]).some(b=>b.m===S.m&&b.x===x&&b.y===y&&b.glitch)}
