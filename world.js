@@ -315,7 +315,12 @@ function v2Tile(c,px,py,x,y){ // desert-art.js / forest-art.js tiles; anything e
  if(c==='_' ){if(typeof cooledLava==='function')cooledLava(px,py,x,y);else v2Floor(px,py,x,y);return true}
  if(c==='h'){if(typeof lavaPool==='function')lavaPool(px,py,Math.floor(T*3)%2);else R(px,py,16,16,E32.red2);return true}
  if('}{)('.indexOf(c)>=0){const d={'}':3,'{':2,')':1,'(':0}[c];if(typeof lavaFlow==='function')lavaFlow(px,py,Math.floor(T*3)%2,d);else R(px,py,16,16,E32.orange);return true}
- if(WE.isTrk&&WE.isTrk(c)){const st=c==='ǰ'?1:0;if(typeof mineTrack==='function')mineTrack(px,py,x,y,c==='ǰ'?'j':c,st);else v2Floor(px,py,x,y);return true}
+ if(WE.isTrk&&WE.isTrk(c)){if(typeof mineTrack!=='function'){v2Floor(px,py,x,y);return true}const k=trackShape(c,x,y);
+  if(k.alt){mineFloor(px,py,x,y);o.globalAlpha=.12;mineTrack(px,py,x,y,k.alt,0,true);o.globalAlpha=1;mineTrack(px,py,x,y,k.kind,0,true);// junction: bright = where the cart goes now, faint = after 動作
+   const ex=k.kind.replace(k.stem,''),b=Math.floor(T*3)%2,A=E32.yellow,O=E32.ink; // amber arrow on the exit edge + lever knob in the middle
+   if(ex==='n'){R(px+5,py+3+b,6,1,O);R(px+6,py+2+b,4,1,A);R(px+7,py+1+b,2,1,A)}else if(ex==='s'){R(px+5,py+12-b,6,1,O);R(px+6,py+13-b,4,1,A);R(px+7,py+14-b,2,1,A)}
+   else if(ex==='e'){R(px+12-b,py+5,1,6,O);R(px+13-b,py+6,1,4,A);R(px+14-b,py+7,1,2,A)}else{R(px+3+b,py+5,1,6,O);R(px+2+b,py+6,1,4,A);R(px+1+b,py+7,1,2,A)}
+   R(px+6,py+6,4,4,O);R(px+7,py+7,2,2,E32.amber)}else mineTrack(px,py,x,y,k.kind,0);return true}
  if(c===':'||c==='¹'||c==='²'||c==='○'){const st={':':0,'¹':1,'²':2,'○':3}[c];if(typeof crumbleFloor==='function')crumbleFloor(px,py,x,y,st);else v2Floor(px,py,x,y);return true}
  if(c in (WE.CUR||{})){const d=WE.CUR[c];if((FAC()||COR())&&typeof conveyor==='function')conveyor(px,py,d,Math.floor(T*4)%4);else if(typeof seaCurrent==='function')seaCurrent(px,py,x,y,d,Math.floor(T*3)%2);else{v2Floor(px,py,x,y);R(px+6,py+6,4,4,E32.blue2)}return true}
  if(c==='i'){v2Floor(px,py,x,y);if(typeof airBubble==='function')airBubble(px,py,T);else{R(px+4,py+4,8,8,E32.cyan)}return true}
@@ -340,6 +345,25 @@ function v2Tile(c,px,py,x,y){ // desert-art.js / forest-art.js tiles; anything e
  if(c==='L'){v2Floor(px,py,x,y);const lit=st.got.indexOf(x+','+y)>=0,b=lit?0:Math.round(Math.sin(T*3));
   R(px+5,py+3+b,6,10,TH.outline);R(px+6,py+4+b,4,8,lit?E32.yellow:E32.amber);R(px+4,py+2+b,8,2,TH.outline);R(px+4,py+13+b,8,2,TH.outline);if(!lit&&Math.floor(T*3)%2)R(px+7,py+6+b,2,3,E32.white);return true}
  return false}
+// track glyph -> drawn shape. '-' '|' straight; '/' '\\' corners (pick the pair of sides that joins track/open tiles);
+// junction j (turns like '/') / ǰ (like '\\'): stem = side the cart comes from (straight run that starts at a cart), shows current + faint other branch
+const _trk={};function trackShape(c,x,y){const id=S.m+':'+x+','+y+c;if(_trk[id])return _trk[id];const at=(dx,dy)=>WE.cell(W,S,S.m,x+dx,y+dy),SD={n:[0,-1],s:[0,1],w:[-1,0],e:[1,0]};
+ const sc=d=>{const t=at(...SD[d]);return WE.isTrk(t)?2:t==='#'||t===undefined?0:1};let r;
+ if(c==='-')r={kind:'h'};else if(c==='|')r={kind:'v'};
+ else if(c==='/'||c==='\\'){const A=c==='/'?['nw','se']:['sw','ne'];r={kind:sc(A[0][0])+sc(A[0][1])>=sc(A[1][0])+sc(A[1][1])?A[0]:A[1]}}
+ else{const cart=d=>{const [dx,dy]=SD[d];for(let i=1;i<8;i++){const t=at(dx*i,dy*i);if(W.boxes0.indexOf(S.m+':'+(x+dx*i)+','+(y+dy*i))>=0)return 3;if(!WE.isTrk(t))return 0}return 0};
+  const st=['w','e','n','s'].map(d=>[d,cart(d)*10+sc(d)]).sort((a,b)=>b[1]-a[1])[0][0];
+  const SL={n:['nw','ne'],s:['sw','se'],w:['nw','sw'],e:['ne','se']}[st],slash=SL.find(k=>k==='nw'||k==='se'),back=SL.find(k=>k==='sw'||k==='ne');
+  r=c==='j'?{kind:slash,alt:back,stem:st}:{kind:back,alt:slash,stem:st}}
+ return _trk[id]=r}
+// stand-on / facing interactables -> small 「按動作…」 bubble above the robot + 動作 button glows
+function interactTip(){if(!S||ending||failAnim)return null;const c=WE.cell(W,S,S.m,S.x,S.y);if(c==='j'||c==='ǰ')return '按動作換方向';
+ const d={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]}[S.f]||null;if(!d)return null;const fc=WE.cell(W,S,S.m,S.x+d[0],S.y+d[1]);
+ if(fc==='r')return '按動作拉拉桿';if(fc==='╱'||fc==='╲')return '按動作轉鏡子';if(fc==='⊕'||fc==='⊛')return '按動作開關發電機';return null}
+let tipShown=null;function tipAt(gx,gy){const t=anim?null:interactTip(),el=$('tip');if(!el)return;
+ if(t){const c=WE.cell(W,S,S.m,S.x,S.y);if(c==='j'||c==='ǰ'){const a=.5+.5*Math.sin(T*6);o.globalAlpha=a;R(gx,gy,16,1,E32.yellow);R(gx,gy+15,16,1,E32.yellow);R(gx,gy,1,16,E32.yellow);R(gx+15,gy,1,16,E32.yellow);o.globalAlpha=1}
+  const r=cv.getBoundingClientRect(),k=r.width/off.width;el.style.left=Math.round(r.left+(gx+8)*k)+'px';el.style.top=Math.round(r.top+(gy-2)*k)+'px'}
+ if(t!==tipShown){tipShown=t;el.textContent=t||'';el.style.display=t?'block':'none';$('act').classList.toggle('glow',!!t)}}
 function tile(c,px,py,x,y){if(V2()&&v2Tile(c,px,py,x,y))return;if(TH===WORLDS.grass&&(c===undefined||(c==='#'&&deep(x,y)))){bush(px,py,x,y);return}
  if(ICY()){ // ice map: bright snow, snowy rock walls, pines outside (ice-art.js)
   if(c===undefined||(c==='#'&&deep(x,y))){icePine(px,py,x,y);return}
@@ -428,6 +452,7 @@ function drawFrame(){if(ending){endingFrame();return}const now=performance.now()
  else{robot(gx+shk,gy+Math.round(Math.sin(T*2.4))-1-hop,react&&react.type==='hop'?'norm':face,anim&&anim.type==='bump'?'down':facing,frame,look,1);if(S.air>0&&typeof robotBubbleHelmet==='function')robotBubbleHelmet(gx+shk,gy+Math.round(Math.sin(T*2.4))-1-hop)}
  if(bang){const bx=gx+12,by=gy-6-hop;R(bx-1,by-1,4,9,TH.outline);R(bx,by,2,5,E32.amber);R(bx,by+6,2,1,E32.amber)}
  if(S.held&&!failAnim){R(gx+11,gy+1-hop,5,5,TH.outline);R(gx+12,gy+2-hop,3,3,E32.grey4)}
+ if(!failAnim)tipAt(gx,gy);else tipAt(-99,-99);
  runeSigns();shortcutMarks();drawGuide();drawPats(); // guide above robot
  fx=fx.filter(f=>f.type==='defeat'?defeat(f):f.type in V2FX?V2FX[f.type](f):smoke(f));
  // blit with shake + tunnel fade
