@@ -445,6 +445,11 @@ function endingTap(e){if(!ending||ending.loading)return;if(endingT()<9.8){ending
  if(lx>=B.x&&lx<B.x+B.w&&ly>=B.y&&ly<B.y+B.h&&window.Share)Share.clear()}
 function draw(){try{drawFrame()}catch(e){const er=window.__errs=window.__errs||[];if(er.length<20)er.push(String(e));if(!draw.warned){draw.warned=1;console.error(e)}lastDraw=performance.now()} // a bad tile must never freeze the game
  if(!manualDraw)requestAnimationFrame(draw)}
+// mirror maze: draw where the light actually goes (source → mirrors → where it stops), so you can see which mirror to turn
+function lightBeams(){if(!V2()||typeof beam!=='function'||!S.zone||!WE.traceBeams)return;const Z=W.maps[S.m].zones.find(z=>z.id===S.zone);if(!Z)return;
+ const P=WE.traceBeams(W,S,Z);if(!P.length)return;const OPP=[1,0,3,2],half=(px,py,d,ax)=>{o.save();o.beginPath();o.rect(d===3?px+8:px,d===1?py+8:py,d>=2?8:16,d<2?8:16);o.clip();beam(px,py,ax,'light',T);o.restore()};
+ o.globalAlpha=.85;for(const [x,y,di,dd] of P){const px=Math.round((x-cam.ox)*16),py=Math.round((y-cam.oy)*16);
+  if(di===dd)beam(px,py,dd<2?'v':'h','light',T);else{if(di>=0)half(px,py,OPP[di],di<2?'v':'h');half(px,py,dd,dd<2?'v':'h')}}o.globalAlpha=1}
 function drawFrame(){if(ending){endingFrame();return}const now=performance.now()/1000,dt=Math.min(.05,now-(stamp||now));stamp=now;T+=dt;fuseFrame(dt);
  TH=WORLDS[W.maps[S.m].theme]||WORLDS.grass;if(V2())ensureSceneArt(S.m);buildView();if(!legendDone&&st){const th=TH;TH=WORLDS.grass;renderLegend();TH=th}
  const [tx,ty]=camTarget();if(!cam.init){cam.x=tx;cam.y=ty;cam.init=true}{const k=1-Math.exp(-dt*5),mx=dt*14;cam.x+=Math.max(-mx,Math.min(mx,(tx-cam.x)*k));cam.y+=Math.max(-mx,Math.min(mx,(ty-cam.y)*k))} // smooth pan, capped speed (no jump on zone change)
@@ -453,7 +458,7 @@ function drawFrame(){if(ending){endingFrame();return}const now=performance.now()
  o.fillStyle=V2()?(DES()?E32.tan:VOL()?E32.brown2:MIN()?E32.grey4:SWA()?E32.green3:SEA()?E32.blue1:CAS()?E32.navy:SKY()?E32.blue2:MIR()?'#b5aed8':POW()?E32.grey2:CLK()?'#c4935f':FAC()?E32.grey3:COR()?E32.ink:E32.green3):TH===WORLDS.grass?E32.green2:ICY()?E32.white:E32.ink;o.fillRect(0,0,off.width,off.height);
  const x0=Math.floor(cam.ox),y0=Math.floor(cam.oy);
  for(let y=y0-1;y<=y0+VIEWH+1;y++)for(let x=x0-1;x<=x0+VW+1;x++){if((x<0||y<0||x>=L.W||y>=L.H)&&TH!==WORLDS.grass&&!ICY()&&!V2())continue;tile((L.grid[y]||[])[x],Math.round((x-cam.ox)*16),Math.round((y-cam.oy)*16),x,y)}
- zoneBorders();
+ zoneBorders();lightBeams();
  if(!MIN())st.boxes.forEach(b=>{let bx=b[0],by=b[1];const sl=boxSl&&boxSl.items.find(q=>{const e=q.pts[q.pts.length-1];return e[0]===b[0]&&e[1]===b[1]});
   if(sl){const n=sl.pts.length-1,p=Math.max(0,(T-boxSl.t0)/(.08*n));if(p<1){const f=p*n,i=Math.min(n-1,Math.floor(f)),k=f-i;bx=sl.pts[i][0]+(sl.pts[i+1][0]-sl.pts[i][0])*k;by=sl.pts[i][1]+(sl.pts[i+1][1]-sl.pts[i][1])*k}}
   crate(Math.round((bx-cam.ox)*16),Math.round((by-cam.oy)*16),L.grid[by|0]&&L.grid[b[1]][b[0]]==='X'&&bx===b[0]&&by===b[1],0)});
