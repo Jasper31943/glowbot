@@ -508,7 +508,8 @@ function endingFrame(){const E=ending;if(!E||E.loading)return;const t=endingT();
  g.fillStyle=px(0);g.fillRect(0,0,dw,Math.ceil(dh/2));g.fillStyle=px(143);g.fillRect(0,Math.floor(dh/2),dw,Math.ceil(dh/2));g.drawImage(off,0,0,256,144,x,y,Math.round(256*s),Math.round(144*s));
  } // 15/15 is drawn by ending-art.js itself (no overlay)
 // share button: ENDING_SHARE_BUTTON is in unscaled 256x144 coords; map the click back from the displayed size. Clickable from t>=9.8s, only on the player's own click.
-function endingTap(e){if(!ending||ending.loading)return;if(endingT()<9.8){ending.t0=performance.now()-9.8*1000;ending.dinged=ENDING_LAMP_TIMES.length;return} // tap during the animation skips to the share panelconst [x,y,s]=ending.rect,lx=(e.clientX-x)/s,ly=(e.clientY-y)/s,B=ENDING_SHARE_BUTTON;
+function endingTap(e){if(!ending||ending.loading)return;if(endingT()<9.8){ending.t0=performance.now()-9.8*1000;ending.dinged=ENDING_LAMP_TIMES.length;return} // tap during the animation skips to the share panel
+ const [x,y,s]=ending.rect,lx=(e.clientX-x)/s,ly=(e.clientY-y)/s,B=ENDING_SHARE_BUTTON;
  if(lx>=B.x&&lx<B.x+B.w&&ly>=B.y&&ly<B.y+B.h&&window.Share)Share.clear()}
 function draw(){try{drawFrame()}catch(e){const er=window.__errs=window.__errs||[];if(er.length<20)er.push(String(e));if(!draw.warned){draw.warned=1;console.error(e)}lastDraw=performance.now()} // a bad tile must never freeze the game
  if(!manualDraw)requestAnimationFrame(draw)}
