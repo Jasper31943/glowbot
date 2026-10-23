@@ -1,0 +1,29 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#262b44"><canvas id="cv"></canvas>
+<script>var o,T=0,TH,st={boxes:[]},save={mute:true},L={W:40,H:40,grid:[]};</script>
+<script src="file:///workspace/robot-maze/levels.js"></script><script src="file:///workspace/robot-maze/logic.js"></script><script src="file:///workspace/robot-maze/art.js"></script>
+<script src="file:///workspace/robot-maze/tools/ice-art-draft.js"></script><script src="grid.js"></script>
+<script>
+TH=WORLDS.snow;const G=GRID,H=G.length,W=G[0].length,SC=3,PAD=1;
+const cv=document.getElementById('cv');const off=document.createElement('canvas');off.width=(W+2*PAD)*16+16*14;off.height=(H+2*PAD)*16;o=off.getContext('2d');
+const at=(r,c)=>(r<0||c<0||r>=H||c>=W)?null:G[r][c];
+const open=(r,c)=>{const t=at(r,c);return t!==null&&t!=='#'};
+const deep=(r,c)=>{for(let a=-1;a<=1;a++)for(let b=-1;b<=1;b++)if(open(r+a,c+b))return false;return true};
+for(let r=-PAD;r<H+PAD;r++)for(let c=-PAD;c<W+PAD;c++){const px=(c+PAD)*16,py=(r+PAD)*16,t=at(r,c);
+ if(t===null||(t==='#'&&deep(r,c))){icePine(px,py,c,r);continue}
+ if(t==='#'){iceRock(px,py,c,r,at(r-1,c)!=='#'||deep(r-1,c)||r===0);continue}
+ if(t==='I'){iceNormal(px,py,c,r);continue}if(t==='J'){iceHard(px,py,c,r);continue}
+ iceSnow(px,py,c,r);
+ if(t==='B')crate(px,py,false,0);if(t==='X')plate(px,py,false);if(t==='H')spikes(px,py);if(t==='D')bars(px,py,0);if(t==='M')gate(px,py,'m',0);if(t==='m')keyItem(px,py,'m');
+ if(t==='P')snowball(px,py,0,3,false);if(t==='k'){R(px+4,py+4,8,8,E32.ink);R(px+5,py+5,6,6,E32.cyan);R(px+6,py+7,1,3,E32.white);R(px+9,py+7,1,3,E32.white)}
+ if(t==='b'){R(px+4,py+6,8,8,E32.green3);R(px+6,py+8,4,4,E32.ink)}
+ if(t==='%'){iceRock(px,py,c,r,false);R(px+5,py+3,1,4,E32.ink);R(px+6,py+7,3,1,E32.ink);R(px+9,py+8,1,4,E32.ink)}
+ if(t==='R'){R(px+3,py+2,10,13,E32.grey3);R(px+4,py+3,8,11,E32.grey2);R(px+6,py+6,4,1,E32.cyan);R(px+7,py+5,2,4,E32.cyan)}
+ if(t==='1'||t==='2'){R(px+3,py+3,10,11,E32.ink);R(px+6,py+5,4,7,E32.amber)}}
+robot((1+PAD)*16,(28+PAD)*16,'norm','down',0,0,1);
+// monster sheet on the right
+const sx=(W+2*PAD)*16+16;[[0,1,0],[1,1,0],[0,2,0],[0,3,0],[0,0,0],[0,3,1]].forEach(([f,d,s],i)=>{R(sx-4,8+i*24-4,24,24,E32.white);iceSnow(sx,8+i*24,0,i);snowball(sx,8+i*24,f,d,s)});
+[0.2,0.5,0.9,1.15,1.4].forEach((t,i)=>{iceSnow(sx+48,8+i*24,1,i);snowballDefeat(sx+48,8+i*24,t,3)});
+['robot',0].forEach(()=>{});iceSnow(sx+96,8,2,0);robot(sx+96,8,'norm','down',0,0,1);iceSnow(sx+120,8,3,0);snowball(sx+120,8,0,1,false);
+cv.width=off.width*SC;cv.height=off.height*SC;const X=cv.getContext('2d');X.imageSmoothingEnabled=false;X.drawImage(off,0,0,cv.width,cv.height);
+const p=document.createElement('pre');p.id='testout';p.textContent=JSON.stringify({w:cv.width,h:cv.height});document.body.append(p);
+</script>
