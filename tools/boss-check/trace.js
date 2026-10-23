@@ -1,0 +1,3 @@
+global.window=global;const E=require((process.env.ENG||'/workspace/robot-maze')+'/world-engine.js');const W=E.parseWorld(require((process.env.ENG||'/workspace/robot-maze')+'/world/world-def.js'));
+const zid=process.argv[2],m=zid.split('#')[0],Z=W.maps[m].zones.find(z=>z.id===zid);let s=E.initState(W);const [ex,ey]=Z.entry;Object.assign(s,{m,x:ex,y:ey,f:ex===Z.x?'right':ex===Z.x+Z.w-1?'left':ey===Z.y?'down':'up',inv:'FQ',zone:zid,zoneEntry:Z.entry,visited:[m]});
+const M={U:'up',D:'down',L:'left',R:'right',A:'act',w:'wait'};for(const c of process.argv[3]){const r=E.mstep(W,s,M[c]);const b=r.state.bosses.find(b=>b.zone===zid);console.log(c,r.result,r.state.x,r.state.y,'boss',b.x,b.y,'hp',b.hp,'fr',b.fr||0,'warn',(b.warn||'')+'',r.ev.join(','));s=r.state}
