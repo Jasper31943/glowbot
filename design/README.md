@@ -12,20 +12,20 @@
 
 | 資料夾 | 內容 |
 |---|---|
-| `previews/bat/` | 棒球棒能力（規劃中）的美術設計 |
+| `previews/bat/` | 棒球棒能力的美術設計（已上線） |
 | `previews/characters/` | 單一角色的對比圖、尺寸檢查 |
-| `previews/bosses/` | 各場景迷你王的設計表；`history/` 是沼澤／礦坑／火山王的修改過程 |
+| `previews/bosses/` | 各場景迷你王的設計表、王戰新招式的預告記號；`history/` 是沼澤／礦坑／火山王的修改過程 |
 | `previews/scenes/` | 各場景的地板、機關、怪物設計表 |
-| `previews/ui/` | 引導箭頭、卡住提示、燈塔燈、結局動畫等畫面元素 |
+| `previews/ui/` | 引導箭頭、卡住提示、燈塔燈、結局動畫等畫面元素，以及還沒放進遊戲的畫面設計稿 |
 | `launch/` | 正式上線時各場景的實際遊戲截圖 |
-| `art-src/` | 還沒接進遊戲的美術原始檔（目前只有 `bat-art.js`） |
-| `tools/` | 產生上面這些設計圖的程式 |
+| `levels/` | 關卡修正說明圖：Jasper 卡關的區域「為什麼過不去、現在怎麼過」 |
+| `art-src/`、`tools/` | 美術原始檔和產生設計圖的程式，放在開發資料夾，**目前不在這個 repo 裡** |
 
 設計圖大多是把實際的美術程式（`art.js`、`*-art.js`）畫在 16×16 的格子上，再放大 1～4 倍輸出，所以圖上看到的就是遊戲裡實際的樣子。
 
 ---
 
-## 棒球棒（規劃中的新能力）
+## 棒球棒（已上線）
 
 ![棒球棒設計表](previews/bat/bat_art_preview.png)
 
@@ -37,8 +37,9 @@
 |---|---|
 | ![](previews/bat/baseball_bat_icon_16.png) | `baseball_bat_icon_16.png`：HUD 用的 16px 球棒小圖示（透明背景） |
 | ![](previews/bat/baseball_bat_icon_32.png) | `baseball_bat_icon_32.png`：同一個圖示的 2 倍版（32px），給高解析度螢幕用 |
+| ![](previews/bat/bat_icon_hud_phone.png) | `bat_icon_hud_phone.png`：上線後的手機畫面（發電廠 P5）：上方「球棒」標籤和「拿到球棒！」提示前面的像素球棒小圖。以前字型畫不出棒球圖案，會變成紫色圓圈或方塊（10-22 20:52 修正） |
 
-美術原始碼在 [`art-src/bat-art.js`](art-src/bat-art.js)，函式有 `baseballBatItem`、`baseballBatIcon`、`batSwing`、`mineBat` 和 `mineBatStunned`。
+遊戲裡實際用的是根目錄的 [`bat-art.js`](../bat-art.js)，函式有 `baseballBatItem`、`baseballBatIcon`、`batSwing`、`mineBat` 和 `mineBatStunned`。
 
 ## 角色
 
@@ -72,6 +73,18 @@
 
 `bosses_1415_preview.png`：第 14～15 場景的王。夜工廠的故障機王、友善機器人、故障機器人和輸送帶；核心的最終王「故障核心」（48×48），包括各階段和被打倒的動畫。
 
+### 王戰新招式的預告記號（王戰更新第 2 階段，10-22 上線）
+
+每隻王都學會一招，而且一定提早一步預告：**紅框＝下一步會被打到，藍框＝不會受傷的變化**。每張卡片左邊兩格是記號動畫的兩個影格（放大約 5 倍），右邊是實際王房的截圖。被吐火或球棒打昏時，王頭上轉的星星沿用小怪的星星，沒有另外畫。
+
+![沙漠到海底六隻王的預告記號](previews/bosses/boss_moves_03-08_preview.png)
+
+`boss_moves_03-08_preview.png`：第 3～8 場景（前半）。沙蟲王＝腳下沙子鼓起、老樹精＝整排冒出樹根、泥巴蛙王＝往前兩格的落地黑影、鼴鼠王＝整直排地面裂縫、熔岩巨人＝離牠兩步的岩漿滴、巨蟹王＝海流冒泡泡（藍框，下一步海流倒過來）。
+
+![古堡到核心七隻王的預告記號](previews/bosses/boss_moves_09-15_preview.png)
+
+`boss_moves_09-15_preview.png`：第 9～15 場景（後半）。盔甲騎士王＝衝刺箭頭、風暴鳥＝風線（藍框，把你吹開一格）、鏡影王＝鏡子斜線（藍框，剩 1 血時把鏡子轉回去）、電火花王＝電線下閃電、鐘塔守衛＝紅框裡的鐘、故障機王＝電球（揮棒打回去變黃框）、故障核心＝故障點（叉叉和十字輪流閃，固定預告、打、空一步）。
+
 ### 修改過程（`previews/bosses/history/`）
 
 沼澤／礦坑／火山王表的第 2～5 版，留著對照修改過程。最新的是上面的 `bosses_567_preview.png`。
@@ -98,7 +111,8 @@
 | 天空島（10） | ![](previews/scenes/sky_art_preview.png) | `sky_art_preview.png`：天空、浮島地面和底部、雲朵平台、四個方向的風 |
 | 鏡子迷宮（11） | ![](previews/scenes/mirror_art_preview.png) | `mirror_art_preview.png`：鏡子牆和地板、光線、兩種方向的鏡子、光靶（亮／暗）、火焰被鏡子反射 |
 | 發電廠（12） | ![](previews/scenes/power_art_preview.png) | `power_art_preview.png`：電線（有電／沒電）、發電機（開／關）、電火花怪和被打倒的動畫、螢火蟲 |
-| 鐘塔（13） | ![](previews/scenes/clock_art_preview.png) | `clock_art_preview.png`：鐘面、四個角度的齒輪、鐘擺擺動的四個階段 |
+| 鐘塔（13） | ![](previews/scenes/clock_art_preview.png) | `clock_art_preview.png`：鐘面、四個角度的齒輪、鐘擺擺動的四個階段（第一版） |
+| 鐘塔（13） | ![](previews/scenes/clock_mech_v2_design.png) | `clock_mech_v2_design.png`：美術監督的鐘塔機關第 2 版（10-22 上線）。齒輪門「關、快開、開、快關」四種樣子和門上 4 顆節奏燈、鐘擺警示（下一步會打到的格子垂下來＋紅影）、舊版和新版對照、手機實際大小示意，以及色弱／灰階檢查 |
 | 夜工廠（14） | ![](previews/scenes/factory_art_preview.png) | `factory_art_preview.png`：工廠牆和地板、各方向的輸送帶、故障機器人和被打倒的動畫 |
 | 核心（15） | ![](previews/scenes/core_art_preview.png) | `core_art_preview.png`：核心地板、故障核心各階段、燈塔亮 0／7／15 盞燈和全亮彩虹光的樣子 |
 
@@ -128,6 +142,15 @@
 
 `world_preview.png`：草原大地圖模式早期的手機畫面（6 個畫面）。
 
+### 設計稿（尚未放進遊戲）
+
+![炸彈範圍預告與老樹精打不到狀態](previews/ui/bomb_range_treant_guard_design.png)
+
+`bomb_range_treant_guard_design.png`：美術監督 10-23 的設計稿，Jasper 已同意這兩個方向，**但還沒放進遊戲**。
+- **炸彈範圍預告**：放下炸彈就出現淡黃色（`#fee761`）十字和虛線框，每格有小箭頭往外；剩最後 1 秒才閃（一秒最多 2 下）。範圍會照實際情況被牆擋住；跟王的紅色預告放在一起也分得開。
+- **老樹精「打不到」**：被打中後 2 步內身上長出樹皮鱗甲、右上角有小盾牌、顏色變暗；剩 1 步時鱗甲和盾牌裂開；這時打它會冒出「叮」的火花，木屑往攻擊方向彈回去。
+- 最下面是色弱／灰階檢查。
+
 ## 上線截圖（`launch/`）
 
 正式上線時各場景的實際遊戲畫面。檔名開頭的數字是場景編號。
@@ -145,17 +168,34 @@
 | ![](launch/11_mirror_mirrorking.png) | 鏡子迷宮：鏡影王（王房特寫） |
 | ![](launch/12_power_sparkking.png) | 發電廠：電火花王（王房特寫） |
 | ![](launch/13_clock_clockguard.png) | 鐘塔：鐘塔守衛（王房特寫） |
+| ![](launch/13_clock_gear_door.png) | 鐘塔 T6：第 2 版齒輪門上線後的手機畫面（直向走廊），美術監督用來確認開門、關門一眼分得出來 |
 
 分享用的大圖（`og.png`、`og-clear.png`）已經在網站根目錄，這裡不重複存。
+
+## 關卡修正說明圖（`levels/`）
+
+Jasper 試玩卡關時做的說明圖：左邊（或上面）是舊版為什麼看不懂、過不去，右邊（或下面）是修好之後怎麼過。每張的修正內容見 [../CHANGELOG.md](../CHANGELOG.md) 同一天的紀錄。檔名開頭的數字是場景編號。
+
+| 圖 | 區域 | 說明 |
+|---|---|---|
+| ![](levels/11_mirror_R6_explained.png) | 鏡子迷宮 R6 | 加上黃色光線後：光從哪裡來、要翻哪一面鏡子（10-22 18:02） |
+| ![](levels/11_mirror_R7_explained.png) | 鏡子迷宮 R7 | 舊版箱子會卡在光的路上、推不回來；新版拿掉箱子，光要轉三個彎（10-22 18:02） |
+| ![](levels/11_mirror_RB_explained.png) | 鏡影王 RB | 舊版反射光打不到王；新版紅光（轉彎後的光）才打得到王，怎麼引王進紅光（10-22 18:30） |
+| ![](levels/12_power_P5_explained.png) | 發電廠 P5 | 發電機、電門、斷線改畫前後對照，和新版的走法（10-22 19:35） |
+| ![](levels/13_clock_T5_explained.png) | 鐘塔 T5 | 黃色太陽＝關著的齒輪門、掛鉤＝鐘擺；新版每個東西都看得出「下一步」會怎樣（10-22 20:46） |
+| ![](levels/14_factory_F5_explained.png) | 夜工廠 F5 | 開關像灰色鐵塊、還有陷阱箱；新版開關、電線、門燈和走法（10-22 21:27） |
+| ![](levels/15_core_C4_explained.png) | 核心 C4 | 舊版要等巡邏機器人；新版用帶子送箱子壓開關，20 步不用等（10-22 21:58） |
+| ![](levels/15_core_C10_explained.png) | 核心 C10 | 從 Jasper 截圖的位置一步一步怎麼過（31 步，不用等、不用撞牆）；這一區沒有改 |
 
 ## 美術原始檔
 
 - 已經上線的美術程式就在 repo 根目錄：`art.js`（共用色票、小光、箱子、開關、音效，由 `game.js` 產生）、`ice-art.js`、`desert-art.js`、`forest-art.js`、`swamp-art.js`、`mine-art.js`、`volcano-art.js`、`sea-art.js`、`castle-art.js`、`sky-art.js`、`mirror-art.js`、`power-art.js`、`clock-art.js`、`factory-art.js`、`core-art.js`、`ending-art.js`。這些就是遊戲實際在用的版本，這裡不再複製一份，免得兩邊不一樣。
-- [`art-src/bat-art.js`](art-src/bat-art.js)：棒球棒和礦坑蝙蝠的美術，**還沒接進遊戲**。接進遊戲後，正式版本會放在根目錄的 `bat-art.js`，這份就只是設計當時的存檔。
+- 棒球棒（`bat-art.js`）和鐘塔第 2 版機關（`clock-mech-art.js`）也已經上線，同樣在根目錄。
+- 還沒接進遊戲的美術原始檔（例如炸彈範圍預告、老樹精打不到狀態）放在開發資料夾，接進遊戲後才會出現在根目錄。
 
-## 產生設計圖的程式（`tools/`）
+## 產生設計圖的程式（`tools/`，在開發資料夾）
 
-這些程式要放在開發資料夾的 `tools/` 裡執行（例如 `node tools/bat-art-preview.js`）。它們會從上一層讀 `art.js` 和各場景的 `*-art.js`，輸出到 `shots/`。不需要瀏覽器，也不用額外安裝套件；只有輸出對比圖的幾支會用到 Python 的 Pillow。
+這些程式**目前不在這個 repo 裡**，要在開發資料夾的 `tools/` 裡執行（例如 `node tools/bat-art-preview.js`）。它們會從上一層讀 `art.js` 和各場景的 `*-art.js`，輸出到 `shots/`。不需要瀏覽器，也不用額外安裝套件；只有輸出對比圖的幾支會用到 Python 的 Pillow。
 
 | 程式 | 產生 |
 |---|---|
@@ -171,3 +211,5 @@
 | `ending-preview.js` | 結局分鏡表 |
 | `guide-favicon-preview.js` | 引導箭頭和網站小圖示。⚠ 執行時會**覆蓋**根目錄的 `favicon.ico` 和 `favicon-32.png` |
 | `og-preview.js` | 分享大圖和燈色表 |
+| `clock-mech-preview.js` | 鐘塔第 2 版機關設計稿 |
+| `bomb-treant-preview.js` | 炸彈範圍預告和老樹精打不到狀態設計稿 |
