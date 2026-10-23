@@ -101,7 +101,7 @@ let patPrev=null,patT0=0;
 function snapPats(prev){patPrev={};(prev.pats||[]).forEach(p=>patPrev[p.i]=[p.x,p.y]);patT0=T}
 function defeatFx(){(S.defeated||[]).forEach(d=>{if(d.m===S.m){fx.push({type:'defeat',x:d.x,y:d.y,t0:T,away:d.ax==='h'?(d.d>0?3:2):3});setTimeout(()=>sfx('key'),500)}});delete S.defeated}
 function blastFx(r){if(r.ev.indexOf('defeat')>=0&&S.m==='core')setTimeout(()=>startEnding(),1600); // core boss down -> ending (core map not built yet)
- if(r.ev.indexOf('defeat')>=0)defeatFx();if(r.ev.indexOf('blast')>=0){const b=S.lastBlast||{};if(b.m===S.m)[[0,0],[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dy])=>fx.push({type:'smoke',x:b.x+dx,y:b.y+dy,t0:T}));sfx('crumble');if(r.ev.indexOf('wall')>=0)shake=3;delete S.lastBlast}}
+ if(r.ev.indexOf('defeat')>=0)defeatFx();if(r.ev.indexOf('blast')>=0){const b=S.lastBlast||{};if(r.ev.indexOf('bosshit')>=0&&b.m===S.m)(S.bosses||[]).forEach(o=>{if(o.m===S.m&&o.hitAt===S.steps&&Math.abs(o.x-b.x)+Math.abs(o.y-b.y)<=1)hitFx('bomb',o.kind,o.x,o.y,o.x>b.x?'right':o.x<b.x?'left':o.y>b.y?'down':'up',hitSeed(o))});if(b.m===S.m){const nb=(S.bosses||[]).find(o=>o.m===S.m&&Math.abs(o.x-b.x)+Math.abs(o.y-b.y)<=1);[[0,0],[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dy])=>fx.push({type:'smoke',x:b.x+dx,y:b.y+dy,t0:T,puff:1,dx:dx||dy?dx:nb?Math.sign(b.x-nb.x):0,dy:dx||dy?dy:nb?Math.sign(b.y-nb.y):-1}))}sfx('crumble');if(r.ev.indexOf('wall')>=0)shake=3;delete S.lastBlast}}
 // real-time fuses: every frame advance all bombs (3,2,1 one per second, boom when it hits 0). Paused while title/help/menu/fail anim.
 function fuseFrame(dt){if(!S||!S.bombs.length||failAnim||['title','help','menu'].some(id=>$(id).classList.contains('on')))return;
  const prev=S,r=WE.advance(W,S,dt*1000);S=r.state;if(r.result==='tick')return;blastFx(r);v2Fx(r,prev);
@@ -221,7 +221,15 @@ function drawPats(){for(const p of S.pats||[]){if(p.m!==S.m)continue;const P0=W.
   const spot=S.zone===P0.zone&&((P0.ax==='h'&&S.y===p.y&&Math.abs(S.x-p.x)<=3)||(P0.ax==='v'&&S.x===p.x&&Math.abs(S.y-p.y)<=3));
   snowball(Math.round((x-cam.ox)*16),Math.round((y-cam.oy)*16)-(q<1?Math.round(Math.sin(q*Math.PI)*3):0),frame,dir,spot&&!failAnim)}}
 function defeat(f){const t=T-f.t0;if(t>=1.6)return false;snowballDefeat(Math.round((f.x-cam.ox)*16),Math.round((f.y-cam.oy)*16),t,f.away);return true}
-function smoke(f){const p=(T-f.t0)/.5;if(p>=1)return false;const fr=Math.min(3,Math.floor(p*4)),px=(f.x-cam.ox)*16,py=(f.y-cam.oy)*16;
+// blast smoke (f.puff): round fire flash for 0.25 s (no white), then round half-tile puffs (#5a6988 / #3a4466), semi-transparent,
+// fading and drifting outward from the bomb; no puff on a boss tile or the tile above it (keeps the boss's face clear)
+function disc(cx,cy,r,c){for(let j=-r;j<r;j++){const w=Math.round(Math.sqrt(r*r-(j+.5)*(j+.5)));R(cx-w,cy+j,2*w,1,c)}}
+function puffFx(f){const t=T-f.t0;if(t>=.75)return false;
+ if((S.bosses||[]).some(o=>o.m===S.m&&o.x===f.x&&(o.y===f.y||o.y-1===f.y)))return true; /* boss face: hitFx('bomb') pop marks the hit there */
+ if(t<.25){const px=Math.round((f.x-cam.ox)*16)+8,py=Math.round((f.y-cam.oy)*16)+8,a=t<.125;disc(px,py,a?4:6,a?E32.orange:'#be4a2f');disc(px,py,a?3:4,a?E32.yellow:E32.orange);return true}
+ const q=(t-.25)/.5,e=1-(1-q)*(1-q),cx=Math.round((f.x-cam.ox)*16+8+f.dx*6*e),cy=Math.round((f.y-cam.oy)*16+8+f.dy*6*e-2*e);
+ o.globalAlpha=.55*(1-q);disc(cx,cy,4,'#5a6988');disc(cx+1,cy+2,2+Math.round(q),'#3a4466');o.globalAlpha=1;return true}
+function smoke(f){if(f.puff)return puffFx(f);const p=(T-f.t0)/.5;if(p>=1)return false;const fr=Math.min(3,Math.floor(p*4)),px=(f.x-cam.ox)*16,py=(f.y-cam.oy)*16;
  const sizes=[[6,6],[10,9],[12,11],[8,6]][fr],cols=[E32.yellow,E32.orange,E32.grey2,E32.grey3];o.globalAlpha=fr===3?.6:1;
  R(px+8-sizes[0]/2,py+8-sizes[1]/2,sizes[0],sizes[1],cols[fr]);R(px+8-sizes[0]/2+2,py+8-sizes[1]/2-1,sizes[0]-4,sizes[1]+2,cols[fr]);if(fr<2)R(px+6,py+6,4,4,E32.white);o.globalAlpha=1;return true}
 // desert/forest movers: dunes, beetles (stun stars), bosses (2x2, flash on hit, HP pips). Slide 0.12s from the previous cell.
@@ -236,10 +244,9 @@ function knockLines(g,px,py,k){const kp=knockPos(g,k);if(!kp||kp.p<=0||kp.p>=.95
  for(const s of [-4,0,4]){const L=6+Math.round(4*a);if(dx)R(px+(dx>0?-L+2:14),py+8+s,L,1,E32.white);else R(px+8+s,py+(dy>0?-L+2:14),1,L,E32.white)}o_alpha(1)} // speed lines behind the flying creature
 const o_alpha=a=>{o.globalAlpha=a};
 let bossHitT={};
-// 老樹精 guarding for 2 actions after a fire hit: blinking green leaf frame around it + one leaf pip per guarded action left (code-drawn, no sprite)
-function treeGuard(px,py,n){const a=.5+.5*Math.sin(T*10),x0=px-9,y0=py-17,w=34,h=34,G=E32.green1;o.globalAlpha=.10+.08*a;R(x0+2,y0+2,w-4,h-4,G);o.globalAlpha=.55+.45*a;
- for(let i=0;i<w;i+=6){R(x0+i,y0,4,2,G);R(x0+i,y0+h-2,4,2,G)}for(let j=0;j<h;j+=6){R(x0,y0+j,2,4,G);R(x0+w-2,y0+j,2,4,G)}o.globalAlpha=1;
- for(let i=0;i<n;i++){const lx=px+8-n*4+i*8,ly=py-24;R(lx,ly,6,5,E32.ink);R(lx+1,ly+1,4,3,G);R(lx+1,ly+1,2,1,E32.white)}}
+// 老樹精 guarding after a fire hit: treant-guard-art.js (by 美術監督) draws bark armour (stepsLeft 2 = fresh, 1 = cracked) and the metal "ping"
+// when fire bounces off (deflectT < .35s). treeDefl = last deflect {i,t0,dir}; while guarded no white hurt flash (nothing got through).
+let treeDefl=null;
 function stunStars(px,py,n){for(let i=0;i<n;i++){const a=T*6+i*2.094,sx=px+7+Math.round(Math.cos(a)*5),sy=py-2+Math.round(Math.sin(a)*1.5);R(sx-1,sy-1,4,4,E32.ink);R(sx,sy,2,2,E32.yellow);R(sx-1,sy,1,1,E32.amber);R(sx+2,sy+1,1,1,E32.amber)}}
 function bossStars(){if(!V2())return;(S.bosses||[]).forEach(o=>{if(o.m!==S.m||o.hp<=0||!(o.fr>0))return;const [px,py]=mpos('bosses',o);stunStars(px,py,o.fr)})} // stunned boss: same spinning stars as a stunned creature, on top of everything
 // ── boss move telegraphs (stage 2): the tiles a boss will hit on your NEXT action. Same frame for every boss (blinking red border + light red
@@ -288,7 +295,7 @@ function drawMovers(){if(!V2())return;const fr=Math.floor(T*3)%2;
   R(px+3,py+4,10,9,E32.ink);R(px+4,py+5,8,7,'#9a7a6c');R(px+5,py+6,3,3,'#b08e7e');R(px+9,py+8,2,2,E32.orange)});
  (S.bosses||[]).forEach(o=>{if(o.m!==S.m||o.hp<=0)return;const [px,py]=mpos('bosses',o),hit=T-(bossHitT[o.i]||-9)<.25,hurt=o.max-o.hp,dz=o.fr>0,fr0=fr;{const fr=dz?0:fr0;if(dz)knockLines(o,px,py,'bosses');
   if(o.kind==='worm')sandwormKing(px-8,py-16,fr,hit,o.hp,o.max);
-  else if(o.kind==='tree'){elderTree(px-8,py-16,fr,hit,o.hp,o.max);if(o.gd>0)treeGuard(px,py,o.gd)}
+  else if(o.kind==='tree'){if(o.gd>0&&typeof treantGuard==='function'){const d=treeDefl&&treeDefl.i===o.i&&T-treeDefl.t0<.35?treeDefl:null;treantGuard(px-8,py-16,fr,o.hp,o.max,Math.min(2,o.gd),T,d?T-d.t0:null,d?d.dir:null)}else elderTree(px-8,py-16,fr,hit&&!(o.gd>0),o.hp,o.max)}
   else if(o.kind==='frog'&&typeof mudFrogKing==='function')mudFrogKing(px,py,fr,o.d===2?2:3,hurt,T);
   else if(o.kind==='mole'&&typeof moleKing==='function')moleKing(px,py,fr,o.d===2?2:3,hurt,T);
   else if(o.kind==='crab'&&typeof crabKing==='function')crabKing(px,py,fr,o.d===2?2:3,hurt,T,hit);
@@ -306,9 +313,46 @@ function drawMovers(){if(!V2())return;const fr=Math.floor(T*3)%2;
    if(S.bossCp&&S.bossCp.zone===o.zone&&typeof bossCheckpointFlame==='function')bossCheckpointFlame(px+28,py-8,true,T)}}}); // stunned charging boss: stands still; its stars are drawn by bossStars() after the robot so they're never hidden behind it
 }
 
+// ── 打擊手感 (2026-10-23). hitFx(type,who,x,y,dir,seed): type 'bat'|'bomb'|'fire'|'ko' (anything else → 'fire' values), who = boss kind
+// ('worm','tree',… see DEVELOPMENT.md) or 'bug' (→ default), x,y = hit tile, dir = 'up'|'down'|'left'|'right' (way the hit travels) or null (360°).
+// Purely visual: never touches S / step counts. Numbers come from HitFeel.table (hit-feel.js), built from window.HIT_FX_SPEC (hit-fx-spec.js,
+// 美術監督) with placeholder defaults. Spark + debris are drawn here (V2FX.hit). Guarded / deflected hits never call hitFx.
+// hit-stop freezes the animation clock T (bomb fuses keep real time); shake: decaying, flips every 1/30 s, first jolt along the hit, skipped for prefers-reduced-motion.
+const HITFX=typeof HitFeel!=='undefined'?HitFeel.table:null;
+const REDUCED_MOTION=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+let hitStop=0,hitPend=[],hitShk=null; // hitStop = seconds T stays frozen; hitPend = stops/shakes waiting for the impact frame; hitShk = {t0 (real s),ms,px,ax,ay}
+const HIT_DEL={bat:.07,fire:.07,bomb:0,ko:0}; // impact frame after the action (bat = KNOCK_DELAY)
+function hitFx(type,who,x,y,dir,seed){if(!HITFX)return;const c=HitFeel.cfg(HITFX,type,who),dv=dir&&WE.DIRS[dir]?WE.DIRS[dir]:null,d=HIT_DEL[type]||0;
+ hitPend.push({at:T+d,s:c.hitStopMs/1000,px:c.shakePx,ms:c.shakeMs,ax:dv?dv[0]:1,ay:dv?dv[1]:0});
+ const sd=(seed==null?(x*31+y*17+S.steps*104729):seed)>>>0;
+ fx.push({type:'hit',kind:type,who,x,y,dir:dv,t0:T,del:d,pd:type==='ko'?.2:type==='bomb'?.02:d,parts:HitFeel.burst(c,sd,type==='ko'||type==='bomb'?null:dv)})} /* ko + bomb: 360° burst, count = count.ko / count.bomb */
+function hitSeed(o){return((o.i||0)*7919+S.steps*104729)>>>0}
+function hitTick(){hitPend=hitPend.filter(h=>{if(T<h.at)return true;hitStop=Math.max(hitStop,h.s);
+  if(!REDUCED_MOTION&&h.px>0&&h.ms>0&&(!hitShk||h.px>=hitShk.px||performance.now()/1000-hitShk.t0>hitShk.ms/2000))hitShk={t0:performance.now()/1000,ms:h.ms,px:h.px,ax:h.ax,ay:h.ay};return false})}
+// legacy jolts (doors, walls, rune…) use the same shaker: n ≈ frames at 60 fps, 2 px
+function legacyShake(){if(shake>0){if(!REDUCED_MOTION&&(!hitShk||hitShk.px<2))hitShk={t0:performance.now()/1000,ms:Math.max(100,shake*1000/30),px:2,ax:1,ay:0};shake=0}}
+// screen offset in canvas px on axis 0 (x) / 1 (y): px·(1−t/d)², sign flips every 1/30 s, first jolt along the hit
+function hitShake(ax){if(!hitShk)return 0;const e=performance.now()/1000-hitShk.t0,d=hitShk.ms/1000;if(e>=d){if(ax)hitShk=null;return 0}
+ const k=(1-e/d)*(1-e/d),s=Math.floor(e*30)%2?-1:1,v=ax?hitShk.ay:hitShk.ax;return Math.round(hitShk.px*k*s*v*SC)}
+// sparks (no white, no full-screen flash): bat/fire = '+' → 4 diagonals + arc → 3 dots; bomb = solid pop → ring (smoke: puffFx)
+function hitSpark(f,cx,cy,t){const bat=f.kind!=='bomb',ink='#181425';
+ if(bat){const core=f.kind==='fire'?'#feae34':'#ead4aa',out=f.kind==='fire'?'#f77622':'#feae34';
+  if(t<.03){R(cx-2,cy-1,5,3,ink);R(cx-1,cy-2,3,5,ink);R(cx-2,cy,5,1,out);R(cx,cy-2,1,5,out);R(cx,cy,1,1,core)}
+  else if(t<.07){const g=3+Math.round((t-.03)/.04*2);[[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([a,b])=>{for(let i=1;i<=g;i++)R(cx+a*i,cy+b*i,1,1,i>g-2?out:core)});
+   if(f.dir){const bx=cx-f.dir[0]*5,by=cy-f.dir[1]*5;for(let i=-2;i<=2;i++)R(bx+(f.dir[1]?i:-f.dir[0]*Math.abs(i)>>1),by+(f.dir[0]?i:-f.dir[1]*Math.abs(i)>>1),1,1,out)}}
+  else if(t<.12){R(cx-4,cy-3,1,1,out);R(cx+3,cy-2,1,1,core);R(cx,cy+4,1,1,out)}return}
+ if(t<.04){R(cx-3,cy-2,7,5,ink);R(cx-2,cy-3,5,7,ink);R(cx-2,cy-1,5,3,'#f77622');R(cx-1,cy-2,3,5,'#f77622');R(cx-1,cy-1,3,3,'#feae34')}
+ else if(t<.18){const sm=t<.10?1:1-(t-.10)/.08;
+  if(t<.10){for(let a=0;a<16;a++){const q=a/16*2*Math.PI;R(cx+Math.round(Math.cos(q)*6),cy+Math.round(Math.sin(q)*6),1,1,a%2?'#be4a2f':'#f77622')}}
+  o.globalAlpha=1}} /* bomb smoke = blast puffs (puffFx), kept off the boss's face */
 const V2FX={
  fire:f=>{const p=(T-f.t0)/.35;if(p>=1)return false;const [dx,dy]=WE.DIRS[f.f];const n=Math.abs(f.x1-f.x0)+Math.abs(f.y1-f.y0);
   for(let i=1;i<=n;i++){const px=Math.round((f.x0+dx*i-cam.ox)*16),py=Math.round((f.y0+dy*i-cam.oy)*16);firePuff(px,py,Math.min(2,Math.floor(p*3+i*.15)))}return true},
+ hit:f=>{const t=T-f.t0;if(t>f.pd+.65)return false;const cx=Math.round((f.x-cam.ox)*16)+8,cy=Math.round((f.y-cam.oy)*16)+8;
+  if(f.kind!=='ko'&&t>=f.del)hitSpark(f,cx,cy,t-f.del);const pt=t-f.pd;
+  if(pt>=0)for(const p of f.parts){if(pt>=p.life)continue;const g=(f.who&&HITFX[f.who]?HITFX[f.who]:HITFX.default)[f.kind==='ko'?'ko':'bat'].grav,x=cx+p.vx*pt,y=cy+p.vy*pt+.5*g*pt*pt;
+   o.globalAlpha=pt>p.life*.7?1-(pt-p.life*.7)/(p.life*.3):1;if(f.kind==='bomb')R(x-1,y-1,p.w+2,p.h+2,'#181425');R(x,y,p.w,p.h,p.c);if(p.w>1&&p.h>1)R(x+1,y+p.h,p.w,1,'#181425');o.globalAlpha=1}
+  return true}, // spark + debris from HIT_FX_SPEC (hit-feel.js)
  swing:f=>{const t=T-f.t0;if(t>=.24)return false;if(typeof batSwing==='function')batSwing(Math.round((f.x-cam.ox)*16),Math.round((f.y-cam.oy)*16),f.f,t,.24);return true},
  noeffect:f=>{const p=(T-f.t0)/.45;if(p>=1)return false;const fr=Math.min(2,Math.floor(p*3)),[dx,dy]=WE.DIRS[S.f],px=Math.round((f.x+dx-cam.ox)*16),py=Math.round((f.y+dy-cam.oy)*16);
   if(typeof noEffectPuff==='function')noEffectPuff(px,py,fr);return true},
@@ -322,7 +366,7 @@ function v2Fx(r,prev){if(!V2()&&!(prev&&W.maps[prev.m].rules==='v2'))return;snap
  if(ev.indexOf('bosscrash')>=0){shake=3;sfx('bump')} if(ev.indexOf('deflect')>=0||ev.indexOf('ballback')>=0)sfx('push'); // knight hit the wall / glitch ball batted back
  if(ev.indexOf('bossstrike')>=0&&ev.indexOf('caught')<0){if(ev.indexOf('tide')>=0||ev.indexOf('gust')>=0||ev.indexOf('kingflip')>=0)sfx('slide');else{shake=2;sfx('bump')}} // boss move landed (missed you): small thump
  if(ev.indexOf('noeffect')>=0&&S.lastFire){fx.push({type:'noeffect',x:S.lastFire.x0,y:S.lastFire.y0,t0:T});delete S.lastFire}
- if(ev.indexOf('swing')>=0&&S.lastBat){fx.push(Object.assign({type:'swing',t0:T},S.lastBat));if(ev.indexOf('knock')>=0){const b=S.lastBat,g=(b.boss?S.bosses:S.bugs||[]).find(q=>q.m===S.m&&q.x===b.kx&&q.y===b.ky);if(g)knock={i:g.i,k:b.boss?'bosses':'bugs',m:S.m,x0:b.tx,y0:b.ty,x1:b.kx,y1:b.ky,t0:T}}if(ev.indexOf('smash')>=0){const b=S.lastBat;setTimeout(()=>{fx.push({type:'smoke',x:b.tx,y:b.ty,t0:T});shake=3;sfx('crumble')},90)}else if(ev.indexOf('stun')>=0)setTimeout(()=>{shake=2;sfx('bump')},70);else if(ev.indexOf('bonk')>=0)flash('⚾ 王太大了，球棒打不動');else if(ev.indexOf('clang')>=0){sfx('bump');flash('⚾ 鐵箍裂牆打不破：要用炸彈'+(W.maps[S.m].theme==='mine'?'或礦車':''))}delete S.lastBat}
+ if(ev.indexOf('swing')>=0&&S.lastBat){fx.push(Object.assign({type:'swing',t0:T},S.lastBat));if(ev.indexOf('stun')>=0&&(S.lastBat.kind==='bug'||S.lastBat.kind==='bossbat')){const b=S.lastBat,bx=b.kx!=null?b.kx:b.tx,by=b.ky!=null?b.ky:b.ty,bo=b.kind==='bossbat'&&(S.bosses||[]).find(q=>q.m===S.m&&q.hp>0&&q.x===bx&&q.y===by);hitFx('bat',bo?bo.kind:'bug',b.tx,b.ty,b.f,bo?hitSeed(bo):undefined)}if(ev.indexOf('knock')>=0){const b=S.lastBat,g=(b.boss?S.bosses:S.bugs||[]).find(q=>q.m===S.m&&q.x===b.kx&&q.y===b.ky);if(g)knock={i:g.i,k:b.boss?'bosses':'bugs',m:S.m,x0:b.tx,y0:b.ty,x1:b.kx,y1:b.ky,t0:T}}if(ev.indexOf('smash')>=0){const b=S.lastBat;setTimeout(()=>{fx.push({type:'smoke',x:b.tx,y:b.ty,t0:T});shake=3;sfx('crumble')},90)}else if(ev.indexOf('stun')>=0)setTimeout(()=>sfx('bump'),70);/* the stun's jolt comes from hitFx('bat') (1 px) */else if(ev.indexOf('bonk')>=0)flash('⚾ 王太大了，球棒打不動');else if(ev.indexOf('clang')>=0){sfx('bump');flash('⚾ 鐵箍裂牆打不破：要用炸彈'+(W.maps[S.m].theme==='mine'?'或礦車':''))}delete S.lastBat}
  const clk=W.maps[S.m].theme==='clock'&&S.zone,waited=clk&&ev.indexOf('fire')>=0&&!['burn','melt','stun','bosshit'].some(e=>ev.indexOf(e)>=0);
  if(waited){fx.push({type:'wait',x:S.x,y:S.y,t0:T});delete S.lastFire} // clock tower: 動作 with nothing to hit = wait one tick (little clock, no fire puff)
  if(ev.indexOf('fire')>=0&&S.lastFire){fx.push(Object.assign({type:'fire',t0:T},S.lastFire));delete S.lastFire}
@@ -333,10 +377,12 @@ function v2Fx(r,prev){if(!V2()&&!(prev&&W.maps[prev.m].rules==='v2'))return;snap
   if(was!==now&&(S.cleared||[]).indexOf(S.zone)<0){N.D.concat(N.X).forEach(([x,y])=>fx.push({type:'tick',x,y,t0:T,open:now}));flash(now?'開關壓住了：門打開！':'開關鬆開：門又關上了')}}} // factory: pad pressed/released → ring on pad + door, one line toast
  (S.sunk||[]).forEach(k=>{if(k.m===S.m)fx.push({type:k.box?'boxsink':'splash',x:k.x,y:k.y,t0:T});setTimeout(()=>sfx('crumble'),80)});delete S.sunk;
  (S.scattered||[]).concat(S.squashed||[]).forEach(k=>{if(k.m===S.m)fx.push({type:'splash',x:k.x,y:k.y,t0:T})});delete S.scattered;delete S.squashed;
- if(ev.indexOf('bosshit')>=0)(S.bosses||[]).forEach(o=>{if(o.m===S.m&&o.hitAt===S.steps)bossHitT[o.i]=T});
+ if(ev.indexOf('bosshit')>=0)(S.bosses||[]).forEach(o=>{const p0=prev&&(prev.bosses||[]).find(q=>q.i===o.i);if(o.m===S.m&&(p0?o.hp<p0.hp:o.hitAt===S.steps)){ /* hp dropped this action (hitAt is the step count BEFORE the step, so hitAt===S.steps only matched bomb ticks) */if(!(o.kind==='tree'&&o.gd>0))bossHitT[o.i]=T; // guarded tree: armour shows instead of the white flash
+  if(ev.indexOf('blast')<0)hitFx(ev.indexOf('swing')>=0?'bat':ev.indexOf('fire')>=0?'fire':'other',o.kind,o.x,o.y,S.f,hitSeed(o))}}); // bomb hits are sent from blastFx (it knows the bomb)
  if(ev.indexOf('bounced')>=0){fx.push({type:'tick',x:S.x,y:S.y,t0:T,open:true});flash('🌳 被樹根圍住了：彈回入口（不算失敗，老樹精的血不會回來）')}
- if(ev.indexOf('bossguard')>=0){const tb=(S.bosses||[]).find(o=>o.m===S.m&&o.kind==='tree'&&o.hp>0);flash(tb&&tb.gd>0?'🍃 老樹精發綠光護身，火打不進去：再走 '+tb.gd+' 步':'🍃 綠光消失了，下一步就打得到')}
- if(ev.indexOf('bossdown')>=0){shake=4;setTimeout(()=>sfx('door'),200)}
+ if(ev.indexOf('bossguard')>=0){const tb=(S.bosses||[]).find(o=>o.m===S.m&&o.kind==='tree'&&o.hp>0);if(tb)treeDefl={i:tb.i,t0:T,dir:{up:'down',down:'up',left:'right',right:'left'}[S.f]}; // fire came from 小光's side
+  flash(tb&&tb.gd>0?'🌳 老樹精穿上樹皮盔甲，火打不進去：再走 '+tb.gd+' 步':'🌳 樹皮盔甲掉了，下一步就打得到')}
+ if(ev.indexOf('bossdown')>=0){const dn=(S.bosses||[]).filter(o=>o.m===S.m&&o.hp<=0&&(prev&&(prev.bosses||[]).some(q=>q.i===o.i&&q.hp>0)));if(dn.length)dn.forEach(o=>hitFx('ko',o.kind,o.x,o.y,null,hitSeed(o)+1));else shake=3;setTimeout(()=>sfx('door'),200)}/* boss down: 140 ms stop + ≤3 px shake + 360° debris */
  if(ev.indexOf('lamp')>=0)react={type:'hop',t0:T}
  if(ev.indexOf('bat')>=0){react={type:'hop',t0:T};flash('⚾ 拿到球棒！面對裂牆或生物按動作：打碎牆、把生物打退')}
  if(ev.indexOf('ending')>=0||r.result==='ending')setTimeout(()=>startEnding(),800)}
@@ -566,7 +612,7 @@ function lightBeams(){if(!V2()||typeof beam!=='function'||!S.zone||!WE.traceBeam
   if(di===dd)beam(px,py,dd<2?'v':'h',col(b),T);else{if(di>=0){half(px,py,OPP[di],di<2?'v':'h',col(pb));mir.push([px,py])}half(px,py,dd,dd<2?'v':'h',col(b))}pb=b}o.globalAlpha=1;
  // in the boss room, a mirror the light touches blinks white corners = "you can turn this one" (face it and press 按)
  if(king&&Math.floor(T*2.5)%2===0)for(const [px,py] of mir){for(const [a,c] of [[0,0],[13,0],[0,13],[13,13]]){R(px+a,py+c,3,1,E32.white);R(px+a+(a?2:0),py+c+(c?-2:0),1,3,E32.white)}}}
-function drawFrame(){if(ending){endingFrame();return}const now=performance.now()/1000,dt=Math.min(.05,now-(stamp||now));stamp=now;T+=dt;fuseFrame(dt);
+function drawFrame(){if(ending){endingFrame();return}const now=performance.now()/1000,dt=Math.min(.05,now-(stamp||now));stamp=now;hitTick();legacyShake();if(hitStop>0)hitStop-=dt;else T+=dt;fuseFrame(dt);
  TH=WORLDS[W.maps[S.m].theme]||WORLDS.grass;if(V2())ensureSceneArt(S.m);buildView();if(!legendDone&&st){const th=TH;TH=WORLDS.grass;renderLegend();TH=th}
  const [tx,ty]=camTarget();if(!cam.init){cam.x=tx;cam.y=ty;cam.init=true}{const k=1-Math.exp(-dt*5),mx=dt*14;cam.x+=Math.max(-mx,Math.min(mx,(tx-cam.x)*k));cam.y+=Math.max(-mx,Math.min(mx,(ty-cam.y)*k))} // smooth pan, capped speed (no jump on zone change)
  cam.ox=Math.round(cam.x*16)/16;cam.oy=Math.round(cam.y*16)/16;
@@ -580,7 +626,8 @@ function drawFrame(){if(ending){endingFrame();return}const now=performance.now()
   crate(Math.round((bx-cam.ox)*16),Math.round((by-cam.oy)*16),L.grid[by|0]&&L.grid[b[1]][b[0]]==='X'&&bx===b[0]&&by===b[1],0)});
  if(boxSl&&boxSl.items.every(q=>T-boxSl.t0>=.08*(q.pts.length-1)))boxSl=null;
  if(stuck.on&&typeof stuckBoxMark==='function')stuck.boxes.forEach(([x,y])=>stuckBoxMark(Math.round((x-cam.ox)*16),Math.round((y-cam.oy)*16),T));
- bossWarnFx();drawMovers();S.bombs.filter(b=>b.m===S.m).forEach(blastWarn);S.bombs.filter(b=>b.m===S.m).forEach(b=>bombSprite(Math.round((b.x-cam.ox)*16),Math.round((b.y-cam.oy)*16),b));
+ S.bombs.filter(b=>b.m===S.m).forEach(b=>{if(typeof bombRange==='function')bombRange(Math.round((b.x-cam.ox)*16),Math.round((b.y-cam.oy)*16),null,(WE.FUSE_MS-(b.ms||0))/1000,T);else blastWarn(b)}); // yellow blast cross over the whole fuse (bomb-range-art.js; engine blast is always the plain 5-tile cross)
+ bossWarnFx();drawMovers();S.bombs.filter(b=>b.m===S.m).forEach(b=>bombSprite(Math.round((b.x-cam.ox)*16),Math.round((b.y-cam.oy)*16),b));
  // robot
  let rx=S.x,ry=S.y,frame=0,shk=0,face='norm';
  if(anim){const p=Math.min(1,(T-anim.t0)/anim.dur);
@@ -607,7 +654,7 @@ function drawFrame(){if(ending){endingFrame();return}const now=performance.now()
  runeSigns();shortcutMarks();drawGuide();drawPats(); // guide above robot
  fx=fx.filter(f=>f.type==='defeat'?defeat(f):f.type in V2FX?V2FX[f.type](f):smoke(f));
  // blit with shake + tunnel fade
- const sh=shake>0?(shake--%2?2:-2)*SC:0;ctx.imageSmoothingEnabled=false;ctx.setTransform(1,0,0,1,0,0);ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';o.globalAlpha=1;ctx.fillStyle=E32.ink;ctx.fillRect(0,0,cv.width,cv.height);ctx.drawImage(off,sh,0,cv.width,cv.height);
+ const sh=hitShake(0),shy=hitShake(1);ctx.imageSmoothingEnabled=false;ctx.setTransform(1,0,0,1,0,0);ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';o.globalAlpha=1;ctx.fillStyle=E32.ink;ctx.fillRect(0,0,cv.width,cv.height);ctx.drawImage(off,sh,shy,cv.width,cv.height);
  if(fade>0){ctx.fillStyle=`rgba(24,20,37,${fade})`;ctx.fillRect(0,0,cv.width,cv.height);fade=Math.max(0,fade-dt/0.3)}
  drawMini();lastDraw=performance.now()}
 let lastDraw=0,manualDraw=false;
