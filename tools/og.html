@@ -1,0 +1,51 @@
+<!doctype html><meta charset="utf-8"><style>@font-face{font-family:C;src:url('../fonts/Cubic_11.woff2')}body{margin:0;background:#000}canvas{display:block}</style>
+<canvas id="cv" width="1200" height="630"></canvas>
+<script>var o,T=0,TH,st={boxes:[]},save={mute:true},L={W:40,H:40,grid:[]};for(let y=0;y<40;y++)L.grid.push('#'.repeat(40).split(''));</script>
+<script src="../levels.js"></script><script src="../logic.js"></script><script src="../art.js"></script>
+<script>
+TH=WORLDS.grass;
+function mk(w,h){const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');x.imageSmoothingEnabled=false;return[c,x]}
+
+function bush(px,py,x,y){const h=((x*73856093)^(y*19349663))>>>0;R(px,py,16,16,E32.green2);
+ if(h%3===0){R(px+2,py+3,1,1,E32.green1);R(px+11,py+10,1,1,E32.green1)}
+ if(h%4!==0){const ox=(h>>3)%5,oy=(h>>6)%4;R(px+ox+2,py+oy+3,10,8,E32.green3);R(px+ox+3,py+oy+2,8,10,E32.green3);R(px+ox+3,py+oy+3,8,7,E32.green2);R(px+ox+4,py+oy+3,4,3,E32.green1);R(px+ox+3,py+oy+10,8,1,E32.green3)}
+ if(h%7===0){R(px+5,py+6,1,1,E32.yellow);R(px+11,py+4,1,1,E32.pink)}}
+Promise.race([document.fonts.load('24px C'),new Promise(r=>setTimeout(r,1500))]).then(()=>{
+ const cv=document.getElementById('cv'),X=cv.getContext('2d');X.imageSmoothingEnabled=false;
+ // background 4x: bushes + grass clearing bottom-right with wall row
+ let [bg,bx]=mk(300,158);o=bx;
+ for(let y=0;y<10;y++)for(let x=0;x<19;x++){bush(x*16,y*16,x,y)}
+ for(let y=6;y<10;y++)for(let x=11;x<19;x++)grass(x*16,y*16,x,y);
+ for(let x=11;x<19;x++){if(x!==16)wall(x*16,5*16,x,5)}
+ // blasted cracked wall at x=16: rubble
+ const rx=16*16,ry=5*16;grass(rx,ry,16,5);[[2,9,4,3],[9,11,5,3],[5,4,3,2],[11,5,3,2]].forEach(([a,b,w,h])=>{R(rx+a-1,ry+b-1,w+2,h+2,E32.ink);R(rx+a,ry+b,w,h,E32.grey2);R(rx+a,ry+b,w-1,1,E32.grey1)});
+ // smoke puffs
+ [[rx+1,ry-6,7],[rx+7,ry-12,6],[rx-3,ry-15,5],[rx+10,ry-3,5]].forEach(([x,y,s])=>{R(x-1,y,s+2,s,E32.ink);R(x,y-1,s,s+2,E32.ink);R(x,y,s,s,E32.grey1);R(x,y,s-2,1,E32.white)});
+ // robot
+ X.drawImage(bg,0,0,1200,632);
+ {const [rc,rx2]=mk(18,18);o=rx2;robot(1,1,'norm','down',0,0,1);X.drawImage(rc,15*64-8*8-40,392,144,144)}
+ // big smoke
+ [[1010,250,28],[1060,205,22],[985,190,18],[1100,265,16]].forEach(([x,y,s])=>{X.fillStyle=E32.ink;X.fillRect(x-4,y-4,s+8,s+8);X.fillStyle=E32.grey1;X.fillRect(x,y,s,s);X.fillStyle=E32.white;X.fillRect(x,y,s-8,4)});
+ // logo layer (logical px) -> 4x
+ let [lg,lx]=mk(240,60);o=lx;lx.font='36px C';lx.textBaseline='top';lx.fillStyle=E32.white;
+ lx.fillText('Gl',0,2);let w=lx.measureText('Gl').width;
+ // robot screen face as 'o'
+ const fx=Math.round(w)+2,fy=12;
+ lx.fillStyle=E32.white;lx.fillText('wbot',fx+22,2);
+ {const d=lx.getImageData(0,0,240,60),a=d.data;for(let i=0;i<a.length;i+=4){if(a[i+3]>=110){a[i+3]=255;if(a[i+2]>200&&a[i]>150){a[i]=a[i+1]=a[i+2]=255}}else a[i+3]=0}lx.putImageData(d,0,0)}
+ {const [t,tx]=mk(240,60);tx.drawImage(lg,0,0);for(const[a,b]of[[1,0],[0,1],[1,1]])lx.drawImage(t,a,b)}
+ R(fx,fy,20,19,E32.white);R(fx+2,fy+2,16,14,E32.navy);R(fx+5,fy+6,3,4,E32.cyan);R(fx+12,fy+6,3,4,E32.cyan);R(fx+7,fy+12,6,1,E32.cyan);R(fx+9,fy-5,2,5,E32.grey2);
+ const LW=Math.ceil(fx+22+lx.measureText('wbot').width)+3;
+ const [up,ux]=mk(LW*4,60*4);ux.drawImage(lg,0,0,LW*4,240);
+ const sil=(col)=>{const [c,x]=mk(up.width,up.height);x.drawImage(up,0,0);x.globalCompositeOperation='source-in';x.fillStyle=col;x.fillRect(0,0,c.width,c.height);return c};
+ const ink=sil(E32.ink),lt=sil(E32.ink),grn=sil(E32.green3),L0=60,T0=50;
+X.globalAlpha=.6;X.drawImage(lt,L0+12,T0+12);X.globalAlpha=1;for(const[a,b]of[[-8,0],[8,0],[0,-8],[0,8],[-8,-8],[8,8],[-8,8],[8,-8]])X.drawImage(grn,L0+a,T0+b);X.drawImage(up,L0,T0);
+ // glowing antenna bulb (on top of logo, final px)
+ const bxp=L0+(fx+8)*4,byp=T0+(fy-9)*4;X.globalAlpha=.35;X.fillStyle=E32.cyan;X.fillRect(bxp-12,byp-12,32,32);X.globalAlpha=1;X.fillStyle=E32.ink;X.fillRect(bxp-6,byp-6,20,20);X.fillStyle=E32.cyan;X.fillRect(bxp-4,byp-4,16,16);X.fillStyle=E32.white;X.fillRect(bxp-4,byp-4,4,4);
+ // text helper with outline
+ function txt(s,x,y,size,col){X.font=size+'px C';X.textBaseline='top';X.fillStyle=E32.ink;for(const[a,b]of[[-3,0],[3,0],[0,-3],[0,3],[-3,-3],[3,3],[-3,3],[3,-3],[5,5]])X.fillText(s,x+a,y+b);X.fillStyle=col;X.fillText(s,x,y)}
+ txt('小光',L0+4,T0+250,96,E32.amber);
+ txt('炸牆、推箱、闖迷宮',L0+4,630-60-48,36,E32.white);
+ const p=document.createElement('pre');p.id='testout';p.textContent='{"ok":1}';document.body.append(p);
+}).catch(e=>{const p=document.createElement('pre');p.id='testout';p.textContent=JSON.stringify({err:String(e.stack||e)});document.body.append(p)});
+</script>
