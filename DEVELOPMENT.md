@@ -1,13 +1,15 @@
 # Glowbot 小光 開發說明
 
-像素風解謎冒險遊戲。玩家操作小機器人「小光」，穿過 15 個場景，解開每一區的謎題，打倒各場景的迷你王，點亮 15 盞燈塔燈，最後看到結局。
+像素風解謎冒險遊戲。玩家操作小機器人「小光」，穿過 15 個場景，解開每一區的謎題，打倒各場景的迷你王，點亮燈塔燈，最後看到結局。
 
 - 線上遊玩：<https://jasper31943.github.io/glowbot/>
 - 更新紀錄：[CHANGELOG.md](CHANGELOG.md)（每次修改的問題、修正內容和 commit 編號）
 - 設計圖存檔：[design/](design/README.md)
 
-> **關於這個 repo**：這裡放的是**建置好、直接上線的網站檔案**（也就是開發資料夾裡 `dist/` 的內容），加上更新紀錄、這份說明和 `design/` 設計圖存檔。
-> 下文提到的地圖文字檔 `world/*.txt`、`tools/` 裡的建置和檢查程式、測試程式、`world.html` 等**開發用原始檔目前不在這個 repo 裡**，放在開發資料夾 `robot-maze/`。
+> **關於這個 repo**：根目錄是**建置好、直接上線的網站檔案**（開發資料夾 `dist/` 的內容）。開發用的原始檔也在這裡：地圖文字檔和檢查器 `world/`、建置和檢查程式 `tools/`、根目錄的測試 `test-*.js`、還沒接進遊戲的美術原始檔 `design/art-src/`，以及 `design/` 的設計圖和遊戲截圖。
+> 世界設計規劃和各場景設計稿在 [world-plan.md](world-plan.md)。只有開發版頁面 `world.html`（和帶測試功能的開發版 `world.js`）、截圖資料夾 `shots/` 還只在開發資料夾 `robot-maze/`。哪些指令在 repo 裡就能跑，見第 5 節「從 repo 跑建置和測試」。
+
+![草原：新遊戲開始的畫面](design/screenshots/desktop_01_grass.png)
 
 ---
 
@@ -83,6 +85,9 @@
 | `bat-art.js` | ⚾ 球棒的美術（地上的球棒、揮棒、礦坑蝙蝠），從森林開始的每個場景都會延遲載入（`SCENE_ART`） |
 | `swamp-art.js`、`mine-art.js`、`volcano-art.js`、`sea-art.js`、`castle-art.js`、`sky-art.js`、`mirror-art.js`、`power-art.js`、`clock-art.js`、`factory-art.js`、`core-art.js` | 各場景的美術，進到該場景才載入（`world.js` 的 `SCENE_ART`） |
 | `ending-art.js` | 結局動畫，在核心裡先預載，最後載入 |
+| `bomb-range-art.js`、`treant-guard-art.js` | 美術監督的炸彈範圍黃色預告、老樹精樹皮盔甲（10-23 起），頁面一開就載入，對照表見第 7 節「打擊手感與新美術」 |
+| `hit-fx-spec.js` | 打擊手感的**數字**（美術監督，只有資料：`window.HIT_FX_SPEC`） |
+| `hit-feel.js` | 把 `HIT_FX_SPEC` 轉成每隻王、每種打擊的設定表（`HitFeel.table`），缺的或壞掉的數字用預設值補；也負責算碎片（同一下打擊每次都一樣）。只有計算，不畫圖 |
 | `music.js` | 程式產生的 8-bit 背景音樂（Web Audio，沒有音檔） |
 | `share.js`、`share-clear.html` | 破關分享：手機打開系統分享選單；電腦複製分享文字＋連結並打開 X 發文頁，畫面下方會提示「已複製連結」。只打開玩家自己的選單或發文頁，不會替人發文 |
 | `logic.js` | 共用的格子查詢小工具（`art.js` 畫牆時用 `Logic.cell`），原本是 30 關模式的規則程式 |
@@ -93,24 +98,36 @@
 
 存檔放在瀏覽器的 localStorage（`glowbot.world.v1`，版本 4）；靜音設定沿用舊的 `robotMaze.v1`（裡面以前 30 關模式留下的進度會被忽略，不影響大地圖存檔）。
 
-### 開發資料夾裡的其他檔案（不在 repo）
+### 原始檔（也在這個 repo）
 
 | 檔案 | 用途 |
 |---|---|
-| `world/*.txt` | 15 張地圖的文字檔（格式見第 3 節） |
-| `world.html`、`world.js` | 開發版頁面，含測試用的網址參數；建置時會拿掉 |
-| `index.html`、`game.js`、`levels.js` | 已移除的 30 關模式原始檔，不再上線；`game.js` 仍是 `art.js` 的美術來源，`index.html` 提供分享預覽的 meta 標籤 |
-| `world-plan.md` | 世界設計規劃和各場景設計稿（規則、各區最少步數） |
+| `world/*.txt` | 15 張地圖的文字檔（格式見第 3 節），**地圖的正本** |
+| `world/check.js`、`world/check-new.js`、`world/softlock.js`、`world/test-map.js` | 草原、沙漠、森林的獨立檢查器 |
 | `tools/build-world.js` | `world/*.txt` → `world/world-def.js`；**提示字（hints）也寫在這支程式裡** |
-| `tools/build-dist.py` | 產生要上線的 `dist/` |
-| `tools/extract-art.py` | 從 `game.js` 產生 `art.js` |
-| `tools/scenes567/`、`scenes8910/`、`scenes1113/`、`scenes1415/` | 第 5–15 場景的地圖產生器（`spec.js` → `gen.js` → `world/*.txt`）和獨立檢查器 |
-| `tools/solve-world.js`、`route-world.js`、`check-grass-f.js` | 整個世界的解題、路線和草原 F 區檢查 |
-| `tools/*preview*.js` | 產生設計圖（輸出到 `shots/`，挑好的再存進 [design/](design/README.md)） |
-| `test-*.js`、`test*.sh`、`cdp.py` | 測試（見第 5 節） |
+| `tools/build-dist.py` | 產生要上線的 `dist/`（需要開發版 `world.html`、`world.js`，見第 5 節） |
+| `tools/extract-art.py` | 從 `game.js` 產生 `art.js`（`game.js` 只在開發資料夾） |
+| `tools/scenes567/`、`scenes8910/`、`scenes1113/`、`scenes1415/` | 第 5–15 場景的獨立檢查器 `check-*.js`，和當初產生地圖用的 `spec.js`／`gen.js`（**已經過時**，見第 3 節） |
+| `tools/ice/` | 冰原的地圖產生和檢查 |
+| `tools/solve-world.js`、`route-world.js`、`trace-route.js`、`check-grass-f.js` | 整個世界的解題、路線和草原 F 區檢查 |
+| `tools/boss-check/`、`tools/boss-mech/` | 王房用引擎窮舉的工具（最少步數、卡死、`stall.js` 的「原地浪費」）。有幾支寫死開發機的路徑 `/workspace/robot-maze`，可以用環境變數 `ENG` 或 `ROOT` 指到自己的資料夾 |
+| `tools/*-preview.js`、`tools/*-sheet.py` | 產生設計圖（輸出到 `shots/`，挑好的再存進 [design/](design/README.md)），清單見 [design/README.md](design/README.md#產生設計圖的程式tools) |
+| `tools/artfeel-shots.py`、`tools/live-boss-shots.py` | 用 `cdp.py` 拍遊戲畫面（需要開發版 `world.html`） |
+| `test-*.js`、`test-ui.sh`、`test-seed.html`、`cdp.py` | 測試（見第 5 節） |
+| [`world-plan.md`](world-plan.md) | 世界設計規劃和各場景設計稿（規則、各區最少步數、驗證方法；第 16 節是 10-23 的地圖修正和王房重做的規劃；夜工廠、海底王房的新版還沒上線） |
+| `design/art-src/` | 設計完成、還沒接進遊戲的美術程式：`crack-wall-art.js`（球棒木板牆 v2）、`boss-stun-art.js`（王被打昏的樣子），見第 7 節 |
+| `CHANGELOG.md` | 更新紀錄（開發資料夾根目錄是原稿，上線時複製過來） |
+
+### 只在開發資料夾的檔案（不在 repo）
+
+| 檔案 | 用途 |
+|---|---|
+| `world.html`、開發版 `world.js` | 開發版頁面，含測試用的網址參數；建置時拿掉測試部分，變成這裡的 `index.html`、`world.js` |
+| `index.html`、`game.js`、`levels.js`、`test-logic.js` | 已移除的 30 關模式原始檔和它的規則測試，不再上線；`game.js` 仍是 `art.js` 的美術來源，`index.html` 提供分享預覽的 meta 標籤 |
 | `legacy-levels/` | 已移除的 30 關模式的舊瀏覽器測試（`test.sh`、`test-all.sh`），只留存檔，不再執行 |
-| `shots/` | 設計圖和測試截圖 |
-| `CHANGELOG.md` | 更新紀錄的原稿（`dist/` 每次建置都會清空，所以放在開發資料夾根目錄） |
+| `shots/` | 設計圖和測試截圖的工作資料夾（挑好的放進 `design/`） |
+| `tools/fonts/Cubic_11.ttf` | `og-preview.js` 畫分享大圖用的完整字型（超過 1 MB，不放 repo；網站用的是 `fonts/Cubic_11.woff2`） |
+| 各種 `.bak` 備份、`tools/ice/*.png` 等輸出 | 暫存檔 |
 
 ---
 
@@ -132,7 +149,7 @@
    ```
    1–9 號隧道直接把數字寫在地圖上。每個隧道編號在整個世界剛好出現兩次。
 
-第 5–15 場景的 `.txt` 是由 `tools/scenesXXX/gen.js` 從 `spec.js` 產生的（`world-plan.md` 的說明是「請改 spec.js 再重新產生」）。
+第 5–15 場景的 `.txt` 最早是 `tools/scenesXXX/gen.js` 從 `spec.js` 產生的，但之後的修正（例如海底 A4、夜工廠 F7、天空 K5／K8、各王房）都是**直接改 `.txt`**，`spec.js` 沒有跟著改。現在重跑 `gen.js` 會產生跟線上不一樣的地圖（10-23 試過：11 張不同），會蓋掉這些修正，所以**請直接改 `world/*.txt`**，`gen.js` 只當參考。
 
 ### 共用字元（所有場景）
 
@@ -147,6 +164,7 @@
 | `1`–`9`、`0` | 隧道口 | `R` | 符文石 |
 | `*` | 螺絲零件（收集品） | `G` | 王關門（打倒該區的王才開） |
 | `L` | 燈塔燈 | `E` `g` `P` `O` | 電池、磁力手套、巡邏機器人、碎裂地板（只在已移除的 30 關模式用過） |
+| `W` | 傳送台（**規劃中**：[world-plan.md](world-plan.md) 有寫，地圖和引擎都還沒有） | `U` | 電池升級（**規劃中**，地圖和引擎都還沒有） |
 
 ### 各場景新增的字元（取自各 `.txt` 的圖例和 `world-engine.js`）
 
@@ -200,7 +218,24 @@
 
 ## 5. 建置與測試
 
-需要 Node.js 和 Python 3；瀏覽器測試需要 Google Chrome 和 Python 的 `websockets`。以下指令都在開發資料夾根目錄執行。
+需要 Node.js（20 版測過）和 Python 3；瀏覽器測試需要 Google Chrome 和 Python 的 `websockets`；`tools/*-sheet.py` 要 Python 的 Pillow。以下指令都在根目錄執行。
+
+### 從 repo 跑建置和測試
+
+clone 這個 repo 之後，**不用開發資料夾**就能跑的（10-23 用一份「線上檔案＋原始檔」的乾淨資料夾實際跑過）：
+
+```bash
+node tools/build-world.js      # 產生的 world/world-def.js 會跟線上的一模一樣
+node test-world.js && node test-v2.js && node test-stuck.js && node test-bat.js && node test-bossrooms.js && node test-hitfx.js
+node world/check.js; node world/check-new.js all; node world/softlock.js world/world-def.js
+node tools/scenes567/check-567.js all; node tools/scenes8910/check-8910.js all
+node tools/scenes1113/check-1113.js all; node tools/scenes1415/check-1415.js all
+node tools/solve-world.js
+```
+
+要開發版頁面才能跑的（只在開發資料夾）：`python3 tools/build-dist.py`（從 `world.html`、開發版 `world.js` 產生網站）、`bash test-ui.sh` 和 `cdp.py`（瀏覽器測試要打開 `world.html` 的測試參數）、`tools/artfeel-shots.py`。根目錄的 `world.js` 是去掉測試功能的上線版，不能拿來跑這些。
+
+改地圖的流程：改 `world/*.txt` → `node tools/build-world.js`（看有沒有錯誤）→ 跑該場景的檢查器和上面的測試 → 在開發資料夾建置、用瀏覽器看過 → 上線（第 6 節）。
 
 ### 建置
 
@@ -220,14 +255,15 @@ python3 tools/build-dist.py   # 產生 dist/（會先整個清空 dist/）
 
 | 指令 | 內容 |
 |---|---|
-| `node test-logic.js` | `logic.js` 的規則單元測試（原 30 關模式；`logic.js` 仍有上線） |
+| `node test-logic.js` | `logic.js` 的規則單元測試（原 30 關模式；要 `levels.js`，只在開發資料夾） |
 | `node test-world.js` | 大地圖引擎單元測試和解題檢查 |
 | `node test-v2.js` | 確認引擎在沙漠、森林的行為跟設計檢查器 `world/check-new.js` 完全一致 |
 | `node test-stuck.js` | 卡死檢查不會誤判可解的區域，也抓得到真的卡死；火山 V5 從入口和 Jasper 截圖的狀態都不用等就過得去、沒有要按重來的死路；夜工廠 F7 照直覺推法 15 步不用等就過、舊存檔卡住的箱子會自己滑回來、剩下的每個死路都會亮 ↺、可解的狀態不會誤亮 |
 | `node test-bat.js` | 每一隻生物從四個方向「相鄰吐火」都會嚇呆（火山除外）、球棒都打得昏；普通裂牆打得碎、鐵箍裂牆打不破；撿球棒、舊存檔補發球棒、舊存檔在 C5 裡會回到入口；擊退一定往機器人面對的方向、不會進入口出口或任何危險格（含尖刺格）、被擋住就只嚇呆；C5 從 Jasper 卡住的狀態（騎士貼在入口旁）用球棒 10 步、只用火 15 步都過得去；C10 騎士不會被打上尖刺；舊存檔在 C10 裡會整區重來 |
 | `node test-bossrooms.js` | 森林、火山、鏡子三個王房用引擎窮舉：最少步數（森林約 22、火山 29、鏡子約 18）、最快路線裡「原地浪費」的步數 ≤2（`tools/boss-check/stall.js` 的定義）、森林沒有活著卻過不了的狀態、搜尋中真的會被彈回入口和打到護身、鏡子最快路線裡王真的會轉一次鏡子。`ALL=1` 會把其他十個王房也列出來對照 |
+| `node test-hitfx.js` | 打擊手感設定表：13 隻王＋`default` × 4 種打擊（bat、bomb、fire、ko）的數字都是有限數字（用真的 `hit-fx-spec.js`、沒有規格檔、故意寫壞的規格檔各檢查一次）、震動不超過 3px、沒有白色、碎片可重現 |
 | `bash test-ui.sh` | 瀏覽器介面檢查（小地圖、標題畫面、favicon、冰原引導箭頭、選單和 `dist/` 裡沒有關卡模式），截圖存到 `shots/v2_ui_*.png` |
-| `node world/check.js`、`node world/check-new.js [desert\|forest\|all]`、`node world/softlock.js` | 草原、沙漠、森林的獨立檢查器 |
+| `node world/check.js`、`node world/check-new.js [desert\|forest\|all]`、`node world/softlock.js world/world-def.js` | 草原、沙漠、森林的獨立檢查器（`softlock.js` 不加參數會讀 `dist/` 裡的地圖；開發資料夾裡還有一個舊的 119 步路線檔 `world/route-119.txt`，草原改版後已經對不上，所以沒放進 repo） |
 | `node tools/scenes567/check-567.js [swamp\|mine\|volcano\|all]` | 沼澤、礦坑、火山 |
 | `node tools/scenes8910/check-8910.js [sea\|castle\|sky\|all]` | 海底、古堡、天空島 |
 | `node tools/scenes1113/check-1113.js [mirror\|power\|clock\|all]` | 鏡子迷宮、發電廠、鐘塔 |
@@ -277,7 +313,7 @@ python3 tools/build-dist.py   # 產生 dist/（會先整個清空 dist/）
 - 新的美術檔要在 `art.js` **之後**載入。只在某些場景用到的，加進 `world.js` 的 `SCENE_ART`，進到那個場景才載入；所有場景都要用的，就放進 `world.html` 的 `<script>`。兩種都要加進 `build-dist.py` 的清單。
 - 函式都是全域的，輔助函式和常數請加上自己的前綴（例如 `bat-art.js` 用 `BBA_`），避免跟其他美術檔撞名。
 - 方向的寫法統一：`0` 上、`1` 下、`2` 左、`3` 右（跟 `guideArrow` 一樣）。時間單位是秒。
-- 畫設計表：參考開發資料夾 `tools/` 裡的 `*preview*.js`，用 `biome-art-preview.js` 的小畫布在 Node 裡直接輸出 PNG，不需要瀏覽器。設計表存進 `design/previews/`，並在 [design/README.md](design/README.md) 加一行說明。
+- 畫設計表：參考 `tools/` 裡的 `*preview*.js`，用 `biome-art-preview.js` 的小畫布在 Node 裡直接輸出 PNG，不需要瀏覽器。設計表存進 `design/previews/`，並在 [design/README.md](design/README.md) 加一行說明。
 - 接進遊戲後，記得截一張**手機尺寸**（390×844）的實際遊戲畫面確認。
 
 ### 設計圖對照（10-22 之後新增）
@@ -291,10 +327,83 @@ python3 tools/build-dist.py   # 產生 dist/（會先整個清空 dist/）
 | [`previews/scenes/clock_mech_v2_design.png`](design/previews/scenes/clock_mech_v2_design.png) | 鐘塔齒輪門和鐘擺第 2 版（`clock-mech-art.js`） | 已上線 |
 | [`launch/13_clock_gear_door.png`](design/launch/13_clock_gear_door.png) | 鐘塔第 2 版齒輪門的手機實際畫面（T6） | 已上線 |
 | [`previews/bat/bat_icon_hud_phone.png`](design/previews/bat/bat_icon_hud_phone.png) | 上方「球棒」標籤和提示的像素球棒小圖（`bat-art.js` 的 `baseballBatIcon`） | 已上線 |
-| [`previews/ui/bomb_range_treant_guard_design.png`](design/previews/ui/bomb_range_treant_guard_design.png) | 炸彈範圍黃色預告、老樹精被打中後 2 步「打不到」的樣子 | **設計稿（尚未放進遊戲）**；10-23 遊戲裡先用程式畫的綠色虛線框＋葉子小點代替「打不到」，設計稿的縮起來圖還沒放 |
-| [`levels/`](design/README.md#關卡修正說明圖levels) 八張 | 鏡子迷宮 R6、R7、RB，發電廠 P5，鐘塔 T5，夜工廠 F5，核心 C4、C10 的關卡修正說明 | 說明用 |
+| [`previews/ui/bomb_range_treant_guard_design.png`](design/previews/ui/bomb_range_treant_guard_design.png) | 炸彈範圍黃色預告、老樹精被打中後 2 步「打不到」的樣子 | 已上線（10-23 中午：`bomb-range-art.js`、`treant-guard-art.js`） |
+| [`previews/ui/hitfx_crackwall_design.png`](design/previews/ui/hitfx_crackwall_design.png) | **A 區**：打擊手感（停格、震動、火花、每隻王的碎片）；**B 區**：舊的「石頭裂牆（只能用球棒打）」 | A 區已上線（`hit-fx-spec.js`、`hit-feel.js`、`world.js` 的 `hitFx`）；B 區**已作廢**，只留作歷史，改成下面的球棒木板牆 v2 |
+| [`previews/ui/hitfx_spec.md`](design/previews/ui/hitfx_spec.md) | 美術監督的打擊手感規格書（`HIT_FX_SPEC` 欄位、每隻王的材質、飛散角度、重力、壽命） | 已上線（數字在 `hit-fx-spec.js`，物理在 `hit-feel.js` 的 `PHYS`） |
+| [`previews/bat/batwall_v2_design.png`](design/previews/bat/batwall_v2_design.png) | 球棒木板牆 v2：只能用球棒打破的木板牆（新的格子種類） | **設計完成、待接**（`design/art-src/crack-wall-art.js`，地圖和引擎都還沒有這種格子） |
+| [`previews/bosses/boss_stun_design.png`](design/previews/bosses/boss_stun_design.png) | 王被打昏的樣子（疊在王身上的暈眩效果） | **設計完成、待接**（`design/art-src/boss-stun-art.js`；遊戲裡目前用小怪的星星 `stunStars`） |
+| [`levels/`](design/README.md#關卡修正說明圖levels) 九張 | 鏡子迷宮 R6、R7、RB，發電廠 P5，鐘塔 T5，夜工廠 F5，核心 C4、C10，古堡 C9 的關卡說明 | 說明用 |
+| [`screenshots/`](design/README.md#遊戲截圖screenshots) 九張 | 電腦和手機的實際遊戲畫面（10-23） | 截圖 |
 
 ---
+
+### 打擊手感與新美術（10-23）
+
+**哪個美術檔畫哪個東西**
+
+| 檔案（美術監督） | 函式 | 畫在遊戲裡的哪裡 |
+|---|---|---|
+| `bomb-range-art.js` | `bombRange(px,py,tiles,fuseLeft,t)` | 地上每顆炸彈的爆炸範圍：淡黃色十字＋虛線框＋往外的小箭頭，剩最後 1 秒才閃。`tiles` 傳 `null`＝標準 5 格十字（引擎的爆炸一律是十字，不會被牆擋），`fuseLeft`＝剩幾秒（`WE.FUSE_MS` 減掉已過的毫秒）。取代原本的 `blastWarn`（函式還留著，沒有新圖時用） |
+| `treant-guard-art.js` | `treantGuard(px,py,frame,hp,max,stepsLeft,t,deflectT,fromDir)` | 老樹精被火打中後的 2 步（`o.gd>0`）：`stepsLeft` 2＝完整盔甲、1＝裂開；吐火打在盔甲上（`bossguard`）時 `deflectT`＝經過秒數（0.35 秒內）、`fromDir`＝火從哪邊來 |
+| `hit-fx-spec.js` | `window.HIT_FX_SPEC`（只有數字） | 打擊時的停格、震動、碎片顆數／大小／速度／顏色（見下面） |
+
+**設計完成、待接**：`design/art-src/crack-wall-art.js`（球棒木板牆 v2，只能用球棒打破的新格子）和 `design/art-src/boss-stun-art.js`（王被打昏的樣子）還沒接進遊戲，網站不會載入。要接的時候把檔案搬到根目錄，加進 `world.html`（或 `SCENE_ART`）和 `build-dist.py` 的清單；木板牆還要在地圖和 `world-engine.js` 加新的格子。`tools/batwall-v2-preview.js`、`boss-stun-preview.js`、`hitfx-crackwall-preview.js` 會到根目錄找這兩個檔，執行前先複製過去。
+
+| 炸彈範圍預告（手機） | 老樹精的樹皮盔甲（手機） |
+|---|---|
+| ![炸彈範圍預告](design/screenshots/phone_02_bomb_range.png) | ![老樹精的樹皮盔甲](design/screenshots/phone_05_treant_armor.png) |
+
+**打擊手感**（`world.js` 的 `hitFx(type,who,x,y,dir,seed)`，只有畫面，不改任何步數或規則）
+
+- `type`：`bat`（球棒打昏生物或王）、`bomb`（炸彈炸到王）、`fire`（吐火打中王，其他方式打中王也用這組數字）、`ko`（王被打倒，`bossdown`）。被擋掉的打擊（老樹精盔甲 `bossguard`、球棒打不動 `bonk`、盔甲騎士擋開 `deflect`）不會呼叫。
+- `who`：王的代碼（下表）；生物和不認得的代碼用 `default`。
+- 停格：動畫時鐘 `T` 停住幾毫秒（炸彈的倒數照真實時間走，不會變慢）。球棒、吐火在 0.07 秒後的「打到那一下」才停（跟 `KNOCK_DELAY` 一樣），炸彈和 KO 當下就停。
+- 震動：整個畫面位移，幅度 × (1 − t/shakeMs)²，**每 1/30 秒換一次方向**，第一下往打擊方向；最多 3px（遊戲像素）。系統設定「減少動態效果」（`prefers-reduced-motion`）時不震動（門、裂牆等原本的震動也一樣），其他照常。原本 `shake` 的格數震動（開門、炸牆、符文石）也改用同一個震動器（2px、1/30 秒換方向）；王被打倒原本是 4 格震動，現在改成 KO 的數字（最多 3px）。
+- 火花（不用白色，白色是鐘塔「現在」的記號）：球棒＝「+」→ 四條斜線加一道弧 → 三個小點（沙色 `#ead4aa`、琥珀 `#feae34`、墨色描邊）；吐火同一個形狀換成橘色；炸彈＝實心爆點 → 半徑 6 的圈。KO 不畫火花，0.2 秒後補一圈 360° 碎片。炸彈炸到王也是 360° 一圈碎片（數量＝`count.bomb`，顏色＝那隻王的 `colors`，例如熔岩巨人是橘紅火星），每片加 1 像素墨色外框，才看得出來（不然橘色碎片落在橘色的王身上就看不見）。
+- 炸彈的煙（`puffFx`，`world.js`）：十字五格先冒圓形火團 0.25 秒（橘／黃，沒有白色），再變成約半格大的圓形煙團（`#5a6988`、`#3a4466`），半透明、0.5 秒內淡掉、從炸彈往外飄。王站的那格和正上方那格不畫火團和煙，免得蓋住王的臉（那裡由 `hitFx('bomb')` 的爆點表示打中）。其他的煙（符文牆、球棒打碎牆、擺錘打到甲蟲）還是原本的 `smoke()`。
+| 炸彈炸到熔岩巨人（手機） | 球棒打昏盔甲騎士王（手機） |
+|---|---|
+| ![炸彈炸到熔岩巨人](design/screenshots/phone_03_golem_bomb_hit.png) | ![球棒打昏盔甲騎士王](design/screenshots/phone_04_knight_bat_hit.png) |
+
+- 碎片：`HitFeel.burst()` 用 mulberry32，種子＝`王編號×7919＋步數×104729`，同一下打擊每次長得一樣。飛散角度、重力、壽命照 [`design/previews/ui/hitfx_spec.md`](design/previews/ui/hitfx_spec.md)（在 `hit-feel.js` 的 `PHYS`）；最後 30% 淡出，2×2 的碎片右下多 1px 墨色影子。
+
+**`HIT_FX_SPEC` 格式**（美術監督改數字只要改 `hit-fx-spec.js`）
+
+```js
+window.HIT_FX_SPEC = { <王的代碼>: { colors:['#hex',…], size:[[w,h],…], count:{bat,bomb,ko,fire}, speed:[最小,最大],
+                                    hitStopMs:{bat,bomb,ko,fire}, shakePx:{bat,bomb,ko,fire}, shakeMs }, default:{…} }
+```
+
+| 欄位 | 意思 | 沒寫或寫壞時 |
+|---|---|---|
+| `colors` | 碎片顏色（Endesga 32），白色會被拿掉 | `#8b9bb4 #5a6988 #c0cbdc #3a4466` |
+| `size` | 碎片大小 `[寬,高]`（1–4px），每顆隨機挑一個 | `[1,1]`、`[2,1]` |
+| `count` | 碎片顆數（0–24） | bat 5、bomb 8、fire 3、ko 12 |
+| `speed` | 初速 px/秒（16px＝1 格） | 35–80 |
+| `hitStopMs` | 停格毫秒（0–200） | bat 75、bomb 110、fire 60、ko 140 |
+| `shakePx` | 震動幅度（0–3） | bat 1、bomb 2、fire 1、ko 3 |
+| `shakeMs` | 震動衰減時間（0–400） | 200 |
+
+某隻王沒寫的欄位先用規格檔的 `default`，再沒有就用上表。轉換在 `hit-feel.js` 的 `build()`（就是美術監督規格書裡那三行轉換，加上 `ko` 和碎片欄位，並且檢查每個數字）。
+
+**王的代碼**（引擎的 `o.kind`，也是 `BATBOSS` 裡的字串）
+
+| 代碼 | 王 | 場景 |
+|---|---|---|
+| `worm` | 沙蟲王 | 沙漠 |
+| `tree` | 老樹精 | 森林 |
+| `frog` | 泥巴蛙王 | 沼澤 |
+| `mole` | 鼴鼠王 | 礦坑 |
+| `golem` | 熔岩巨人 | 火山 |
+| `crab` | 巨蟹王 | 海底 |
+| `knight` | 盔甲騎士王 | 古堡 |
+| `bird` | 風暴鳥 | 天空島 |
+| `phantom` | 鏡影王 | 鏡子迷宮 |
+| `spark` | 電火花王 | 發電廠 |
+| `guard` | 鐘塔守衛 | 鐘塔 |
+| `glitch` | 故障機器人 | 夜工廠 |
+| `core` | 故障核心 | 核心 |
+| `default` | 生物（甲蟲、蝙蝠…）和其他 | — |
 
 ## 8. 設計原則
 
@@ -351,13 +460,13 @@ python3 tools/build-dist.py   # 產生 dist/（會先整個清空 dist/）
 - **夜工廠 F7 ＋ 卡住偵測（10-23，引擎改一行、地圖改四格，不用升版面版本）**：Jasper 問「這一段是不是也又bug」。兩個問題：
   1. **卡住偵測從沙漠以後都沒在作用**：`world-engine.js` 的 `key()` 裡放了 `s.zt`（每走一步加 1 的計數器，只有鐘塔的齒輪門／鐘擺會用到），所以在所有 v2 區域每一步都是「新狀態」，`zoneStuck` 永遠搜不完、碰到上限就回 `null`，遊戲就不亮 ↺、也不顯示「箱子卡住了，按 ↺ 重來」（大概從版面 9 鐘塔重排開始）。現在 `parseWorld` 記下哪些地圖是鐘塔（`ZTMAPS`），`key()` 在鐘塔只放齒輪門／鐘擺看得到的部分（`zt>0` 和 `zt%4`），其他地圖不放 `zt`。鐘塔的規則完全沒變。注意：有巡邏怪的區域只要走得出區域，`zoneStuck` 還是照設計回 `null`（巡邏怪的位置算不準），這部分沒改。
   2. **F7 箱子幾乎往哪推都卡死**：唯一的箱子在上排，最直覺的「往右推」會推上右上角的 → 帶子卡進牆角，往下推會掉到下排的 ← 帶子被送進牆角；唯一的解法是讓箱子在左邊 ↓↑ 兩條帶子之間來回彈、抓時機從左邊推（110 個可達狀態裡 74 個是這兩種死路，而且沒有提示、區域說明還寫「一個箱子去開關，一個讓路」但其實只有一個箱子）。現在 (18,12) 改成 ↓ 帶子（箱子推上去會掉到開關正上方，再往下推上開關）、下排 (16,14)(17,14) 改成 → →（推下來的箱子會被送上開關）、左上角 (14,12) 牆改空地（回程不用被 ↓↑ 帶子彈、不用撞牆）。從入口：←←←← →→→↓ ←←←←↓↓←，15 步、開門前 8 步、不用等。剩下的死路只有把箱子推進左邊 (14,13)/(14,12)，現在都會亮 ↺。舊存檔裡箱子卡在 (18,12) 或 (16,14) 的，下一步就會被新的帶子送回可解的位置，所以不用升版面版本。另加 F7 提示：「箱子往右推上↓帶子，它會掉到開關正上方，再從上面往下推上開關」。
-  - 全區域檢查（工具不推上 GitHub）：還有幾個區域要等 3 步以上（天空 K5、K8 等雲約 7 步，10-23 中午已改好，見下一條；古堡 C10 等 2 步加撞 1 次，照規定不改）；沒有箱子的區域（沼澤、海底、天空、礦坑幾區等）走錯了也是死路，但遊戲只在有箱子的區域檢查卡住，所以不會亮 ↺；有巡邏怪又有箱子的區域（沙漠 D7、D10、D13，森林 F13，發電廠 P4，夜工廠 F6）大部分死路也不會亮。這些只列出，還沒改。
+  - 全區域檢查：還有幾個區域要等 3 步以上（天空 K5、K8 等雲約 7 步，10-23 中午已改好，見下一條；古堡 C10 等 2 步加撞 1 次，照規定不改）；沒有箱子的區域（沼澤、海底、天空、礦坑幾區等）走錯了也是死路，但遊戲只在有箱子的區域檢查卡住，所以不會亮 ↺；有巡邏怪又有箱子的區域（沙漠 D7、D10、D13，森林 F13，發電廠 P4，夜工廠 F6）大部分死路也不會亮。這些只列出，還沒改。
 - **天空 K5、K8 雲朵起點（10-23，地圖改三格，不用升版面版本）**：兩區的雲一開始就飄往小光要搭的方向，原本要撞牆等雲飄過來約 7 步。`world/sky.txt` 地圖第 14 行兩朵雲 `]`→`[`（K8 第 8 列、K5 第 38 列）、第 15 行一朵 `[`→`]`（K8 第 6 列），只改雲的起始方向（`[`、`]` 在 `parseWorld` 是同一種雲、不同起始方向），地圖別的地方沒動。K5 最少 16→9 步、K8 20→13 步，兩區都不用原地等或撞牆（`zoneaudit` 窮舉：K5 695 個狀態、K8 210 個狀態，原地浪費 0 步）。K5 的炸彈和裂牆現在用不到（照樣留著，不是必要的路）；K5 沒有遊戲內提示，`sky.txt` 裡的區域說明「搭雲去拿炸彈，炸開裂牆」只是開發筆記、不會出現在遊戲裡（應改成「搭雲過去」，由地圖負責人改）。舊存檔：雲的位置跟著存檔走，已經在天空島的存檔，那一區按 ↺（`resetZone` 會把該區的雲換回 `clouds0`）後才會換成新起點；舊起點照樣過得去，只是比較慢，所以不用升版面版本。
 - **王房修正（10-23，版面版本 12）**：照王房檢查報告修森林、火山、鏡子三個王房和提示字。
   - **老樹精**：
     - 被火打中後，旁邊燒掉的藤蔓長回來時**跳過小光站的那格**（原本會長在小光腳下把她卡死）。`world/check-new.js` 照樣改，`test-v2.js` 對照才會一樣。
     - 樹根那一排如果小光躲不掉（腳下和旁邊都被標），原本是把記號拿掉；現在改成**藍框**（`b.trap=1`，框裡畫白色樹根尖和一個小回頭箭頭），下一步小光被**彈回王房入口**（`bounced`），不算失敗，樹的血不會回來。只有老樹精這樣，其他王還是拿掉記號。
-    - **打中後護身 2 步**（`b.gd`，只在王會出招時才有，`setBossMoves(false)` 時沒有）：樹外面一圈綠色虛線框閃，頭上一顆葉子＝還剩一步；這時吐火打不進去（`bossguard`，頭上泡泡說還要走幾步）。
+    - **打中後護身 2 步**（`b.gd`，只在王會出招時才有，`setBossMoves(false)` 時沒有）：10-23 中午起畫成**樹皮盔甲**（`treant-guard-art.js` 的 `treantGuard`，取代原本的綠色虛線框）：剩 2 步時全身鱗甲＋右上角小盾牌，剩 1 步時盔甲和盾牌裂開；這時吐火打不進去（`bossguard`，冒「叮」的火花、木屑往火來的方向彈回去，頭上泡泡說還要走幾步）。穿著盔甲時不再閃白色受傷圖。
     - 只用火最少 22 步（原本 13 步，因為以前站著連吐三次就贏），最快路線沒有原地浪費。
   - **熔岩巨人**：3 血改 2 血（最少 36→29 步，等炸彈 1 步）。舊存檔：巨人還有血就扣 1（3→2、2→1，至少留 1），打裂存檔點的血也跟著減 1。
   - **鏡影王**：節拍 4→3（預告在第 3 個動作、第 4 個動作轉回去，所以藍框每 4 個動作出現一次），從剩 2 滴血起就出招。最少 17→18 步，原地浪費 1 步（故意撞牆引王）。提示改成講原理（只有轉彎的紅光打得到、牠上下跟你左右相反），不寫按鍵順序。
