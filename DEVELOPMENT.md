@@ -13,12 +13,13 @@
 
 ## 1. 遊戲概要
 
-### 兩種模式
+### 遊戲模式
 
 | 網址 | 模式 | 程式 |
 |---|---|---|
-| `index.html` | **大地圖冒險**（主要模式）：15 個場景連成一個世界，鏡頭跟著小光捲動 | `world-engine.js` + `world.js` |
-| `levels.html` | **30 關模式**：最早的單關版本，每關一個小地圖，有星星評分 | `logic.js` + `levels.js` + `game.js` |
+| `index.html` | **大地圖冒險**（唯一的模式）：15 個場景連成一個世界，鏡頭跟著小光捲動 | `world-engine.js` + `world.js` |
+
+> 最早的「30 關模式」（關卡模式，`levels.html`）已在 2026-10-23 依 Jasper 要求移除：選單裡的「關卡模式（30 關）」按鈕和說明文字拿掉了，網站不再提供 `game.js`、`levels.js`。`levels.html` 只留一個轉址頁，舊連結會自動回到大地圖冒險。
 
 ### 操作
 
@@ -84,19 +85,21 @@
 | `ending-art.js` | 結局動畫，在核心裡先預載，最後載入 |
 | `music.js` | 程式產生的 8-bit 背景音樂（Web Audio，沒有音檔） |
 | `share.js`、`share-clear.html` | 破關分享：手機打開系統分享選單；電腦複製分享文字＋連結並打開 X 發文頁，畫面下方會提示「已複製連結」。只打開玩家自己的選單或發文頁，不會替人發文 |
-| `levels.html`、`game.js`、`logic.js`、`levels.js` | 30 關模式 |
+| `logic.js` | 共用的格子查詢小工具（`art.js` 畫牆時用 `Logic.cell`），原本是 30 關模式的規則程式 |
+| `levels.html` | 轉址頁：舊的關卡模式網址，打開會直接回到大地圖冒險 |
 | `og.png`、`og-clear.png` | 分享到社群時的預覽大圖（未破關／破關） |
 | `favicon.ico`、`favicon-32.png` | 分頁小圖示 |
 | `fonts/Cubic_11.woff2`、`fonts/OFL.txt` | 像素中文字型「俐方體 11 號」和授權 |
 
-存檔放在瀏覽器的 localStorage（`glowbot.world.v1`，版本 4）；靜音設定跟 30 關模式共用。
+存檔放在瀏覽器的 localStorage（`glowbot.world.v1`，版本 4）；靜音設定沿用舊的 `robotMaze.v1`（裡面以前 30 關模式留下的進度會被忽略，不影響大地圖存檔）。
 
 ### 開發資料夾裡的其他檔案（不在 repo）
 
 | 檔案 | 用途 |
 |---|---|
 | `world/*.txt` | 15 張地圖的文字檔（格式見第 3 節） |
-| `world.html`、`index.html`、`game.js`、`world.js` | 開發版頁面，含測試用的網址參數；建置時會拿掉 |
+| `world.html`、`world.js` | 開發版頁面，含測試用的網址參數；建置時會拿掉 |
+| `index.html`、`game.js`、`levels.js` | 已移除的 30 關模式原始檔，不再上線；`game.js` 仍是 `art.js` 的美術來源，`index.html` 提供分享預覽的 meta 標籤 |
 | `world-plan.md` | 世界設計規劃和各場景設計稿（規則、各區最少步數） |
 | `tools/build-world.js` | `world/*.txt` → `world/world-def.js`；**提示字（hints）也寫在這支程式裡** |
 | `tools/build-dist.py` | 產生要上線的 `dist/` |
@@ -105,6 +108,7 @@
 | `tools/solve-world.js`、`route-world.js`、`check-grass-f.js` | 整個世界的解題、路線和草原 F 區檢查 |
 | `tools/*preview*.js` | 產生設計圖（已存進 [design/tools/](design/tools/)） |
 | `test-*.js`、`test*.sh`、`cdp.py` | 測試（見第 5 節） |
+| `legacy-levels/` | 已移除的 30 關模式的舊瀏覽器測試（`test.sh`、`test-all.sh`），只留存檔，不再執行 |
 | `shots/` | 設計圖和測試截圖 |
 | `CHANGELOG.md` | 更新紀錄的原稿（`dist/` 每次建置都會清空，所以放在開發資料夾根目錄） |
 
@@ -130,7 +134,7 @@
 
 第 5–15 場景的 `.txt` 是由 `tools/scenesXXX/gen.js` 從 `spec.js` 產生的（`world-plan.md` 的說明是「請改 spec.js 再重新產生」）。
 
-### 共用字元（30 關模式和所有場景）
+### 共用字元（所有場景）
 
 | 字元 | 意思 | 字元 | 意思 |
 |---|---|---|---|
@@ -142,7 +146,7 @@
 | `b` | 炸彈草（拿走會再長） | `%` | 裂牆（炸彈炸得開；有球棒後普通裂牆也打得碎，區域說明寫「鐵箍」的區域例外，畫面上會多兩道鐵箍） |
 | `1`–`9`、`0` | 隧道口 | `R` | 符文石 |
 | `*` | 螺絲零件（收集品） | `G` | 王關門（打倒該區的王才開） |
-| `L` | 燈塔燈 | `E` `g` `P` `O` | 電池、磁力手套、巡邏機器人、碎裂地板（30 關模式） |
+| `L` | 燈塔燈 | `E` `g` `P` `O` | 電池、磁力手套、巡邏機器人、碎裂地板（只在已移除的 30 關模式用過） |
 
 ### 各場景新增的字元（取自各 `.txt` 的圖例和 `world-engine.js`）
 
@@ -206,7 +210,7 @@ python3 tools/build-dist.py   # 產生 dist/（會先整個清空 dist/）
 ```
 
 `build-dist.py` 做的事：
-- `world.html` → `dist/index.html`，`index.html` → `dist/levels.html`，`game.js`、`world.js` 去掉測試用的部分；
+- `world.html` → `dist/index.html`，`world.js` 去掉測試用的部分；`dist/levels.html` 寫成轉址到首頁的小頁面；
 - 複製一份**固定的檔案清單**（遊戲腳本、各場景美術、字型、圖片、`world/world-def.js`）；
 - 每個腳本網址加上 `?v=內容雜湊`，並把雜湊表寫進 `window.ASSET_V`，讓延遲載入的美術也帶版本號（GitHub Pages 會快取 10 分鐘，這樣新舊檔案才不會混用）。
 
@@ -216,13 +220,12 @@ python3 tools/build-dist.py   # 產生 dist/（會先整個清空 dist/）
 
 | 指令 | 內容 |
 |---|---|
-| `node test-logic.js` | 30 關模式的規則單元測試 |
+| `node test-logic.js` | `logic.js` 的規則單元測試（原 30 關模式；`logic.js` 仍有上線） |
 | `node test-world.js` | 大地圖引擎單元測試和解題檢查 |
 | `node test-v2.js` | 確認引擎在沙漠、森林的行為跟設計檢查器 `world/check-new.js` 完全一致 |
 | `node test-stuck.js` | 卡死檢查不會誤判可解的區域，也抓得到真的卡死 |
 | `node test-bat.js` | 每一隻生物從四個方向「相鄰吐火」都會嚇呆（火山除外）、球棒都打得昏；普通裂牆打得碎、鐵箍裂牆打不破；撿球棒、舊存檔補發球棒、舊存檔在 C5 裡會回到入口；擊退一定往機器人面對的方向、不會進入口出口或任何危險格（含尖刺格）、被擋住就只嚇呆；C5 從 Jasper 卡住的狀態（騎士貼在入口旁）用球棒 10 步、只用火 15 步都過得去；C10 騎士不會被打上尖刺；舊存檔在 C10 裡會整區重來 |
-| `bash test-ui.sh` | 瀏覽器介面檢查（小地圖、標題畫面、favicon、冰原引導箭頭），截圖存到 `shots/v2_ui_*.png` |
-| `bash test-all.sh`、`bash test.sh` | 30 關模式在瀏覽器裡實際解關 |
+| `bash test-ui.sh` | 瀏覽器介面檢查（小地圖、標題畫面、favicon、冰原引導箭頭、選單和 `dist/` 裡沒有關卡模式），截圖存到 `shots/v2_ui_*.png` |
 | `node world/check.js`、`node world/check-new.js [desert\|forest\|all]`、`node world/softlock.js` | 草原、沙漠、森林的獨立檢查器 |
 | `node tools/scenes567/check-567.js [swamp\|mine\|volcano\|all]` | 沼澤、礦坑、火山 |
 | `node tools/scenes8910/check-8910.js [sea\|castle\|sky\|all]` | 海底、古堡、天空島 |
