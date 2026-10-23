@@ -106,7 +106,7 @@
 | `tools/extract-art.py` | 從 `game.js` 產生 `art.js` |
 | `tools/scenes567/`、`scenes8910/`、`scenes1113/`、`scenes1415/` | 第 5–15 場景的地圖產生器（`spec.js` → `gen.js` → `world/*.txt`）和獨立檢查器 |
 | `tools/solve-world.js`、`route-world.js`、`check-grass-f.js` | 整個世界的解題、路線和草原 F 區檢查 |
-| `tools/*preview*.js` | 產生設計圖（已存進 [design/tools/](design/tools/)） |
+| `tools/*preview*.js` | 產生設計圖（輸出到 `shots/`，挑好的再存進 [design/](design/README.md)） |
 | `test-*.js`、`test*.sh`、`cdp.py` | 測試（見第 5 節） |
 | `legacy-levels/` | 已移除的 30 關模式的舊瀏覽器測試（`test.sh`、`test-all.sh`），只留存檔，不再執行 |
 | `shots/` | 設計圖和測試截圖 |
@@ -276,8 +276,22 @@ python3 tools/build-dist.py   # 產生 dist/（會先整個清空 dist/）
 - 新的美術檔要在 `art.js` **之後**載入。只在某些場景用到的，加進 `world.js` 的 `SCENE_ART`，進到那個場景才載入；所有場景都要用的，就放進 `world.html` 的 `<script>`。兩種都要加進 `build-dist.py` 的清單。
 - 函式都是全域的，輔助函式和常數請加上自己的前綴（例如 `bat-art.js` 用 `BBA_`），避免跟其他美術檔撞名。
 - 方向的寫法統一：`0` 上、`1` 下、`2` 左、`3` 右（跟 `guideArrow` 一樣）。時間單位是秒。
-- 畫設計表：參考 [design/tools/](design/tools/) 裡的程式，用 `biome-art-preview.js` 的小畫布在 Node 裡直接輸出 PNG，不需要瀏覽器。設計表存進 `design/previews/`，並在 [design/README.md](design/README.md) 加一行說明。
+- 畫設計表：參考開發資料夾 `tools/` 裡的 `*preview*.js`，用 `biome-art-preview.js` 的小畫布在 Node 裡直接輸出 PNG，不需要瀏覽器。設計表存進 `design/previews/`，並在 [design/README.md](design/README.md) 加一行說明。
 - 接進遊戲後，記得截一張**手機尺寸**（390×844）的實際遊戲畫面確認。
+
+### 設計圖對照（10-22 之後新增）
+
+完整說明和縮圖見 [design/README.md](design/README.md)。
+
+| 設計圖 | 對應的角色／功能 | 狀態 |
+|---|---|---|
+| [`previews/bosses/boss_moves_03-08_preview.png`](design/previews/bosses/boss_moves_03-08_preview.png) | 王戰第 2 階段前半：沙蟲王、老樹精、泥巴蛙王、鼴鼠王、熔岩巨人、巨蟹王的預告記號（`world-engine.js` 的王招式、`world.js` 的 `bossMark`） | 已上線 |
+| [`previews/bosses/boss_moves_09-15_preview.png`](design/previews/bosses/boss_moves_09-15_preview.png) | 王戰第 2 階段後半：盔甲騎士王、風暴鳥、鏡影王、電火花王、鐘塔守衛、故障機王、故障核心的預告記號 | 已上線 |
+| [`previews/scenes/clock_mech_v2_design.png`](design/previews/scenes/clock_mech_v2_design.png) | 鐘塔齒輪門和鐘擺第 2 版（`clock-mech-art.js`） | 已上線 |
+| [`launch/13_clock_gear_door.png`](design/launch/13_clock_gear_door.png) | 鐘塔第 2 版齒輪門的手機實際畫面（T6） | 已上線 |
+| [`previews/bat/bat_icon_hud_phone.png`](design/previews/bat/bat_icon_hud_phone.png) | 上方「球棒」標籤和提示的像素球棒小圖（`bat-art.js` 的 `baseballBatIcon`） | 已上線 |
+| [`previews/ui/bomb_range_treant_guard_design.png`](design/previews/ui/bomb_range_treant_guard_design.png) | 炸彈範圍黃色預告、老樹精被打中後 2 步「打不到」的樣子 | **設計稿（尚未放進遊戲）** |
+| [`levels/`](design/README.md#關卡修正說明圖levels) 八張 | 鏡子迷宮 R6、R7、RB，發電廠 P5，鐘塔 T5，夜工廠 F5，核心 C4、C10 的關卡修正說明 | 說明用 |
 
 ---
 
