@@ -22,7 +22,8 @@ function parseWorld(def){TUNALIAS=Object.assign({},def.tunnelAlias||{});
     else if(c==='x'||c==='e'){W.bugs0.push({m:id,x,y,d:c==='x'?3:2,fr:0,ghost:1,spotted:0,spark:1});g[y][x]='.'} // power spark mon (knight-sight)
     else if((c==='p'||c==='P')&&!(m.theme==='factory'||m.theme==='core')){W.droppedBugs.push(W.bugs0.length+W.droppedBugs.length)} // swamp lily: no mover, glyph stays (old saves: see initMovers)
     else if(c==='p'||c==='P'){W.bugs0.push({m:id,x,y,d:c==='p'?3:2,fr:0,ghost:1,spotted:0,glitch:1});g[y][x]='.'} // factory/core glitch bot (presses X); in the swamp 'p' is a green lily pad, not a mover
-    else if(c==='Y'||c==='O'||c==='&'||c==='$'||c==='¶'){{const hp=c==='¶'?3:2;W.bosses0.push({m:id,x,y,d:3,hp,max:hp,kind:c==='O'?'frog':c==='&'?'mole':c==='$'?'crab':c==='¶'?'phantom':'worm'})}g[y][x]='.'}
+    // 鼴鼠王 starts one tile right, facing left (= its patrol 3 beats later), so the boss room needs no wall-bump waiting at the entry; the & cell itself stays floor
+    else if(c==='Y'||c==='O'||c==='&'||c==='$'||c==='¶'){{const hp=c==='¶'?3:2,mo=c==='&';W.bosses0.push({m:id,x:mo?x+1:x,y,d:mo?2:3,hp,max:hp,kind:c==='O'?'frog':c==='&'?'mole':c==='$'?'crab':c==='¶'?'phantom':'worm'})}g[y][x]='.'}
     else if(c==='@'){W.bosses0.push({m:id,x,y,d:3,hp:3,max:3,kind:'knight'});g[y][x]='.'}
     else if(c==='§'){W.bosses0.push({m:id,x,y,d:3,hp:3,max:3,kind:'spark',needPw:1,knight:1});g[y][x]='.'}
     else if(c==='¥'){W.bosses0.push({m:id,x,y,d:3,hp:3,max:3,kind:'glitch',knight:1});g[y][x]='.'}
@@ -274,7 +275,9 @@ function recomputeV2(W,s,Z){if(!Z){s.lit=0;s.pw=0;s.gen=0;s.bounce={};return}
 // Stun never hurts: bombs still do the damage. Every other boss: the bat bonks off (no damage, no stun) and fire does nothing, as before.
 const BATSTUN=3,BATBOSS=['worm','frog','mole','crab','knight','bird','spark','glitch','tree','golem','guard','core','phantom'],STUNBOSS=['knight','spark','glitch'];
 const canStunBoss=(s,b)=>STUNBOSS.indexOf(b.kind)>=0&&!(b.needPw&&!s.gen);
+const ballAt=(s,m,x,y)=>(s.bosses||[]).findIndex(o=>o.hp>0&&o.m===m&&o.shot&&o.shot.x===x&&o.shot.y===y);
 function batTarget(W,s){if(!hasInv(s,'Q'))return null;const m=s.m,[dx,dy]=DIRS[s.f],x=s.x+dx,y=s.y+dy,Z=curZone(W,s);
+ const ba=ballAt(s,m,x,y);if(ba>=0)return{kind:'ball',i:ba,x,y}; // 故障機王's glitch ball: bat it back
  const bi=bugAt(s,m,x,y);if(bi>=0&&(!Z||inZone(Z,x,y)))return{kind:'bug',i:bi,x,y};
  if(cell(W,s,m,x,y)==='%'){const wz=zoneAt(W,m,x,y);return{kind:wz&&wz.iron?'iron':'wall',x,y}} // iron-banded cracked walls (bomb / minecart puzzles) just clang
  const bi2=(s.bosses||[]).findIndex(o=>o.hp>0&&o.m===m&&o.x===x&&o.y===y);if(bi2>=0)return canStunBoss(s,s.bosses[bi2])?{kind:'bossbat',i:bi2,x,y}:{kind:'boss',x,y};
@@ -284,8 +287,9 @@ function knockTo(W,s,b){const m=b.m,[dx,dy]=DIRS[s.f],nx=b.x+dx,ny=b.y+dy,Z=W.ma
  if(solidV2(W,s,m,nx,ny)||occV2(s,m,nx,ny)||itemHere(W,s,m,nx,ny)||c==='q'||c==='~'||isLava(c)||hazardV2(W,s,m,nx,ny,Z)||(W.maps[m].theme==='castle'&&'tud'.indexOf(c)>=0))return null; // never onto a spike / trapdoor tile at all (even lowered/closed): a lever flip would otherwise park it there
  return [nx,ny]}
 function swing(W,s,ev){const t=batTarget(W,s);ev.push('swing');s.lastBat={m:s.m,x:s.x,y:s.y,f:s.f,tx:t.x,ty:t.y,kind:t.kind};
+ if(t.kind==='ball'){const B=s.bosses[t.i];B.shot={...B.shot,d:{up:0,down:1,left:2,right:3}[s.f],back:1};ev.push('deflect');return}
  if(t.kind==='bug'){const b=s.bugs[t.i];b.fr=BATSTUN;b.spotted=0;ev.push('stun');const kb=knockTo(W,s,b);if(kb){b.x=kb[0];b.y=kb[1];s.lastBat.kx=kb[0];s.lastBat.ky=kb[1];ev.push('knock')}}
- else if(t.kind==='bossbat'){const b=s.bosses[t.i];b.fr=BATSTUN;b.spotted=0;ev.push('stun','bossstun');const kb=DIRS[s.f][1]===0?knockTo(W,s,b):null;if(kb){b.x=kb[0];b.y=kb[1];s.lastBat.kx=kb[0];s.lastBat.ky=kb[1];s.lastBat.boss=1;ev.push('knock')}}
+ else if(t.kind==='bossbat'){const b=s.bosses[t.i];b.fr=BATSTUN;b.spotted=0;b.chg=0;ev.push('stun','bossstun');const kb=DIRS[s.f][1]===0?knockTo(W,s,b):null;if(kb){b.x=kb[0];b.y=kb[1];s.lastBat.kx=kb[0];s.lastBat.ky=kb[1];s.lastBat.boss=1;ev.push('knock')}}
  else if(t.kind==='wall'){s.broken.push(K(s.m,t.x,t.y));ev.push('wall','smash')}
  else ev.push(t.kind==='iron'?'clang':'bonk')}
 function breathe(W,s,ev){const m=s.m,M=W.maps[m],Z=curZone(W,s);let x=s.x,y=s.y,d={up:0,down:1,left:2,right:3}[s.f];if(M.theme==='volcano'){ev.push('noeffect');s.lastFire={m,x0:s.x,y0:s.y,x1:s.x,y1:s.y,f:s.f,noop:1};return}ev.push('fire');
@@ -297,10 +301,75 @@ function breathe(W,s,ev){const m=s.m,M=W.maps[m],Z=curZone(W,s);let x=s.x,y=s.y,
   const tb=(s.bosses||[]).find(o=>o.kind==='tree'&&o.hp>0&&o.m===m&&o.x===x&&o.y===y);
   if(tb){tb.hp--;tb.hitAt=s.steps;ev.push('bosshit');for(const kk of Object.keys(s.vt)){const [mm,xy]=kk.split(':'),[vx,vy]=xy.split(',').map(Number);if(mm===m&&(!Z||inZone(Z,vx,vy))){delete s.ch[kk];delete s.vt[kk];ev.push('regrow')}}
    if(tb.hp<=0){s.ch[k]='.';ev.push('bossdown')}break}
-  const sb=(s.bosses||[]).find(o=>o.hp>0&&o.m===m&&o.x===x&&o.y===y);if(sb&&canStunBoss(s,sb)){sb.fr=3;sb.spotted=0;ev.push('stun','bossstun');break}
+  const sb=(s.bosses||[]).find(o=>o.hp>0&&o.m===m&&o.x===x&&o.y===y);if(sb&&canStunBoss(s,sb)){sb.fr=3;sb.spotted=0;sb.chg=0;ev.push('stun','bossstun');break}
   if(solidV2(W,s,m,x,y)||occV2(s,m,x,y))break}
  s.lastFire={m,x0:s.x,y0:s.y,x1:x,y1:y,f:s.f}}
 // everything that moves takes one step (after the robot). Returns 'caught' if a beetle walks into the robot.
+// ── boss moves (boss update stage 2) ── every boss attacks on a fixed beat, ALWAYS telegraphed one action ahead:
+// b.t counts the robot's actions in the room; when it reaches BATKP[kind] (its beat) the boss marks tiles (b.warn, drawn by world.js) and on the NEXT action
+// they strike: robot standing on a marked tile = fail (same as being caught). Entry/exit tiles are never marked, and a mark under the robot is
+// dropped when it has no safe tile to step to, so every strike can be dodged by one ordinary step (no waiting, no unfair death).
+//  worm  沙蟲王  'under': dives (stays put) and marks the robot's tile; next action it bursts out there (and keeps patrolling from that tile)
+//  tree  老樹精  'row'  : roots shoot along the robot's whole row
+//  frog  泥巴蛙王 'jump' : crouches and drops a shadow 2 tiles ahead along its row; next action it lands there
+//  mole  鼴鼠王  'col'  : the ground cracks along the robot's whole column
+//  golem 熔岩巨人 'ring' : lava splashes on every tile exactly 2 steps away from it
+//  crab  巨蟹王  'tide' : blows bubbles over the currents; next action every current in the room turns around (harmless, but bombs drift the other way)
+// Stunned bosses (fire / bat, charging bosses only) don't count or attack.
+//  (second half)
+//  bird    風暴鳥   'gust' : flaps; the 3 tiles above and below it get a wind mark (blue, harmless); next action you're blown 1 tile away from it sideways
+//  phantom 鏡影王   'flip' : only at 1 HP — a mirror you flipped glows (blue); next action the king flips it back, so the red light has to be re-aimed
+//  spark   電火花王 'wire' : only while the generator is on — the row under the wire sparks; next action it discharges there
+//  guard   鐘塔守衛 'bell' : on the clock's 4-beat (same as the gear doors) the bell rings: its row, then next time its column
+//  glitch  故障機王 'shot' : when you line up with it (same row or column, 2+ tiles, clear) it marks the tile in front of it, then fires a glitch ball
+//                           that flies 1 tile per action (its next tile is always marked). Bat the ball (adjacent) and it flies back: hitting the king stuns it 3.
+//  core    故障核心 'pulse': alternates an X (diagonals) and a + (straight lines) of glitch out to 2 tiles, on a steady beat (mark, strike, one quiet action). A slower beat with a 2-HP speed-up made the shortest route wait out beats by bumping walls
+//  knight  盔甲騎士王: no new mark — once it starts charging it keeps running; if you duck out of the row it crashes into the wall and is stunned 2 actions.
+const BATK={worm:'under',tree:'row',frog:'jump',mole:'col',golem:'ring',crab:'tide',bird:'gust',phantom:'flip',spark:'wire',guard:'bell',glitch:'shot',core:'pulse'},BATKP={worm:3,tree:5,frog:3,mole:4,golem:3,crab:4,bird:3,phantom:4,spark:3,guard:3,glitch:3,core:2},BSAFE={tide:1,gust:1,flip:1},FLIPCUR={'↑':'↓','↓':'↑','←':'→','→':'←'};
+function bossWarnTiles(W,s,b,Z){const m=s.m,kind=BATK[b.kind],T=[],ok=(x,y)=>inZone(Z,x,y)&&!isEE(Z,x,y)&&!solidV2(W,s,m,x,y)&&!(x===b.x&&y===b.y);
+ if(kind==='tide'){for(let y=Z.y;y<Z.y+Z.h;y++)for(let x=Z.x;x<Z.x+Z.w;x++)if(cell(W,s,m,x,y) in CUR)T.push([x,y]);return T}
+ if(kind==='flip'){for(let y=Z.y;y<Z.y+Z.h;y++)for(let x=Z.x;x<Z.x+Z.w;x++){const c=cell(W,s,m,x,y);if((c in MIR)&&c!==base(W,m,x,y))T.push([x,y])}return T}
+ if(kind==='gust'){for(const dy of [-1,1])for(const dx of [-1,0,1]){const x=b.x+dx,y=b.y+dy;if(ok(x,y)&&cell(W,s,m,x,y)!==',')T.push([x,y])}b.gx=b.x;return T}
+ if(kind==='under'){if(ok(s.x,s.y)&&boxAt(s,m,s.x,s.y)<0)T.push([s.x,s.y])}
+ else if(kind==='row'){for(let x=Z.x;x<Z.x+Z.w;x++)if(ok(x,s.y))T.push([x,s.y])}
+ else if(kind==='col'){for(let y=Z.y;y<Z.y+Z.h;y++)if(ok(s.x,y))T.push([s.x,y])}
+ else if(kind==='ring'){for(let y=Z.y;y<Z.y+Z.h;y++)for(let x=Z.x;x<Z.x+Z.w;x++)if(Math.abs(x-b.x)+Math.abs(y-b.y)===2&&ok(x,y)&&!isLava(cell(W,s,m,x,y))&&cell(W,s,m,x,y)!=='~')T.push([x,y])}
+ else if(kind==='wire'){for(let y=Z.y;y<Z.y+Z.h;y++)for(let x=Z.x;x<Z.x+Z.w;x++)if(ok(x,y)&&cell(W,s,m,x,y-1)==='═')T.push([x,y])}
+ else if(kind==='bell'){const col=(b.ph||0)%2;if(col){for(let y=Z.y;y<Z.y+Z.h;y++)if(ok(b.x,y))T.push([b.x,y])}else{for(let x=Z.x;x<Z.x+Z.w;x++)if(ok(x,b.y))T.push([x,b.y])}}
+ else if(kind==='pulse'){const X=(b.ph||0)%2===0;for(let r=1;r<=2;r++)for(const [dx,dy] of X?[[1,1],[1,-1],[-1,1],[-1,-1]]:[[1,0],[-1,0],[0,1],[0,-1]]){const x=b.x+dx*r,y=b.y+dy*r;if(ok(x,y))T.push([x,y])}}
+ else if(kind==='shot'){if(b.shot)return T;const dx=Math.sign(s.x-b.x),dy=Math.sign(s.y-b.y);if((dx&&dy)||(!dx&&!dy)||Math.abs(s.x-b.x)+Math.abs(s.y-b.y)<2)return T;
+  let x=b.x+dx,y=b.y+dy;for(;!(x===s.x&&y===s.y);x+=dx,y+=dy)if(!inZone(Z,x,y)||solidV2(W,s,m,x,y)||boxAt(s,m,x,y)>=0)return T;
+  if(ok(b.x+dx,b.y+dy)){T.push([b.x+dx,b.y+dy]);b.sd=dx?(dx>0?3:2):(dy>0?1:0)}}
+ else if(kind==='jump'){const land=d=>{const x=b.x+DV[d][0]*2,y=b.y+DV[d][1]*2,c=cell(W,s,m,x,y);return ok(x,y)&&!'q~'.includes(c)&&!isLava(c)&&!hazardV2(W,s,m,x,y,Z)&&boxAt(s,m,x,y)<0&&bugAt(s,m,x,y)<0&&duneAt(s,m,x,y)<0?[x,y]:null};
+  const t=land(b.d)||land(b.d^1);if(t){if(!land(b.d))b.d^=1;T.push(t)}}
+ if(BSAFE[kind])return T;
+ // dodge guarantee: after the marks go down the robot must have at least one move that surely survives the strike — stay put on an unmarked tile, or step
+ // onto a free unmarked neighbour. Tiles in any bomb's cross and tiles next to the boss (it moves after marking) don't count as safe. If there is
+ // none, the marks on the robot's tile and its neighbours are dropped, so a strike can never be the thing that traps you.
+ const hit=(x,y)=>T.some(([a,c])=>a===x&&c===y),inBlast=(x,y)=>s.bombs.some(o=>o.m===m&&Math.abs(o.x-x)+Math.abs(o.y-y)<=1),nearB=(x,y)=>Math.abs(x-b.x)+Math.abs(y-b.y)<=1;
+ const canStay=!hit(s.x,s.y)&&!inBlast(s.x,s.y),canMove=DV.some(([dx,dy])=>{const x=s.x+dx,y=s.y+dy,c=cell(W,s,m,x,y);return (inZone(Z,x,y)||isEE(Z,x,y))&&!hit(x,y)&&!inBlast(x,y)&&!nearB(x,y)&&!solidV2(W,s,m,x,y)&&boxAt(s,m,x,y)<0&&bombAt(s,m,x,y)<0&&bossBodyAt(s,m,x,y)<0&&bugAt(s,m,x,y)<0&&duneAt(s,m,x,y)<0&&!'q~l,'.includes(c)&&!isLava(c)&&!(c in CUR)&&!hazardV2(W,s,m,x,y,Z)});
+ if(canStay||canMove)return T;
+ return T.filter(([x,y])=>Math.abs(x-s.x)+Math.abs(y-s.y)>1)}
+let BOSSMOVES=true;const setBossMoves=v=>{BOSSMOVES=!!v}; // tests that compare with the old design checkers (test-v2) switch boss moves off
+function ballFly(W,s,b,Z,ev){if(!b.shot)return null;const m=s.m;{const sh=b.shot,ox=sh.x,oy=sh.y,nx=ox+DV[sh.d][0],ny=oy+DV[sh.d][1]; // glitch ball in flight: 1 tile per action
+  if(ox===s.x&&oy===s.y)return 'caught';
+  if(sh.back&&nx===b.x&&ny===b.y){b.shot=null;b.fr=3;b.spotted=0;ev.push('stun','bossstun','ballback');return null}
+  if(!inZone(Z,nx,ny)||solidV2(W,s,m,nx,ny)||boxAt(s,m,nx,ny)>=0||bossBodyAt(s,m,nx,ny)>=0||isEE(Z,nx,ny)){b.shot=null;ev.push('fizzle');return null}
+  b.shot={...sh,x:nx,y:ny};if(nx===s.x&&ny===s.y)return 'caught';return null}} // new object: clone() copies bosses shallowly
+function bossAtk(W,s,b,Z,ev){const kind=BATK[b.kind];if(!kind||!BOSSMOVES)return null;const m=s.m;
+ if(b.warn){const tiles=b.warn.split(';').map(t=>t.split(',').map(Number));b.warn='';b.t=0;s.lastStrike={m,kind,tiles,i:b.i};ev.push('bossstrike');
+  if(kind==='tide'){for(const [x,y] of tiles){const c=cell(W,s,m,x,y);if(FLIPCUR[c])s.ch[K(m,x,y)]=FLIPCUR[c]}ev.push('tide');return null}
+  if(kind==='flip'){for(const [x,y] of tiles){const c=cell(W,s,m,x,y);if(c in MIR)s.ch[K(m,x,y)]=c==='╱'?'╲':'╱'}ev.push('kingflip');return null}
+  if(kind==='gust'){const t=tiles.find(([x,y])=>x===s.x&&y===s.y);if(t){const dd=s.x<b.gx?2:s.x>b.gx?3:b.d,nx=s.x+DV[dd][0],ny=s.y+DV[dd][1],c=cell(W,s,m,nx,ny);
+    if((inZone(Z,nx,ny)||isEE(Z,nx,ny))&&!solidV2(W,s,m,nx,ny)&&c!==','&&!'q~'.includes(c)&&!isLava(c)&&boxAt(s,m,nx,ny)<0&&bombAt(s,m,nx,ny)<0&&bossBodyAt(s,m,nx,ny)<0&&bugAt(s,m,nx,ny)<0&&cloudAt(s,m,nx,ny)<0&&!s.bombs.some(o=>o.m===m&&Math.abs(o.x-nx)+Math.abs(o.y-ny)<=1)){s.x=nx;s.y=ny;ev.push('gusted')}}ev.push('gust');return null}
+  if(kind==='bell'||kind==='pulse')b.ph=((b.ph||0)+1)%2;
+  if(kind==='shot'){const [x,y]=tiles[0];b.shot={x,y,d:b.sd,back:0};return x===s.x&&y===s.y?'caught':null}
+  if(kind==='under'||kind==='jump'){const [x,y]=tiles[0];if(boxAt(s,m,x,y)<0&&bugAt(s,m,x,y)<0&&!solidV2(W,s,m,x,y)){b.x=x;b.y=y}return x===s.x&&y===s.y?'caught':'skip'}
+  return tiles.some(([x,y])=>x===s.x&&y===s.y)?'caught':null}
+ if(kind==='flip'&&b.hp>1)return null;if(kind==='wire'&&!s.gen)return null;
+ const PK=(kind==='pulse')?2:(BATKP[b.kind]||3);b.t=(b.t||0)+1;if(b.t<PK)return null;
+ const T=bossWarnTiles(W,s,b,Z);if(!T.length){b.t=PK-1;return null}
+ b.warn=T.map(([x,y])=>x+','+y).join(';');ev.push('bosswarn');return kind==='under'||kind==='jump'?'skip':null}
 function moveV2(W,s,Z,ev){const m=s.m,P=(x,y)=>x===s.x&&y===s.y,nxt=o=>[o.x+DV[o.d][0],o.y+DV[o.d][1]],bad=c=>c==='q'||c==='~'||isLava(c);
  for(const du of s.dunes.slice()){if(du.m!==m||du.zone!==Z.id)continue;const [nx,ny]=nxt(du),c=cell(W,s,m,nx,ny);
   const blocked=!inZone(Z,nx,ny)||P(nx,ny)||isEE(Z,nx,ny)||(c!=='D'&&solidV2(W,s,m,nx,ny))||(c==='D'&&!switchDoorOpen(W,s,m,nx,ny))||occV2(s,m,nx,ny)||itemHere(W,s,m,nx,ny);
@@ -317,11 +386,14 @@ function moveV2(W,s,Z,ev){const m=s.m,P=(x,y)=>x===s.x&&y===s.y,nxt=o=>[o.x+DV[o
   const hazNoPend=spikeUp(W,s,m,nx,ny,Z)||trapOpen(W,s,m,nx,ny,Z)||isVoid(W,s,m,nx,ny);
   if(!inZone(Z,nx,ny)||solidV2(W,s,m,nx,ny)||occV2(s,m,nx,ny)||bad(cell(W,s,m,nx,ny))||hazNoPend||itemHere(W,s,m,nx,ny)){bg.d^=1;continue}bg.x=nx;bg.y=ny}
  for(const b of s.bosses){if(b.hp<=0||b.m!==m||b.zone!==Z.id)continue;
+  if(b.shot){const r=ballFly(W,s,b,Z,ev);if(r==='caught'){ev.push('bossstruck');return 'caught'}}
   if(b.fr>0){b.fr--;b.spotted=0;continue} // charging boss stunned by fire / bat: stands still, doesn't look, can't catch you
+  if(BATK[b.kind]){const r=bossAtk(W,s,b,Z,ev);if(r==='caught'){ev.push('bossstruck');return 'caught'}if(r==='skip')continue}
   if(b.kind==='phantom'){ // mirror king: vertical follows, horizontal mirrors; only when robot moved
    continue} // handled after loop with last move dir
   if(b.kind==='knight'||(b.kind==='spark'&&b.knight)||(b.kind==='glitch'&&b.knight)){b.spotted=0;for(const dd of [2,3]){let x=b.x+DV[dd][0],y=b.y+DV[dd][1];
-   while(inZone(Z,x,y)&&!solidV2(W,s,m,x,y)&&boxAt(s,m,x,y)<0){if(P(x,y)){b.d=dd;b.spotted=1;break}x+=DV[dd][0];y+=DV[dd][1]}}}
+   while(inZone(Z,x,y)&&!solidV2(W,s,m,x,y)&&boxAt(s,m,x,y)<0){if(P(x,y)){b.d=dd;b.spotted=1;break}x+=DV[dd][0];y+=DV[dd][1]}}
+   if(b.kind==='knight'&&BOSSMOVES&&b.spotted)b.chg=1}
   if(b.kind==='spark'&&b.needPw&&!s.gen)continue;
   if(!(b.kind==='worm'||b.kind==='frog'||b.kind==='mole'||b.kind==='crab'||b.kind==='knight'||b.kind==='bird'||b.kind==='spark'||b.kind==='glitch'))continue;
   const [nx,ny]=nxt(b);
@@ -330,6 +402,7 @@ function moveV2(W,s,Z,ev){const m=s.m,P=(x,y)=>x===s.x&&y===s.y,nxt=o=>[o.x+DV[o
    if(flyBlocked)b.d^=1;else{b.x=nx;b.y=ny};continue}
   const haz=hazardV2(W,s,m,nx,ny,Z);
   const blocked=!inZone(Z,nx,ny)||P(nx,ny)||isEE(Z,nx,ny)||solidV2(W,s,m,nx,ny)||boxAt(s,m,nx,ny)>=0||duneAt(s,m,nx,ny)>=0||bugAt(s,m,nx,ny)>=0||bad(cell(W,s,m,nx,ny))||haz;
+  if(blocked&&b.kind==='knight'&&b.chg&&!P(nx,ny)){b.chg=0;b.fr=2;b.d^=1;ev.push('bosscrash');continue} // 騎士王 ran into the wall while charging: dizzy 2 actions
   if(blocked)b.d^=1;else{b.x=nx;b.y=ny}}
  // drifting cooled-lava rocks on flowing magma
  s.rocks=(s.rocks||[]).map(r=>{if(r.m!==m||!inZone(Z,r.x,r.y))return r;const t=cell(W,s,m,r.x,r.y),d=FLOWDIR[t];if(d==null){s.ch[K(m,r.x,r.y)]='_';ev.push('cool');return null}
@@ -355,6 +428,7 @@ function stepV2(W,s0,a,opt){const ev=[];const free=!!(opt&&opt.free);
   else if(!s.held&&(fc==='⊕'||fc==='⊛')){s.ch[K(m,fx,fy)]=fc==='⊕'?'⊛':'⊕';ev.push('gen')} // toggle generator
   else if(!s.held&&(uc==='j'||uc==='ǰ')){s.ch[K(m,s.x,s.y)]=uc==='j'?'ǰ':'j';ev.push('switch')}
   else if(!s.held&&fc==='b'){s.held=1;ev.push('grab')}
+  else if(hasInv(s,'Q')&&ballAt(s,m,fx,fy)>=0)swing(W,s,ev); // a glitch ball in front: swing even when holding a bomb
   else if(s.held&&(!Z||inZone(Z,fx,fy))&&placeV2(W,s,m,fx,fy,fc)&&!occV2(s,m,fx,fy)&&!isEE(Z,fx,fy)&&!isTrk(fc)){s.bombs.push({m,x:fx,y:fy,t:FUSE,ms:0});s.held=0;ev.push('place')}
   else if(batTarget(W,s))swing(W,s,ev);
   else if(hasInv(s,'F'))breathe(W,s,ev);
@@ -485,13 +559,13 @@ function normalize(W,s){if(!W.solverAbstract)return s;const n=clone(s);const cur
  // the re-added initial boxes are fully determined by (zone, cleared), both already in key(): key only the live ones (keeps 15-scene keys small)
  Object.defineProperty(n,'_bk',{value:live.slice().sort().join(';'),enumerable:false});
  // movers/clouds: key only entries that differ from the initial world (exact encoding, just shorter)
- const MS=o=>o.i+'@'+o.x+','+o.y+'d'+o.d+'f'+(o.fr||0)+'h'+(o.hp||0),CS=o=>o.i+'@'+o.x+','+o.y+'d'+o.d;
+ const MS=o=>o.i+'@'+o.x+','+o.y+'d'+o.d+'f'+(o.fr||0)+'h'+(o.hp||0)+(o.t?'t'+o.t:'')+(o.warn?'w'+o.warn:'')+(o.ph?'p'+o.ph:'')+(o.gx!=null?'g'+o.gx:'')+(o.sd!=null?'s'+o.sd:'')+(o.chg?'c':'')+(o.shot?'b'+o.shot.x+','+o.shot.y+','+o.shot.d+(o.shot.back?'r':''):''),CS=o=>o.i+'@'+o.x+','+o.y+'d'+o.d;
  const I0=W._init0Keys||(W._init0Keys={m:[W.dunes0,W.bugs0,W.bosses0].map(a=>a.map(MS)),c:(W.clouds0||[]).map(CS)});
  const dk=(arr,init,f)=>{arr=arr||[];const d=arr.filter(o=>init[o.i]!==f(o)).map(f).join(';');return arr.length===init.length?d:d+'#'+arr.map(o=>o.i).join(',')};
  Object.defineProperty(n,'_mk',{value:'~'+[n.dunes,n.bugs,n.bosses].map((a,j)=>dk(a,I0.m[j],MS)).join('/'),enumerable:false});
  Object.defineProperty(n,'_ck',{value:'~'+dk(n.clouds,I0.c,CS),enumerable:false});
  n.bombs=n.bombs.filter(b=>keep(K(b.m,b.x,b.y)));n.broken=n.broken.filter(keep);n.holes=n.holes.filter(keep);n.filled=n.filled.filter(keep);return n}
-function key(s){return [s.m,s.x,s.y,s.f,s.held,s.inv,s.got.slice().sort().join(';'),(s._bk!=null?'~'+s._bk:s.boxes.slice().sort().join(';')),s.bombs.map(b=>K(b.m,b.x,b.y)+'t'+b.t).sort().join(';'),s.broken.slice().sort().join(';'),s.holes.slice().sort().join(';'),s.filled.slice().sort().join(';'),s.left,s.zone,s.cleared.slice().sort().join(';'),(s.pats||[]).map(p=>p.i+'@'+p.x+','+p.y+(p.d>0?'+':'-')).join(';'),(s._mk!=null?s._mk:[s.dunes,s.bugs,s.bosses].map(a=>(a||[]).map(o=>o.i+'@'+o.x+','+o.y+'d'+o.d+'f'+(o.fr||0)+'h'+(o.hp||0)+(o.lit?'l':'')).join(';')).join('/')),Object.keys(s.ch||{}).sort().map(k=>k+s.ch[k]).join(';'),Object.keys(s.vt||{}).sort().map(k=>k+'='+s.vt[k]).join(';'),(s.rocks||[]).map(r=>r.m+':'+r.x+','+r.y).sort().join(';'),s.lt||0,s.cf||'',s.cart&&Object.keys(s.cart).sort().map(k=>k+':'+s.cart[k]).join(';')||'',s.bossCp?s.bossCp.zone+':'+s.bossCp.hp:'',s.air||0,s.lvz&&Object.keys(s.lvz).sort().map(k=>k+s.lvz[k]).join(';')||'',(s._ck!=null?s._ck:(s.clouds||[]).map(o=>o.i+'@'+o.x+','+o.y+'d'+o.d).join(';')),s.zt||0,s.lit||0,s.pw||0,s.gen||0,(s.bosses||[]).filter(o=>o.kind==='phantom').map(o=>(o.lit?1:0)).join('')].join('|')}
+function key(s){return [s.m,s.x,s.y,s.f,s.held,s.inv,s.got.slice().sort().join(';'),(s._bk!=null?'~'+s._bk:s.boxes.slice().sort().join(';')),s.bombs.map(b=>K(b.m,b.x,b.y)+'t'+b.t).sort().join(';'),s.broken.slice().sort().join(';'),s.holes.slice().sort().join(';'),s.filled.slice().sort().join(';'),s.left,s.zone,s.cleared.slice().sort().join(';'),(s.pats||[]).map(p=>p.i+'@'+p.x+','+p.y+(p.d>0?'+':'-')).join(';'),(s._mk!=null?s._mk:[s.dunes,s.bugs,s.bosses].map(a=>(a||[]).map(o=>o.i+'@'+o.x+','+o.y+'d'+o.d+'f'+(o.fr||0)+'h'+(o.hp||0)+(o.t?'t'+o.t:'')+(o.warn?'w'+o.warn:'')+(o.ph?'p'+o.ph:'')+(o.gx!=null?'g'+o.gx:'')+(o.sd!=null?'s'+o.sd:'')+(o.chg?'c':'')+(o.shot?'b'+o.shot.x+','+o.shot.y+','+o.shot.d+(o.shot.back?'r':''):'')+(o.lit?'l':'')).join(';')).join('/')),Object.keys(s.ch||{}).sort().map(k=>k+s.ch[k]).join(';'),Object.keys(s.vt||{}).sort().map(k=>k+'='+s.vt[k]).join(';'),(s.rocks||[]).map(r=>r.m+':'+r.x+','+r.y).sort().join(';'),s.lt||0,s.cf||'',s.cart&&Object.keys(s.cart).sort().map(k=>k+':'+s.cart[k]).join(';')||'',s.bossCp?s.bossCp.zone+':'+s.bossCp.hp:'',s.air||0,s.lvz&&Object.keys(s.lvz).sort().map(k=>k+s.lvz[k]).join(';')||'',(s._ck!=null?s._ck:(s.clouds||[]).map(o=>o.i+'@'+o.x+','+o.y+'d'+o.d).join(';')),s.zt||0,s.lit||0,s.pw||0,s.gen||0,(s.bosses||[]).filter(o=>o.kind==='phantom').map(o=>(o.lit?1:0)).join('')].join('|')}
 const ACTIONS=['up','down','left','right','act','reset','wait'];
 // explore the whole reachable state graph; returns {states, edges, startKey}
 function explore(W,start,max){max=max||400000;const s0=start||initState(W);const k0=key(s0);const states=new Map([[k0,s0]]),edges=new Map(),q=[k0];let trunc=false,qh=0;
@@ -519,6 +593,6 @@ function* zoneStuckIter(W,s0,max){const M=W.maps[s0.m],Z=s0.zone&&M&&M.zones.fin
    if(!inZ(ns)){if(pats||ns.inv!==s.inv)return null;ns=clone(s);ns.left=Z.limit?Z.limit+(hasInv(s,'U')?10:0):null} // left the area: back in, fresh step limit
    const k=key(ns);if(seen.has(k))continue;if(seen.size>=max)return null;seen.add(k);q.push(ns)}}
  return true}
-const api={traceBeams,powerNet,fixBugIds,knockTo,batTarget,BATSTUN,STUNBOSS,canStunBoss,zoneStuck,zoneStuckIter,isTrk,isLava,turnTrack,isTun,tunId,tunAt,stepV2,solidV2,recomputeV2,gateShut,pendAt,MIR,duneAt,bugAt,wormAt,bossOfZone,initMovers,REGROW,mstep,patAt,resetPats,normalize,parseWorld,initState,step,advance,FUSE_MS,cell,base,zoneAt,solid,explore,bfsPath,softlocks,key,hasInv,DIRS,FUSE,ITEMS,switchDoorOpen,bombAt,boxAt,K,cloudAt,spikeUp,trapOpen,hazardV2,CUR,WND};
+const api={DV,traceBeams,powerNet,fixBugIds,knockTo,batTarget,ballAt,BATSTUN,STUNBOSS,canStunBoss,BATK,BATKP,BSAFE,bossWarnTiles,setBossMoves,zoneStuck,zoneStuckIter,isTrk,isLava,turnTrack,isTun,tunId,tunAt,stepV2,solidV2,recomputeV2,gateShut,pendAt,MIR,duneAt,bugAt,wormAt,bossOfZone,initMovers,REGROW,mstep,patAt,resetPats,normalize,parseWorld,initState,step,advance,FUSE_MS,cell,base,zoneAt,solid,explore,bfsPath,softlocks,key,hasInv,DIRS,FUSE,ITEMS,switchDoorOpen,bombAt,boxAt,K,cloudAt,spikeUp,trapOpen,hazardV2,CUR,WND};
 if(typeof module!=='undefined')module.exports=api;else root.WorldEngine=api;
 })(this);
