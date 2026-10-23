@@ -1,6 +1,6 @@
 # Glowbot 小光 設計圖存檔
 
-這個資料夾保存開發過程中的美術設計圖、上線截圖，以及產生設計圖的程式。
+這個資料夾保存開發過程中的美術設計圖、遊戲截圖，以及還沒接進遊戲的美術原始檔（`art-src/`）。產生設計圖的程式在根目錄的 [`tools/`](../tools/)。
 **遊戲本身不會讀這裡的檔案**，刪掉也不影響遊戲；這裡只是存檔和參考用。
 
 > 開發說明見 [../DEVELOPMENT.md](../DEVELOPMENT.md)，每次修改的紀錄見 [../CHANGELOG.md](../CHANGELOG.md)。
@@ -16,10 +16,12 @@
 | `previews/characters/` | 單一角色的對比圖、尺寸檢查 |
 | `previews/bosses/` | 各場景迷你王的設計表、王戰新招式的預告記號；`history/` 是沼澤／礦坑／火山王的修改過程 |
 | `previews/scenes/` | 各場景的地板、機關、怪物設計表 |
-| `previews/ui/` | 引導箭頭、卡住提示、燈塔燈、結局動畫等畫面元素，以及還沒放進遊戲的畫面設計稿 |
+| `previews/ui/` | 引導箭頭、卡住提示、燈塔燈、結局動畫等畫面元素，打擊手感規格，以及畫面設計稿 |
+| `screenshots/` | 10-23 的實際遊戲畫面（電腦和手機），README 和開發說明裡用的圖 |
 | `launch/` | 正式上線時各場景的實際遊戲截圖 |
-| `levels/` | 關卡修正說明圖：Jasper 卡關的區域「為什麼過不去、現在怎麼過」 |
-| `art-src/`、`tools/` | 美術原始檔和產生設計圖的程式，放在開發資料夾，**目前不在這個 repo 裡** |
+| `levels/` | 關卡說明圖：Jasper 卡關的區域「為什麼過不去、現在怎麼過」 |
+| `art-src/` | 設計完成、**還沒接進遊戲**的美術程式（`crack-wall-art.js`、`boss-stun-art.js`），網站不會載入 |
+| 根目錄 `tools/` | 產生設計圖的程式（見最下面「產生設計圖的程式」） |
 
 設計圖大多是把實際的美術程式（`art.js`、`*-art.js`）畫在 16×16 的格子上，再放大 1～4 倍輸出，所以圖上看到的就是遊戲裡實際的樣子。
 
@@ -40,6 +42,12 @@
 | ![](previews/bat/bat_icon_hud_phone.png) | `bat_icon_hud_phone.png`：上線後的手機畫面（發電廠 P5）：上方「球棒」標籤和「拿到球棒！」提示前面的像素球棒小圖。以前字型畫不出棒球圖案，會變成紫色圓圈或方塊（10-22 20:52 修正） |
 
 遊戲裡實際用的是根目錄的 [`bat-art.js`](../bat-art.js)，函式有 `baseballBatItem`、`baseballBatIcon`、`batSwing`、`mineBat` 和 `mineBatStunned`。
+
+### 球棒木板牆 v2（設計完成、待接）
+
+![球棒木板牆 v2](previews/bat/batwall_v2_design.png)
+
+`batwall_v2_design.png`：美術監督 10-23 的設計稿，**設計完成、待接**。一種只能用球棒打破的木板牆（新的格子種類），取代下面打擊手感設計稿 B 區的「石頭裂牆」。美術程式是 [`art-src/crack-wall-art.js`](art-src/crack-wall-art.js)；地圖和引擎都還沒有這種格子，遊戲裡看不到。
 
 ## 角色
 
@@ -85,6 +93,12 @@
 
 `boss_moves_09-15_preview.png`：第 9～15 場景（後半）。盔甲騎士王＝衝刺箭頭、風暴鳥＝風線（藍框，把你吹開一格）、鏡影王＝鏡子斜線（藍框，剩 1 血時把鏡子轉回去）、電火花王＝電線下閃電、鐘塔守衛＝紅框裡的鐘、故障機王＝電球（揮棒打回去變黃框）、故障核心＝故障點（叉叉和十字輪流閃，固定預告、打、空一步）。
 
+### 王被打昏（設計完成、待接）
+
+![王被打昏的樣子](previews/bosses/boss_stun_design.png)
+
+`boss_stun_design.png`：美術監督 10-23 的設計稿，**設計完成、待接**。王被吐火或球棒打昏時疊在王身上的暈眩效果。美術程式是 [`art-src/boss-stun-art.js`](art-src/boss-stun-art.js)，還沒接進遊戲；遊戲裡目前用的是小怪的星星（`stunStars`）。
+
 ### 修改過程（`previews/bosses/history/`）
 
 沼澤／礦坑／火山王表的第 2～5 版，留著對照修改過程。最新的是上面的 `bosses_567_preview.png`。
@@ -114,7 +128,7 @@
 | 鐘塔（13） | ![](previews/scenes/clock_art_preview.png) | `clock_art_preview.png`：鐘面、四個角度的齒輪、鐘擺擺動的四個階段（第一版） |
 | 鐘塔（13） | ![](previews/scenes/clock_mech_v2_design.png) | `clock_mech_v2_design.png`：美術監督的鐘塔機關第 2 版（10-22 上線）。齒輪門「關、快開、開、快關」四種樣子和門上 4 顆節奏燈、鐘擺警示（下一步會打到的格子垂下來＋紅影）、舊版和新版對照、手機實際大小示意，以及色弱／灰階檢查 |
 | 夜工廠（14） | ![](previews/scenes/factory_art_preview.png) | `factory_art_preview.png`：工廠牆和地板、各方向的輸送帶、故障機器人和被打倒的動畫 |
-| 核心（15） | ![](previews/scenes/core_art_preview.png) | `core_art_preview.png`：核心地板、故障核心各階段、燈塔亮 0／7／15 盞燈和全亮彩虹光的樣子 |
+| 核心（15） | ![](previews/scenes/core_art_preview.png) | `core_art_preview.png`：核心地板、故障核心各階段、燈塔從全暗、亮到一半到全部亮起和全亮彩虹光的樣子 |
 
 ## 畫面元素
 
@@ -130,9 +144,9 @@
 
 `lighthouse_lamp_on_preview.png`：拿到燈塔燈後燈塔亮起新一盞燈的動畫，各 6 格。上排是點亮第 1 盞燈，下排是已經亮了 7 盞、再點亮第 8 盞。
 
-![15 盞燈的顏色](previews/ui/lamp_colors_swatch.png)
+![燈塔燈的顏色](previews/ui/lamp_colors_swatch.png)
 
-`lamp_colors_swatch.png`：15 個場景各自燈塔燈的顏色。
+`lamp_colors_swatch.png`：每個場景各自燈塔燈的顏色。
 
 ![結局動畫](previews/ui/ending_preview.png)
 
@@ -142,14 +156,38 @@
 
 `world_preview.png`：草原大地圖模式早期的手機畫面（6 個畫面）。
 
-### 設計稿（尚未放進遊戲）
+### 設計稿（10-23 中午已放進遊戲）
 
 ![炸彈範圍預告與老樹精打不到狀態](previews/ui/bomb_range_treant_guard_design.png)
 
-`bomb_range_treant_guard_design.png`：美術監督 10-23 的設計稿，Jasper 已同意這兩個方向，**但還沒放進遊戲**。
+`bomb_range_treant_guard_design.png`：美術監督 10-23 的設計稿，Jasper 已同意這兩個方向，10-23 中午放進遊戲（`bomb-range-art.js`、`treant-guard-art.js`）。遊戲裡的炸彈範圍一律是 5 格十字（引擎的爆炸不會被牆擋），所以沒有用到「被牆擋住」的畫法。
 - **炸彈範圍預告**：放下炸彈就出現淡黃色（`#fee761`）十字和虛線框，每格有小箭頭往外；剩最後 1 秒才閃（一秒最多 2 下）。範圍會照實際情況被牆擋住；跟王的紅色預告放在一起也分得開。
 - **老樹精「打不到」**：被打中後 2 步內身上長出樹皮鱗甲、右上角有小盾牌、顏色變暗；剩 1 步時鱗甲和盾牌裂開；這時打它會冒出「叮」的火花，木屑往攻擊方向彈回去。
 - 最下面是色弱／灰階檢查。
+
+![打擊手感與舊的球棒裂牆](previews/ui/hitfx_crackwall_design.png)
+
+`hitfx_crackwall_design.png`：美術監督 10-23 的設計稿，分兩區：
+- **A 區：打擊手感（已上線）**。球棒、吐火、炸彈打中王和王被打倒時的停格、震動、火花和碎片，每隻王的碎片顏色和材質不同（木屑、火星、石土、玻璃、齒輪、金屬）。數字在根目錄的 `hit-fx-spec.js`，`hit-feel.js` 轉成設定表，`world.js` 的 `hitFx` 畫出來。規格書：[`hitfx_spec.md`](previews/ui/hitfx_spec.md)。
+- **B 區：石頭裂牆（已作廢，只留作歷史）**。原本的「只能用球棒打的石頭裂牆」，後來改成上面的球棒木板牆 v2，這一版沒有放進遊戲。
+
+[`hitfx_spec.md`](previews/ui/hitfx_spec.md)：打擊手感規格書（`HIT_FX_SPEC` 的格式、王的代碼、每隻王的飛散角度、重力、壽命）。
+
+## 遊戲截圖（`screenshots/`）
+
+10-23 實際遊戲畫面（電腦 1280×800、手機 390×844），都是大地圖冒險。
+
+| 圖 | 說明 |
+|---|---|
+| ![](screenshots/desktop_01_grass.png) | `desktop_01_grass.png`：電腦，新遊戲一開始的草原 |
+| ![](screenshots/desktop_02_clock.png) | `desktop_02_clock.png`：電腦，鐘塔的齒輪門和鐘擺 |
+| ![](screenshots/desktop_03_sea.png) | `desktop_03_sea.png`：電腦，海底的海流 |
+| ![](screenshots/desktop_04_golem_bomb_hit.png) | `desktop_04_golem_bomb_hit.png`：電腦，炸彈炸到熔岩巨人（圓形煙團和火星碎片） |
+| ![](screenshots/phone_01_ice.png) | `phone_01_ice.png`：手機，冰原 |
+| ![](screenshots/phone_02_bomb_range.png) | `phone_02_bomb_range.png`：手機，火山王房裡放下炸彈，黃色的爆炸範圍預告 |
+| ![](screenshots/phone_03_golem_bomb_hit.png) | `phone_03_golem_bomb_hit.png`：手機，炸彈炸到熔岩巨人 |
+| ![](screenshots/phone_04_knight_bat_hit.png) | `phone_04_knight_bat_hit.png`：手機，球棒打昏盔甲騎士王 |
+| ![](screenshots/phone_05_treant_armor.png) | `phone_05_treant_armor.png`：手機，老樹精被火打中後的樹皮盔甲 |
 
 ## 上線截圖（`launch/`）
 
@@ -186,16 +224,18 @@ Jasper 試玩卡關時做的說明圖：左邊（或上面）是舊版為什麼�
 | ![](levels/14_factory_F5_explained.png) | 夜工廠 F5 | 開關像灰色鐵塊、還有陷阱箱；新版開關、電線、門燈和走法（10-22 21:27） |
 | ![](levels/15_core_C4_explained.png) | 核心 C4 | 舊版要等巡邏機器人；新版用帶子送箱子壓開關，20 步不用等（10-22 21:58） |
 | ![](levels/15_core_C10_explained.png) | 核心 C10 | 從 Jasper 截圖的位置一步一步怎麼過（31 步，不用等、不用撞牆）；這一區沒有改 |
+| ![](levels/09_castle_C9_steps.png) | 古堡 C9 | 一步一步怎麼過：拉桿、推箱子填洞、吐火嚇呆幽靈、揮棒把牠打進角落（10-23） |
 
 ## 美術原始檔
 
 - 已經上線的美術程式就在 repo 根目錄：`art.js`（共用色票、小光、箱子、開關、音效，由 `game.js` 產生）、`ice-art.js`、`desert-art.js`、`forest-art.js`、`swamp-art.js`、`mine-art.js`、`volcano-art.js`、`sea-art.js`、`castle-art.js`、`sky-art.js`、`mirror-art.js`、`power-art.js`、`clock-art.js`、`factory-art.js`、`core-art.js`、`ending-art.js`。這些就是遊戲實際在用的版本，這裡不再複製一份，免得兩邊不一樣。
 - 棒球棒（`bat-art.js`）和鐘塔第 2 版機關（`clock-mech-art.js`）也已經上線，同樣在根目錄。
-- 還沒接進遊戲的美術原始檔（例如炸彈範圍預告、老樹精打不到狀態）放在開發資料夾，接進遊戲後才會出現在根目錄。
+- 炸彈範圍預告（`bomb-range-art.js`）、老樹精樹皮盔甲（`treant-guard-art.js`）、打擊手感數字（`hit-fx-spec.js`）10-23 中午已上線，也在根目錄。
+- **設計完成、待接**的美術程式放在 [`art-src/`](art-src/)：`crack-wall-art.js`（球棒木板牆 v2）、`boss-stun-art.js`（王被打昏）。接進遊戲時才搬到根目錄。
 
-## 產生設計圖的程式（`tools/`，在開發資料夾）
+## 產生設計圖的程式（`tools/`）
 
-這些程式**目前不在這個 repo 裡**，要在開發資料夾的 `tools/` 裡執行（例如 `node tools/bat-art-preview.js`）。它們會從上一層讀 `art.js` 和各場景的 `*-art.js`，輸出到 `shots/`。不需要瀏覽器，也不用額外安裝套件；只有輸出對比圖的幾支會用到 Python 的 Pillow。
+這些程式在根目錄的 [`tools/`](../tools/)，在根目錄執行（例如 `node tools/bat-art-preview.js`）。它們會從根目錄讀 `art.js` 和各場景的 `*-art.js`，輸出到 `shots/`（或 `/tmp`）。不需要瀏覽器，也不用額外安裝套件；`*-sheet.py` 和輸出對比圖的幾支會用到 Python 的 Pillow 和系統的 Noto Sans CJK 字型。讀 `art-src/` 的那幾支（木板牆、打昏、打擊手感 B 區），要先把檔案複製到根目錄。
 
 | 程式 | 產生 |
 |---|---|
@@ -203,13 +243,17 @@ Jasper 試玩卡關時做的說明圖：左邊（或上面）是舊版為什麼�
 | `bat-art-preview.js` | 棒球棒設計表和 16／32px 圖示 |
 | `boss-preview-567.js`、`boss-preview-8910.js`、`boss-preview-111213.js`、`boss-preview-1415.js` | 各組迷你王設計表 |
 | `knight-1x-preview.js` | 騎士 1 倍和 2 倍對照 |
-| `mirror-king-contrast-preview.js` | 鏡影王改版前後對比（需要舊版參考檔 `tools/mirror-art-before-ref.js`，那個檔沒有存進來） |
+| `mirror-king-contrast-preview.js` | 鏡影王改版前後對比（用舊版參考檔 `tools/mirror-art-before-ref.js`） |
 | `lava-giant-rim-preview.js` | 熔岩巨人外框檢查 |
-| `ice-contrast-preview.js` | 冰牆改版前後對比（需要開發資料夾的 `world/ice.txt` 和舊版參考檔 `tools/ice-art-old-ref.js`，參考檔沒有存進來） |
+| `ice-contrast-preview.js` | 冰牆改版前後對比（用 `world/ice.txt` 和舊版參考檔 `tools/ice-art-old-ref.js`） |
 | `stuck-box-preview.js` | 箱子卡住提示 |
 | `lamp-preview.js` | 燈塔亮燈動畫 |
 | `ending-preview.js` | 結局分鏡表 |
 | `guide-favicon-preview.js` | 引導箭頭和網站小圖示。⚠ 執行時會**覆蓋**根目錄的 `favicon.ico` 和 `favicon-32.png` |
-| `og-preview.js` | 分享大圖和燈色表 |
+| `og-preview.js` | 分享大圖和燈色表（要完整字型 `tools/fonts/Cubic_11.ttf`，超過 1 MB 沒有放進 repo） |
 | `clock-mech-preview.js` | 鐘塔第 2 版機關設計稿 |
 | `bomb-treant-preview.js` | 炸彈範圍預告和老樹精打不到狀態設計稿 |
+| `clock-mech-sheet.py`、`bomb-treant-sheet.py` | 把上面兩張設計稿排成有說明文字的表 |
+| `hitfx-crackwall-preview.js`、`hitfx-crackwall-sheet.py` | 打擊手感與舊石頭裂牆設計稿（`hitfx_crackwall_design.png`） |
+| `batwall-v2-preview.js`、`batwall-v2-sheet.py` | 球棒木板牆 v2 設計稿（`batwall_v2_design.png`） |
+| `boss-stun-preview.js`、`boss-stun-sheet.py` | 王被打昏設計稿（`boss_stun_design.png`） |
