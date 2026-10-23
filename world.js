@@ -117,6 +117,7 @@ let inq=[];function act(a,opt){if($('title').classList.contains('on')||$('menu')
  blastFx(r);v2Fx(r,prev);if(r.ev.slides)boxSl={t0:T+.1,items:r.ev.slides.map(q=>({pts:[q.from].concat(q.pts)}))}; // crates riding a current glide tile by tile
  const drift=r.ev.indexOf('current')>=0&&(S.x!==prev.x||S.y!==prev.y)&&S.m===prev.m; // robot nudged by a current: show it
  if(r.result==='fail'){failAnim={t0:T,from:prev,sink:r.ev.indexOf('sink')>=0};sfx('fail');if(r.ev.indexOf('pend')>=0)flash('🕰 被鐘擺打到了：地上有紅影的格子，下一步就會被打，先按動作等一拍');else if(r.ev.indexOf('gate')>=0)flash('⚙ 被齒輪門夾到了：門框閃紅＝下一步就關，別站在門裡');return}
+ if(r.ev.indexOf('bounced')>=0){anim=null;sfx('slide');hud();persist();return} // 老樹精 bounced you to the entry: no walk animation from the old tile
  if(r.ev.indexOf('rune')>=0){const [dx,dy]=WE.DIRS[S.f];fx.push({type:'smoke',x:S.x+dx,y:S.y+dy,t0:T});shake=3;sfx('crumble');hud();persist();return}
  if(r.result==='bump'){sfx('bump');anim=drift?{type:'move',from:[prev.x,prev.y],path:[[S.x,S.y]],t0:T,dur:.2,ice:true,m:prev.m}:{type:'bump',dir:a,t0:T,dur:.6,face:'x'};hud();persist();return}
  if(r.result==='reset'){sfx('door');cam.init=true;hud();persist();return}
@@ -235,6 +236,10 @@ function knockLines(g,px,py,k){const kp=knockPos(g,k);if(!kp||kp.p<=0||kp.p>=.95
  for(const s of [-4,0,4]){const L=6+Math.round(4*a);if(dx)R(px+(dx>0?-L+2:14),py+8+s,L,1,E32.white);else R(px+8+s,py+(dy>0?-L+2:14),1,L,E32.white)}o_alpha(1)} // speed lines behind the flying creature
 const o_alpha=a=>{o.globalAlpha=a};
 let bossHitT={};
+// 老樹精 guarding for 2 actions after a fire hit: blinking green leaf frame around it + one leaf pip per guarded action left (code-drawn, no sprite)
+function treeGuard(px,py,n){const a=.5+.5*Math.sin(T*10),x0=px-9,y0=py-17,w=34,h=34,G=E32.green1;o.globalAlpha=.10+.08*a;R(x0+2,y0+2,w-4,h-4,G);o.globalAlpha=.55+.45*a;
+ for(let i=0;i<w;i+=6){R(x0+i,y0,4,2,G);R(x0+i,y0+h-2,4,2,G)}for(let j=0;j<h;j+=6){R(x0,y0+j,2,4,G);R(x0+w-2,y0+j,2,4,G)}o.globalAlpha=1;
+ for(let i=0;i<n;i++){const lx=px+8-n*4+i*8,ly=py-24;R(lx,ly,6,5,E32.ink);R(lx+1,ly+1,4,3,G);R(lx+1,ly+1,2,1,E32.white)}}
 function stunStars(px,py,n){for(let i=0;i<n;i++){const a=T*6+i*2.094,sx=px+7+Math.round(Math.cos(a)*5),sy=py-2+Math.round(Math.sin(a)*1.5);R(sx-1,sy-1,4,4,E32.ink);R(sx,sy,2,2,E32.yellow);R(sx-1,sy,1,1,E32.amber);R(sx+2,sy+1,1,1,E32.amber)}}
 function bossStars(){if(!V2())return;(S.bosses||[]).forEach(o=>{if(o.m!==S.m||o.hp<=0||!(o.fr>0))return;const [px,py]=mpos('bosses',o);stunStars(px,py,o.fr)})} // stunned boss: same spinning stars as a stunned creature, on top of everything
 // ── boss move telegraphs (stage 2): the tiles a boss will hit on your NEXT action. Same frame for every boss (blinking red border + light red
@@ -244,6 +249,7 @@ function bossMark(px,py,kind,t,dir){const a=.5+.5*Math.sin(t*10),k=Math.floor(t*
  if(kind==='gust'){bossMarkFrame(px,py,E32.blue2,a);const sg=dir<0?-1:1,sh=Math.floor(t*12)%6;[[3,4],[5,8],[2,12]].forEach(([x,y],i)=>{const xx=sg>0?x+(sh+i*2)%6:12-x-(sh+i*2)%6;R(px+xx,py+y,5,1,E32.white)});
   const ax=sg>0?12:3;R(px+ax,py+7,1,3,E32.white);R(px+ax+sg,py+8,1,1,E32.white);return} // wind streaks + arrowhead: you'll be blown that way (harmless)
  if(kind==='flip'){bossMarkFrame(px,py,E32.blue2,a);const g=k?'╱':'╲';for(let i=0;i<8;i++){const x=g==='╱'?11-i:4+i;R(px+x,py+4+i,1,1,E32.white)}R(px+3,py+2,3,1,E32.cyan);R(px+3,py+3,1,2,E32.cyan);R(px+10,py+13,3,1,E32.cyan);R(px+12,py+11,1,2,E32.cyan);return} // mirror ghost tilting + turn arrows
+ if(kind==='row'&&dir==='trap'){bossMarkFrame(px,py,E32.blue2,a);[[3,0],[7,1],[11,0]].forEach(([x,d])=>{const h=3+k+d;R(px+x,py+13-h,2,h,E32.white);R(px+x,py+13-h,2,1,E32.cyan)});R(px+6,py+2,4,1,E32.white);R(px+5,py+3,1,2,E32.white);R(px+4,py+4,3,1,E32.white);return} // 老樹精 with no safe tile for you: roots in a BLUE frame = harmless, they bounce you back to the entry
  if(kind==='tide'){bossMarkFrame(px,py,E32.blue2,a);[[4,10],[9,7],[6,4]].forEach(([x,y],i)=>{const yy=y-((Math.floor(t*6)+i)%3);R(px+x-1,py+yy-1,4,4,E32.white);R(px+x,py+yy,2,2,E32.cyan)});return}
  bossMarkFrame(px,py,E32.red3,a);
  if(kind==='under'){R(px+3,py+7,10,4,E32.brown1);R(px+4,py+8,8,2,E32.tan);R(px+6,py+8-k,1,1,E32.sand);R(px+9,py+7+k,1,1,E32.sand);R(px+2,py+11,2,1,E32.tan);R(px+12,py+11,2,1,E32.tan)} // sand bulging up
@@ -264,7 +270,7 @@ function bossWarnFx(top){if(!V2())return;const SP=(x,y)=>[Math.round((x-cam.ox)*
  if(b.shot){const sh=b.shot,dv=WE.DV[sh.d],nx=sh.x+dv[0],ny=sh.y+dv[1],Z=W.maps[S.m].zones.find(z=>z.id===b.zone);if(Z&&nx>=Z.x&&ny>=Z.y&&nx<Z.x+Z.w&&ny<Z.y+Z.h&&!WE.solidV2(W,S,S.m,nx,ny)){const [px,py]=SP(nx,ny);bossMarkFrame(px,py,sh.back?E32.yellow:E32.red3,.5+.5*Math.sin(T*10))}
   const [px,py]=SP(sh.x,sh.y);glitchBall(px+8,py+8,T)} // ball in flight + the tile it flies into next (yellow once you batted it back)
  if(!b.warn)return;
- b.warn.split(';').forEach(q=>{const [x,y]=q.split(',').map(Number),[px,py]=SP(x,y);bossMark(px,py,kind,T,kind==='gust'?(x<b.gx?-1:x>b.gx?1:(b.d===2?-1:1)):0)})})}
+ b.warn.split(';').forEach(q=>{const [x,y]=q.split(',').map(Number),[px,py]=SP(x,y);bossMark(px,py,kind,T,kind==='gust'?(x<b.gx?-1:x>b.gx?1:(b.d===2?-1:1)):b.trap?'trap':0)})})}
 function drawMovers(){if(!V2())return;const fr=Math.floor(T*3)%2;
  if(MIN()&&typeof minecart==='function')(S.boxes||[]).forEach(k=>{if(!k.startsWith(S.m+':'))return;const [x,y]=k.split(':')[1].split(',').map(Number),d=S.cart&&S.cart[k]!=null?S.cart[k]:1;
   minecart(Math.round((x-cam.ox)*16),Math.round((y-cam.oy)*16),d,fr)});
@@ -282,7 +288,7 @@ function drawMovers(){if(!V2())return;const fr=Math.floor(T*3)%2;
   R(px+3,py+4,10,9,E32.ink);R(px+4,py+5,8,7,'#9a7a6c');R(px+5,py+6,3,3,'#b08e7e');R(px+9,py+8,2,2,E32.orange)});
  (S.bosses||[]).forEach(o=>{if(o.m!==S.m||o.hp<=0)return;const [px,py]=mpos('bosses',o),hit=T-(bossHitT[o.i]||-9)<.25,hurt=o.max-o.hp,dz=o.fr>0,fr0=fr;{const fr=dz?0:fr0;if(dz)knockLines(o,px,py,'bosses');
   if(o.kind==='worm')sandwormKing(px-8,py-16,fr,hit,o.hp,o.max);
-  else if(o.kind==='tree')elderTree(px-8,py-16,fr,hit,o.hp,o.max);
+  else if(o.kind==='tree'){elderTree(px-8,py-16,fr,hit,o.hp,o.max);if(o.gd>0)treeGuard(px,py,o.gd)}
   else if(o.kind==='frog'&&typeof mudFrogKing==='function')mudFrogKing(px,py,fr,o.d===2?2:3,hurt,T);
   else if(o.kind==='mole'&&typeof moleKing==='function')moleKing(px,py,fr,o.d===2?2:3,hurt,T);
   else if(o.kind==='crab'&&typeof crabKing==='function')crabKing(px,py,fr,o.d===2?2:3,hurt,T,hit);
@@ -290,7 +296,7 @@ function drawMovers(){if(!V2())return;const fr=Math.floor(T*3)%2;
   else if(o.kind==='bird'&&typeof stormBird==='function')stormBird(px,py,fr,o.d===2?2:3,hurt,T,hit);
   else if(o.kind==='golem'&&typeof lavaGiant==='function'){
    if(typeof lavaPool==='function'){lavaPool(px-8,py+8,fr);lavaPool(px+8,py+8,fr);lavaPool(px,py+16,fr);lavaPool(px,py,fr)}
-   lavaGiant(px,py,hurt,T);
+   lavaGiant(px,py,Math.min(2,Math.round(hurt*3/o.max)),T); // 2 HP: whole → heavily cracked (stage 2) → defeat (stage 3); old 3-HP stages were 0,1,2
    if(S.bossCp&&S.bossCp.zone===o.zone&&typeof bossCheckpointFlame==='function')bossCheckpointFlame(px+20,py+4,true,T)}
   else if(o.kind==='phantom'&&typeof mirrorKing==='function'){mirrorKing(px,py,fr,o.d===2?2:3,hurt,T,hit);for(let k=0;k<o.max;k++){R(px+3+k*6,py-8,5,4,E32.ink);R(px+4+k*6,py-7,3,2,k<o.hp?E32.red3:E32.grey3)}} // HP pips over the mirror king
   else if(o.kind==='spark'&&typeof sparkKing==='function')sparkKing(px,py,fr,o.d===2?2:3,hurt,!!o.spotted,!!S.gen,hit);
@@ -328,6 +334,8 @@ function v2Fx(r,prev){if(!V2()&&!(prev&&W.maps[prev.m].rules==='v2'))return;snap
  (S.sunk||[]).forEach(k=>{if(k.m===S.m)fx.push({type:k.box?'boxsink':'splash',x:k.x,y:k.y,t0:T});setTimeout(()=>sfx('crumble'),80)});delete S.sunk;
  (S.scattered||[]).concat(S.squashed||[]).forEach(k=>{if(k.m===S.m)fx.push({type:'splash',x:k.x,y:k.y,t0:T})});delete S.scattered;delete S.squashed;
  if(ev.indexOf('bosshit')>=0)(S.bosses||[]).forEach(o=>{if(o.m===S.m&&o.hitAt===S.steps)bossHitT[o.i]=T});
+ if(ev.indexOf('bounced')>=0){fx.push({type:'tick',x:S.x,y:S.y,t0:T,open:true});flash('🌳 被樹根圍住了：彈回入口（不算失敗，老樹精的血不會回來）')}
+ if(ev.indexOf('bossguard')>=0){const tb=(S.bosses||[]).find(o=>o.m===S.m&&o.kind==='tree'&&o.hp>0);flash(tb&&tb.gd>0?'🍃 老樹精發綠光護身，火打不進去：再走 '+tb.gd+' 步':'🍃 綠光消失了，下一步就打得到')}
  if(ev.indexOf('bossdown')>=0){shake=4;setTimeout(()=>sfx('door'),200)}
  if(ev.indexOf('lamp')>=0)react={type:'hop',t0:T}
  if(ev.indexOf('bat')>=0){react={type:'hop',t0:T};flash('⚾ 拿到球棒！面對裂牆或生物按動作：打碎牆、把生物打退')}
