@@ -237,6 +237,34 @@ const o_alpha=a=>{o.globalAlpha=a};
 let bossHitT={};
 function stunStars(px,py,n){for(let i=0;i<n;i++){const a=T*6+i*2.094,sx=px+7+Math.round(Math.cos(a)*5),sy=py-2+Math.round(Math.sin(a)*1.5);R(sx-1,sy-1,4,4,E32.ink);R(sx,sy,2,2,E32.yellow);R(sx-1,sy,1,1,E32.amber);R(sx+2,sy+1,1,1,E32.amber)}}
 function bossStars(){if(!V2())return;(S.bosses||[]).forEach(o=>{if(o.m!==S.m||o.hp<=0||!(o.fr>0))return;const [px,py]=mpos('bosses',o);stunStars(px,py,o.fr)})} // stunned boss: same spinning stars as a stunned creature, on top of everything
+// ── boss move telegraphs (stage 2): the tiles a boss will hit on your NEXT action. Same frame for every boss (blinking red border + light red
+// fill, like the bomb's blast warning but with a border), plus a small sign of WHAT is coming; the crab's tide flip is harmless → blue frame.
+function bossMarkFrame(px,py,c,a){o.globalAlpha=.18+.12*a;R(px+1,py+1,14,14,c);o.globalAlpha=.55+.45*a;R(px,py,16,2,c);R(px,py+14,16,2,c);R(px,py,2,16,c);R(px+14,py,2,16,c);o.globalAlpha=1}
+function bossMark(px,py,kind,t,dir){const a=.5+.5*Math.sin(t*10),k=Math.floor(t*4)%2,I=E32.ink;
+ if(kind==='gust'){bossMarkFrame(px,py,E32.blue2,a);const sg=dir<0?-1:1,sh=Math.floor(t*12)%6;[[3,4],[5,8],[2,12]].forEach(([x,y],i)=>{const xx=sg>0?x+(sh+i*2)%6:12-x-(sh+i*2)%6;R(px+xx,py+y,5,1,E32.white)});
+  const ax=sg>0?12:3;R(px+ax,py+7,1,3,E32.white);R(px+ax+sg,py+8,1,1,E32.white);return} // wind streaks + arrowhead: you'll be blown that way (harmless)
+ if(kind==='flip'){bossMarkFrame(px,py,E32.blue2,a);const g=k?'╱':'╲';for(let i=0;i<8;i++){const x=g==='╱'?11-i:4+i;R(px+x,py+4+i,1,1,E32.white)}R(px+3,py+2,3,1,E32.cyan);R(px+3,py+3,1,2,E32.cyan);R(px+10,py+13,3,1,E32.cyan);R(px+12,py+11,1,2,E32.cyan);return} // mirror ghost tilting + turn arrows
+ if(kind==='tide'){bossMarkFrame(px,py,E32.blue2,a);[[4,10],[9,7],[6,4]].forEach(([x,y],i)=>{const yy=y-((Math.floor(t*6)+i)%3);R(px+x-1,py+yy-1,4,4,E32.white);R(px+x,py+yy,2,2,E32.cyan)});return}
+ bossMarkFrame(px,py,E32.red3,a);
+ if(kind==='under'){R(px+3,py+7,10,4,E32.brown1);R(px+4,py+8,8,2,E32.tan);R(px+6,py+8-k,1,1,E32.sand);R(px+9,py+7+k,1,1,E32.sand);R(px+2,py+11,2,1,E32.tan);R(px+12,py+11,2,1,E32.tan)} // sand bulging up
+ else if(kind==='row'){[[3,0],[7,1],[11,0]].forEach(([x,d])=>{const h=4+k+d;R(px+x,py+13-h,2,h,E32.brown2);R(px+x,py+13-h,2,1,E32.brown1)})} // root tips poking out
+ else if(kind==='jump'){const w=8+k*2;o.globalAlpha=.55;R(px+8-w/2,py+9,w,4,I);R(px+8-w/2+1,py+8,w-2,6,I);o.globalAlpha=1} // landing shadow
+ else if(kind==='col'){R(px+7,py+2,2,3,I);R(px+5,py+5,2,3,I);R(px+8,py+8,2,3,I);R(px+6,py+11,2,3,I);R(px+9,py+4+k,1,1,E32.brown1);R(px+4,py+10-k,1,1,E32.brown1)} // crack zig-zag
+ else if(kind==='ring'){R(px+6,py+3+k,4,5,E32.orange);R(px+7,py+2+k,2,1,E32.amber);R(px+5,py+11,6,2,E32.red1);R(px+6,py+10,4,1,E32.orange)} // lava drop falling
+ else if(kind==='wire'){const c=k?E32.yellow:E32.white;R(px+8,py+2,3,1,c);R(px+7,py+3,2,2,c);R(px+6,py+5,2,2,c);R(px+6,py+7,5,1,c);R(px+8,py+8,2,2,c);R(px+7,py+10,2,2,c);R(px+6,py+12,2,1,c);R(px+3,py+5+k,1,1,E32.yellow);R(px+12,py+9-k,1,1,E32.yellow)} // spark bolt
+ else if(kind==='bell'){R(px+6,py+4,4,1,E32.amber);R(px+5,py+5,6,4,E32.amber);R(px+4,py+9,8,1,E32.amber);R(px+6,py+5,1,3,E32.yellow);R(px+7,py+10,2,1,E32.brown2);R(px+7,py+3,2,1,E32.brown2);if(k){R(px+2,py+5,1,3,E32.white);R(px+13,py+5,1,3,E32.white)}else{R(px+1,py+4,1,5,E32.white);R(px+14,py+4,1,5,E32.white)}} // bell ringing
+ else if(kind==='pulse'){[[3,3],[10,4],[6,7],[11,10],[4,11],[8,12]].forEach(([x,y],i)=>{if((i+k)%2)R(px+x,py+y,2,2,E32.magenta);else R(px+x+1,py+y,2,1,E32.cyan)});R(px+6,py+6,4,4,E32.ink);R(px+7,py+7,2,2,k?E32.magenta:E32.cyan)} // glitch pixels
+ else if(kind==='shot'){glitchBall(px+8,py+8,t,.55)} // ball about to come out here
+ else if(kind==='charge'){const sg=dir<0?-1:1;for(const x0 of [4,9]){for(let i=0;i<4;i++){const xx=sg>0?x0+i:x0+3-i;R(px+xx,py+4+i,1,1,E32.white);R(px+xx,py+11-i,1,1,E32.white)}}} // >> chevrons: the knight runs in here next
+}
+function glitchBall(cx,cy,t,al){const k=Math.floor(t*8)%2;o.globalAlpha=al==null?1:al;R(cx-3,cy-4,6,8,E32.magenta);R(cx-4,cy-3,8,6,E32.magenta);R(cx-2,cy-2,4,4,E32.cyan);R(cx-1,cy-1,2,2,E32.white);
+ if(k){R(cx+4,cy-2,1,1,E32.cyan);R(cx-5,cy+1,1,1,E32.magenta)}else{R(cx-5,cy-2,1,1,E32.cyan);R(cx+4,cy+2,1,1,E32.magenta)}o.globalAlpha=1}
+function bossWarnFx(top){if(!V2())return;const SP=(x,y)=>[Math.round((x-cam.ox)*16),Math.round((y-cam.oy)*16)];(S.bosses||[]).forEach(b=>{if(b.m!==S.m||b.hp<=0||!WE.BATK)return;const kind=WE.BATK[b.kind];if(!!top!==(kind==='pulse'))return; // the core's sprite is bigger than its tile → its marks go on top of it (second pass)
+ if(b.kind==='knight'&&b.chg&&!(b.fr>0)){const dv=WE.DV[b.d],nx=b.x+dv[0],ny=b.y+dv[1];if(!WE.solidV2(W,S,S.m,nx,ny)){const [px,py]=SP(nx,ny);bossMark(px,py,'charge',T,dv[0])}} // charging knight: its next tile
+ if(b.shot){const sh=b.shot,dv=WE.DV[sh.d],nx=sh.x+dv[0],ny=sh.y+dv[1],Z=W.maps[S.m].zones.find(z=>z.id===b.zone);if(Z&&nx>=Z.x&&ny>=Z.y&&nx<Z.x+Z.w&&ny<Z.y+Z.h&&!WE.solidV2(W,S,S.m,nx,ny)){const [px,py]=SP(nx,ny);bossMarkFrame(px,py,sh.back?E32.yellow:E32.red3,.5+.5*Math.sin(T*10))}
+  const [px,py]=SP(sh.x,sh.y);glitchBall(px+8,py+8,T)} // ball in flight + the tile it flies into next (yellow once you batted it back)
+ if(!b.warn)return;
+ b.warn.split(';').forEach(q=>{const [x,y]=q.split(',').map(Number),[px,py]=SP(x,y);bossMark(px,py,kind,T,kind==='gust'?(x<b.gx?-1:x>b.gx?1:(b.d===2?-1:1)):0)})})}
 function drawMovers(){if(!V2())return;const fr=Math.floor(T*3)%2;
  if(MIN()&&typeof minecart==='function')(S.boxes||[]).forEach(k=>{if(!k.startsWith(S.m+':'))return;const [x,y]=k.split(':')[1].split(',').map(Number),d=S.cart&&S.cart[k]!=null?S.cart[k]:1;
   minecart(Math.round((x-cam.ox)*16),Math.round((y-cam.oy)*16),d,fr)});
@@ -285,6 +313,8 @@ const V2FX={
   R(px,py,9,9,E32.ink);R(px+1,py+1,7,7,E32.sand);R(px+4,py+2,1,3,E32.ink);R(px+4,py+4,3,1,E32.ink);return true}, // little clock = waited one tick
  splash:f=>{const p=(T-f.t0)/.5;if(p>=1)return false;sandSplash(Math.round((f.x-cam.ox)*16),Math.round((f.y-cam.oy)*16),p);return true}};
 function v2Fx(r,prev){if(!V2()&&!(prev&&W.maps[prev.m].rules==='v2'))return;snapMovers(prev);const ev=r.ev||[];
+ if(ev.indexOf('bosscrash')>=0){shake=3;sfx('bump')} if(ev.indexOf('deflect')>=0||ev.indexOf('ballback')>=0)sfx('push'); // knight hit the wall / glitch ball batted back
+ if(ev.indexOf('bossstrike')>=0&&ev.indexOf('caught')<0){if(ev.indexOf('tide')>=0||ev.indexOf('gust')>=0||ev.indexOf('kingflip')>=0)sfx('slide');else{shake=2;sfx('bump')}} // boss move landed (missed you): small thump
  if(ev.indexOf('noeffect')>=0&&S.lastFire){fx.push({type:'noeffect',x:S.lastFire.x0,y:S.lastFire.y0,t0:T});delete S.lastFire}
  if(ev.indexOf('swing')>=0&&S.lastBat){fx.push(Object.assign({type:'swing',t0:T},S.lastBat));if(ev.indexOf('knock')>=0){const b=S.lastBat,g=(b.boss?S.bosses:S.bugs||[]).find(q=>q.m===S.m&&q.x===b.kx&&q.y===b.ky);if(g)knock={i:g.i,k:b.boss?'bosses':'bugs',m:S.m,x0:b.tx,y0:b.ty,x1:b.kx,y1:b.ky,t0:T}}if(ev.indexOf('smash')>=0){const b=S.lastBat;setTimeout(()=>{fx.push({type:'smoke',x:b.tx,y:b.ty,t0:T});shake=3;sfx('crumble')},90)}else if(ev.indexOf('stun')>=0)setTimeout(()=>{shake=2;sfx('bump')},70);else if(ev.indexOf('bonk')>=0)flash('⚾ 王太大了，球棒打不動');else if(ev.indexOf('clang')>=0){sfx('bump');flash('⚾ 鐵箍裂牆打不破：要用炸彈'+(W.maps[S.m].theme==='mine'?'或礦車':''))}delete S.lastBat}
  const clk=W.maps[S.m].theme==='clock'&&S.zone,waited=clk&&ev.indexOf('fire')>=0&&!['burn','melt','stun','bosshit'].some(e=>ev.indexOf(e)>=0);
@@ -407,6 +437,7 @@ const _trk={};function trackShape(c,x,y){const id=S.m+':'+x+','+y+c;if(_trk[id])
 function interactTip(){if(!S||ending||failAnim)return null;const c=WE.cell(W,S,S.m,S.x,S.y);if(c==='j'||c==='ǰ')return '按動作換方向';
  const d={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]}[S.f]||null;if(!d)return null;const fc=WE.cell(W,S,S.m,S.x+d[0],S.y+d[1]);
  const bt=WE.batTarget&&!S.held?WE.batTarget(W,S):null;if(bt&&bt.kind==='wall')return '按動作揮棒打破裂牆';if(bt&&bt.kind==='bug'){const kb=WE.knockTo&&WE.knockTo(W,S,S.bugs[bt.i]);if(kb)return '按動作揮棒把牠打退';if(!(S.bugs[bt.i].fr>0))return '按動作揮棒打昏牠'};
+ if(WE.ballAt&&WE.hasInv(S,'Q')&&WE.ballAt(S,S.m,S.x+d[0],S.y+d[1])>=0)return '按動作揮棒打回電球';
  if(bt&&bt.kind==='bossbat'){const B=S.bosses[bt.i],kb=WE.DIRS[S.f][1]===0&&WE.knockTo&&WE.knockTo(W,S,B);if(kb)return '按動作揮棒把王打退';if(!(B.fr>0))return '按動作揮棒打昏王'}
  if(WE.canStunBoss&&!bt&&!S.held&&WE.hasInv(S,'F')&&W.maps[S.m].theme!=='volcano'&&S.zone){const Z=W.maps[S.m].zones.find(z=>z.id===S.zone);let x=S.x,y=S.y; // fire in a straight line reaches a charging boss → 「吐火打昏王」
   for(let g=0;Z&&g<12;g++){x+=d[0];y+=d[1];if(x<Z.x||y<Z.y||x>=Z.x+Z.w||y>=Z.y+Z.h)break;const B=(S.bosses||[]).find(o=>o.hp>0&&o.m===S.m&&o.x===x&&o.y===y);if(B){if(WE.canStunBoss(S,B)&&!(B.fr>0))return '按動作吐火打昏王';break}
@@ -541,7 +572,7 @@ function drawFrame(){if(ending){endingFrame();return}const now=performance.now()
   crate(Math.round((bx-cam.ox)*16),Math.round((by-cam.oy)*16),L.grid[by|0]&&L.grid[b[1]][b[0]]==='X'&&bx===b[0]&&by===b[1],0)});
  if(boxSl&&boxSl.items.every(q=>T-boxSl.t0>=.08*(q.pts.length-1)))boxSl=null;
  if(stuck.on&&typeof stuckBoxMark==='function')stuck.boxes.forEach(([x,y])=>stuckBoxMark(Math.round((x-cam.ox)*16),Math.round((y-cam.oy)*16),T));
- drawMovers();S.bombs.filter(b=>b.m===S.m).forEach(blastWarn);S.bombs.filter(b=>b.m===S.m).forEach(b=>bombSprite(Math.round((b.x-cam.ox)*16),Math.round((b.y-cam.oy)*16),b));
+ bossWarnFx();drawMovers();S.bombs.filter(b=>b.m===S.m).forEach(blastWarn);S.bombs.filter(b=>b.m===S.m).forEach(b=>bombSprite(Math.round((b.x-cam.ox)*16),Math.round((b.y-cam.oy)*16),b));
  // robot
  let rx=S.x,ry=S.y,frame=0,shk=0,face='norm';
  if(anim){const p=Math.min(1,(T-anim.t0)/anim.dur);
@@ -564,7 +595,7 @@ function drawFrame(){if(ending){endingFrame();return}const now=performance.now()
  else{robot(gx+shk,gy+Math.round(Math.sin(T*2.4))-1-hop,react&&react.type==='hop'?'norm':face,anim&&anim.type==='bump'?'down':facing,frame,look,1);if(S.air>0&&typeof robotBubbleHelmet==='function')robotBubbleHelmet(gx+shk,gy+Math.round(Math.sin(T*2.4))-1-hop)}
  if(bang){const bx=gx+12,by=gy-6-hop;R(bx-1,by-1,4,9,TH.outline);R(bx,by,2,5,E32.amber);R(bx,by+6,2,1,E32.amber)}
  if(S.held&&!failAnim){R(gx+11,gy+1-hop,5,5,TH.outline);R(gx+12,gy+2-hop,3,3,E32.grey4)}
- bossStars();if(!failAnim)tipAt(gx,gy);else tipAt(-99,-99);
+ bossWarnFx(true);bossStars();if(!failAnim)tipAt(gx,gy);else tipAt(-99,-99);
  runeSigns();shortcutMarks();drawGuide();drawPats(); // guide above robot
  fx=fx.filter(f=>f.type==='defeat'?defeat(f):f.type in V2FX?V2FX[f.type](f):smoke(f));
  // blit with shake + tunnel fade
