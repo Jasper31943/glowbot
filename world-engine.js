@@ -29,7 +29,7 @@ function parseWorld(def){TUNALIAS=Object.assign({},def.tunnelAlias||{});
     else if(c==='¥'){W.bosses0.push({m:id,x,y,d:3,hp:3,max:3,kind:'glitch',knight:1});g[y][x]='.'}
     else if(c==='?'){W.bosses0.push({m:id,x,y,d:3,hp:2,max:2,kind:'bird',fly:1});g[y][x]=','}
     else if(c==='T')W.bosses0.push({m:id,x,y,d:0,hp:3,max:3,kind:'tree'});
-    else if(c==='V')W.bosses0.push({m:id,x,y,d:0,hp:3,max:3,kind:'golem'});
+    else if(c==='V')W.bosses0.push({m:id,x,y,d:0,hp:2,max:2,kind:'golem'}); // 2 HP since the 2026-10-23 audit (3 HP = 36-step room, the longest by far)
     else if(c==='£')W.bosses0.push({m:id,x,y,d:0,hp:3,max:3,kind:'guard'}); // clock guard stays on tile
     else if(c==='Ω')W.bosses0.push({m:id,x,y,d:0,hp:5,max:5,kind:'core',phase:0}); // final boss stays on tile
     else if(c==='['){W.clouds0.push({m:id,x,y,d:3});g[y][x]=','}
@@ -77,8 +77,10 @@ function clone(s){return{m:s.m,x:s.x,y:s.y,f:s.f,held:s.held,inv:s.inv,got:s.got
 // fills desert/forest fields (also used to upgrade v3 saves, which never reached those maps)
 const RELAYOUT={'swamp#S5':o=>o.y===12}; // zones redesigned after release: a saved creature that no longer fits the new layout resets that zone
 // sea crates ride a whole current since layout 2; A5 A6 A8 were rebuilt for it, so an older save puts those zones' crates back
-const LAYV=11,BOXRELAY=['sea#A5','sea#A6','sea#A8'],ZRESET={'castle#C5':3,'castle#C10':4,'castle#C9':5,'mirror#R7':6,'mirror#RB':7,'power#P5':8,'clock#T1':9,'clock#T2':9,'clock#T4':9,'clock#T5':9,'clock#T8':9,'factory#F5':10,'factory#F6':10,'factory#F8':10,'factory#F10':10,'core#C4':11,'core#C7':11,'core#C9':11}; // 11 = core C4/C7/C9: no more waiting for a patrol bot to step on a pad (C4 crate+belt, C7 two crates, C9 crate pushed down from above, its patrol bot removed); // 10 = night factory: F5 trap crate removed (only the belt route is left), F8 redrawn (bat the glitch bot onto the plate), F6/F10 no longer wait for a patrolling bot to cross a plate (bot-plates + one bot removed); // 9 = clock tower T1/T2/T4/T5/T8 retimed (no beetle wait at T5/T8, one marked wait at T1/T8); 8 = power P5: four unconnected decoy generators + a stuck crate removed; 7 = mirror king room redrawn (two mirrors you flip onto it, 3 HP) // 6 = mirror R7 redrawn (three-bounce light, no crates) // 4 = bat knockback release (C10 redrawn so the bat can't skip its bomb); 5 = C9 redrawn (crate + trapdoor + ghost you bat into a corner) // ZRESET: zone redrawn in layout version N; saves older than N restart that zone's creatures (and the robot, if standing in it) fresh
-function relayBoxes(W,s){const lay0=s.lay||0;if(lay0>=LAYV)return;s.lay=LAYV;if(lay0<3){grantBat(W,s);if(s.bugs&&!s.bugs.some(o=>o.zone==='forest#F14'))s.bugs=s.bugs.concat(W.bugs0.filter(o=>o.zone==='forest#F14').map(o=>({...o}))).sort((a,b)=>a.i-b.i)} // layout 3 = bat release (+ the F14 tutorial beetle older saves never had)
+const LAYV=12,BOXRELAY=['sea#A5','sea#A6','sea#A8'],ZRESET={'castle#C5':3,'castle#C10':4,'castle#C9':5,'mirror#R7':6,'mirror#RB':7,'power#P5':8,'clock#T1':9,'clock#T2':9,'clock#T4':9,'clock#T5':9,'clock#T8':9,'factory#F5':10,'factory#F6':10,'factory#F8':10,'factory#F10':10,'core#C4':11,'core#C7':11,'core#C9':11}; // 11 = core C4/C7/C9: no more waiting for a patrol bot to step on a pad (C4 crate+belt, C7 two crates, C9 crate pushed down from above, its patrol bot removed); // 10 = night factory: F5 trap crate removed (only the belt route is left), F8 redrawn (bat the glitch bot onto the plate), F6/F10 no longer wait for a patrolling bot to cross a plate (bot-plates + one bot removed); // 9 = clock tower T1/T2/T4/T5/T8 retimed (no beetle wait at T5/T8, one marked wait at T1/T8); 8 = power P5: four unconnected decoy generators + a stuck crate removed; 7 = mirror king room redrawn (two mirrors you flip onto it, 3 HP) // 6 = mirror R7 redrawn (three-bounce light, no crates) // 4 = bat knockback release (C10 redrawn so the bat can't skip its bomb); 5 = C9 redrawn (crate + trapdoor + ghost you bat into a corner) // ZRESET: zone redrawn in layout version N; saves older than N restart that zone's creatures (and the robot, if standing in it) fresh
+function relayBoxes(W,s){const lay0=s.lay||0;if(lay0>=LAYV)return;s.lay=LAYV;if(lay0<12){for(const b of (s.bosses||[]))if(b.kind==='golem'&&b.max===3){b.max=2;b.hp=b.hp<=0?0:Math.max(1,b.hp-1)} // layout 12 = 熔岩巨人 3 → 2 HP (2026-10-23): keep the player's progress (3→2, 2→1, a dead giant stays dead), stage save too
+  const gb=(s.bosses||[]).find(b=>b.kind==='golem');if(s.bossCp&&gb&&s.bossCp.zone===gb.zone&&s.bossCp.hp>=2)s.bossCp.hp--}
+ if(lay0<3){grantBat(W,s);if(s.bugs&&!s.bugs.some(o=>o.zone==='forest#F14'))s.bugs=s.bugs.concat(W.bugs0.filter(o=>o.zone==='forest#F14').map(o=>({...o}))).sort((a,b)=>a.i-b.i)} // layout 3 = bat release (+ the F14 tutorial beetle older saves never had)
  for(const zid in ZRESET){if(lay0>=ZRESET[zid])continue;const [m]=zid.split('#'),Z=(W.maps[m]||{zones:[]}).zones.find(z=>z.id===zid);if(!Z)continue;if(!s.bugs)s.bugs=[];
   s.bugs=s.bugs.filter(o=>o.zone!==zid).concat(W.bugs0.filter(o=>o.zone===zid).map(o=>({...o}))).sort((a,b)=>a.i-b.i);
   {const inZ=k=>{if(!k.startsWith(m+':'))return false;const [x,y]=k.split(':')[1].split(',').map(Number);return x>=Z.x&&x<Z.x+Z.w&&y>=Z.y&&y<Z.y+Z.h}; // the old layout's crates, filled trapdoors and lever position no longer fit the new walls
@@ -299,7 +301,8 @@ function breathe(W,s,ev){const m=s.m,M=W.maps[m],Z=curZone(W,s);let x=s.x,y=s.y,
   if(c==='K'){s.ch[k]='.';ev.push('melt');break}
   const bi=bugAt(s,m,x,y);if(bi>=0){s.bugs[bi].fr=3;ev.push('stun');break}
   const tb=(s.bosses||[]).find(o=>o.kind==='tree'&&o.hp>0&&o.m===m&&o.x===x&&o.y===y);
-  if(tb){tb.hp--;tb.hitAt=s.steps;ev.push('bosshit');for(const kk of Object.keys(s.vt)){const [mm,xy]=kk.split(':'),[vx,vy]=xy.split(',').map(Number);if(mm===m&&(!Z||inZone(Z,vx,vy))){delete s.ch[kk];delete s.vt[kk];ev.push('regrow')}}
+  if(tb&&tb.gd>0){ev.push('bossguard');break} // 老樹精 just got hit: it guards for 2 actions (green shield + pips in world.js), the fire fizzles on it — no standing still and chain-burning it
+  if(tb){tb.hp--;tb.hitAt=s.steps;if(BOSSMOVES)tb.gd=3;ev.push('bosshit');for(const kk of Object.keys(s.vt)){const [mm,xy]=kk.split(':'),[vx,vy]=xy.split(',').map(Number);if(mm===m&&(!Z||inZone(Z,vx,vy))&&!(vx===s.x&&vy===s.y)){delete s.ch[kk];delete s.vt[kk];ev.push('regrow')}} // vines grow back, but never on the tile 小光 stands on (same as the normal regrow)
    if(tb.hp<=0){s.ch[k]='.';ev.push('bossdown')}break}
   const sb=(s.bosses||[]).find(o=>o.hp>0&&o.m===m&&o.x===x&&o.y===y);if(sb&&canStunBoss(s,sb)){sb.fr=3;sb.spotted=0;sb.chg=0;ev.push('stun','bossstun');break}
   if(solidV2(W,s,m,x,y)||occV2(s,m,x,y))break}
@@ -310,7 +313,7 @@ function breathe(W,s,ev){const m=s.m,M=W.maps[m],Z=curZone(W,s);let x=s.x,y=s.y,
 // they strike: robot standing on a marked tile = fail (same as being caught). Entry/exit tiles are never marked, and a mark under the robot is
 // dropped when it has no safe tile to step to, so every strike can be dodged by one ordinary step (no waiting, no unfair death).
 //  worm  沙蟲王  'under': dives (stays put) and marks the robot's tile; next action it bursts out there (and keeps patrolling from that tile)
-//  tree  老樹精  'row'  : roots shoot along the robot's whole row
+//  tree  老樹精  'row'  : roots shoot along the robot's whole row; if 小光 has no safe step the row is marked BLUE and the roots only bounce her back to the entry. After each fire hit it guards 2 actions (fire fizzles)
 //  frog  泥巴蛙王 'jump' : crouches and drops a shadow 2 tiles ahead along its row; next action it lands there
 //  mole  鼴鼠王  'col'  : the ground cracks along the robot's whole column
 //  golem 熔岩巨人 'ring' : lava splashes on every tile exactly 2 steps away from it
@@ -318,14 +321,14 @@ function breathe(W,s,ev){const m=s.m,M=W.maps[m],Z=curZone(W,s);let x=s.x,y=s.y,
 // Stunned bosses (fire / bat, charging bosses only) don't count or attack.
 //  (second half)
 //  bird    風暴鳥   'gust' : flaps; the 3 tiles above and below it get a wind mark (blue, harmless); next action you're blown 1 tile away from it sideways
-//  phantom 鏡影王   'flip' : only at 1 HP — a mirror you flipped glows (blue); next action the king flips it back, so the red light has to be re-aimed
+//  phantom 鏡影王   'flip' : from 2 HP on, every 3 actions — a mirror you flipped glows (blue); next action the king flips it back, so the red light has to be re-aimed
 //  spark   電火花王 'wire' : only while the generator is on — the row under the wire sparks; next action it discharges there
 //  guard   鐘塔守衛 'bell' : on the clock's 4-beat (same as the gear doors) the bell rings: its row, then next time its column
 //  glitch  故障機王 'shot' : when you line up with it (same row or column, 2+ tiles, clear) it marks the tile in front of it, then fires a glitch ball
 //                           that flies 1 tile per action (its next tile is always marked). Bat the ball (adjacent) and it flies back: hitting the king stuns it 3.
 //  core    故障核心 'pulse': alternates an X (diagonals) and a + (straight lines) of glitch out to 2 tiles, on a steady beat (mark, strike, one quiet action). A slower beat with a 2-HP speed-up made the shortest route wait out beats by bumping walls
 //  knight  盔甲騎士王: no new mark — once it starts charging it keeps running; if you duck out of the row it crashes into the wall and is stunned 2 actions.
-const BATK={worm:'under',tree:'row',frog:'jump',mole:'col',golem:'ring',crab:'tide',bird:'gust',phantom:'flip',spark:'wire',guard:'bell',glitch:'shot',core:'pulse'},BATKP={worm:3,tree:5,frog:3,mole:4,golem:3,crab:4,bird:3,phantom:4,spark:3,guard:3,glitch:3,core:2},BSAFE={tide:1,gust:1,flip:1},FLIPCUR={'↑':'↓','↓':'↑','←':'→','→':'←'};
+const BATK={worm:'under',tree:'row',frog:'jump',mole:'col',golem:'ring',crab:'tide',bird:'gust',phantom:'flip',spark:'wire',guard:'bell',glitch:'shot',core:'pulse'},BATKP={worm:3,tree:5,frog:3,mole:4,golem:3,crab:4,bird:3,phantom:3,spark:3,guard:3,glitch:3,core:2},BSAFE={tide:1,gust:1,flip:1},FLIPCUR={'↑':'↓','↓':'↑','←':'→','→':'←'};
 function bossWarnTiles(W,s,b,Z){const m=s.m,kind=BATK[b.kind],T=[],ok=(x,y)=>inZone(Z,x,y)&&!isEE(Z,x,y)&&!solidV2(W,s,m,x,y)&&!(x===b.x&&y===b.y);
  if(kind==='tide'){for(let y=Z.y;y<Z.y+Z.h;y++)for(let x=Z.x;x<Z.x+Z.w;x++)if(cell(W,s,m,x,y) in CUR)T.push([x,y]);return T}
  if(kind==='flip'){for(let y=Z.y;y<Z.y+Z.h;y++)for(let x=Z.x;x<Z.x+Z.w;x++){const c=cell(W,s,m,x,y);if((c in MIR)&&c!==base(W,m,x,y))T.push([x,y])}return T}
@@ -349,6 +352,7 @@ function bossWarnTiles(W,s,b,Z){const m=s.m,kind=BATK[b.kind],T=[],ok=(x,y)=>inZ
  const hit=(x,y)=>T.some(([a,c])=>a===x&&c===y),inBlast=(x,y)=>s.bombs.some(o=>o.m===m&&Math.abs(o.x-x)+Math.abs(o.y-y)<=1),nearB=(x,y)=>Math.abs(x-b.x)+Math.abs(y-b.y)<=1;
  const canStay=!hit(s.x,s.y)&&!inBlast(s.x,s.y),canMove=DV.some(([dx,dy])=>{const x=s.x+dx,y=s.y+dy,c=cell(W,s,m,x,y);return (inZone(Z,x,y)||isEE(Z,x,y))&&!hit(x,y)&&!inBlast(x,y)&&!nearB(x,y)&&!solidV2(W,s,m,x,y)&&boxAt(s,m,x,y)<0&&bombAt(s,m,x,y)<0&&bossBodyAt(s,m,x,y)<0&&bugAt(s,m,x,y)<0&&duneAt(s,m,x,y)<0&&!'q~l,'.includes(c)&&!isLava(c)&&!(c in CUR)&&!hazardV2(W,s,m,x,y,Z)});
  if(canStay||canMove)return T;
+ if(b.kind==='tree'){b.trap=1;return T} // 老樹精: no safe step → the row is still marked, but BLUE (world.js); the roots don't hurt, they bounce 小光 back to the room entry (boss keeps its HP). Dropping the mark instead made the tile under the tree permanently safe (13-step burn-from-below exploit)
  return T.filter(([x,y])=>Math.abs(x-s.x)+Math.abs(y-s.y)>1)}
 let BOSSMOVES=true;const setBossMoves=v=>{BOSSMOVES=!!v}; // tests that compare with the old design checkers (test-v2) switch boss moves off
 function ballFly(W,s,b,Z,ev){if(!b.shot)return null;const m=s.m;{const sh=b.shot,ox=sh.x,oy=sh.y,nx=ox+DV[sh.d][0],ny=oy+DV[sh.d][1]; // glitch ball in flight: 1 tile per action
@@ -357,7 +361,7 @@ function ballFly(W,s,b,Z,ev){if(!b.shot)return null;const m=s.m;{const sh=b.shot
   if(!inZone(Z,nx,ny)||solidV2(W,s,m,nx,ny)||boxAt(s,m,nx,ny)>=0||bossBodyAt(s,m,nx,ny)>=0||isEE(Z,nx,ny)){b.shot=null;ev.push('fizzle');return null}
   b.shot={...sh,x:nx,y:ny};if(nx===s.x&&ny===s.y)return 'caught';return null}} // new object: clone() copies bosses shallowly
 function bossAtk(W,s,b,Z,ev){const kind=BATK[b.kind];if(!kind||!BOSSMOVES)return null;const m=s.m;
- if(b.warn){const tiles=b.warn.split(';').map(t=>t.split(',').map(Number));b.warn='';b.t=0;s.lastStrike={m,kind,tiles,i:b.i};ev.push('bossstrike');
+ if(b.warn){const tiles=b.warn.split(';').map(t=>t.split(',').map(Number));b.warn='';b.t=0;if(b.trap){b.trap=0;if(tiles.some(([x,y])=>x===s.x&&y===s.y)){[s.x,s.y]=Z.entry;s.f=Z.entry[0]===Z.x?'right':Z.entry[0]===Z.x+Z.w-1?'left':Z.entry[1]===Z.y?'down':'up';s.lastStrike={m,kind,tiles,i:b.i,trap:1};ev.push('bossstrike','bounced');return null}}s.lastStrike={m,kind,tiles,i:b.i,trap:b.trap};ev.push('bossstrike');
   if(kind==='tide'){for(const [x,y] of tiles){const c=cell(W,s,m,x,y);if(FLIPCUR[c])s.ch[K(m,x,y)]=FLIPCUR[c]}ev.push('tide');return null}
   if(kind==='flip'){for(const [x,y] of tiles){const c=cell(W,s,m,x,y);if(c in MIR)s.ch[K(m,x,y)]=c==='╱'?'╲':'╱'}ev.push('kingflip');return null}
   if(kind==='gust'){const t=tiles.find(([x,y])=>x===s.x&&y===s.y);if(t){const dd=s.x<b.gx?2:s.x>b.gx?3:b.d,nx=s.x+DV[dd][0],ny=s.y+DV[dd][1],c=cell(W,s,m,nx,ny);
@@ -366,7 +370,7 @@ function bossAtk(W,s,b,Z,ev){const kind=BATK[b.kind];if(!kind||!BOSSMOVES)return
   if(kind==='shot'){const [x,y]=tiles[0];b.shot={x,y,d:b.sd,back:0};return x===s.x&&y===s.y?'caught':null}
   if(kind==='under'||kind==='jump'){const [x,y]=tiles[0];if(boxAt(s,m,x,y)<0&&bugAt(s,m,x,y)<0&&!solidV2(W,s,m,x,y)){b.x=x;b.y=y}return x===s.x&&y===s.y?'caught':'skip'}
   return tiles.some(([x,y])=>x===s.x&&y===s.y)?'caught':null}
- if(kind==='flip'&&b.hp>1)return null;if(kind==='wire'&&!s.gen)return null;
+ if(kind==='flip'&&b.hp>2)return null;if(kind==='wire'&&!s.gen)return null;
  const PK=(kind==='pulse')?2:(BATKP[b.kind]||3);b.t=(b.t||0)+1;if(b.t<PK)return null;
  const T=bossWarnTiles(W,s,b,Z);if(!T.length){b.t=PK-1;return null}
  b.warn=T.map(([x,y])=>x+','+y).join(';');ev.push('bosswarn');return kind==='under'||kind==='jump'?'skip':null}
@@ -385,7 +389,7 @@ function moveV2(W,s,Z,ev){const m=s.m,P=(x,y)=>x===s.x&&y===s.y,nxt=o=>[o.x+DV[o
   if(P(nx,ny))return 'caught';
   const hazNoPend=spikeUp(W,s,m,nx,ny,Z)||trapOpen(W,s,m,nx,ny,Z)||isVoid(W,s,m,nx,ny);
   if(!inZone(Z,nx,ny)||solidV2(W,s,m,nx,ny)||occV2(s,m,nx,ny)||bad(cell(W,s,m,nx,ny))||hazNoPend||itemHere(W,s,m,nx,ny)){bg.d^=1;continue}bg.x=nx;bg.y=ny}
- for(const b of s.bosses){if(b.hp<=0||b.m!==m||b.zone!==Z.id)continue;
+ for(const b of s.bosses){if(b.hp<=0||b.m!==m||b.zone!==Z.id)continue;if(b.gd>0)b.gd--;
   if(b.shot){const r=ballFly(W,s,b,Z,ev);if(r==='caught'){ev.push('bossstruck');return 'caught'}}
   if(b.fr>0){b.fr--;b.spotted=0;continue} // charging boss stunned by fire / bat: stands still, doesn't look, can't catch you
   if(BATK[b.kind]){const r=bossAtk(W,s,b,Z,ev);if(r==='caught'){ev.push('bossstruck');return 'caught'}if(r==='skip')continue}
@@ -559,13 +563,13 @@ function normalize(W,s){if(!W.solverAbstract)return s;const n=clone(s);const cur
  // the re-added initial boxes are fully determined by (zone, cleared), both already in key(): key only the live ones (keeps 15-scene keys small)
  Object.defineProperty(n,'_bk',{value:live.slice().sort().join(';'),enumerable:false});
  // movers/clouds: key only entries that differ from the initial world (exact encoding, just shorter)
- const MS=o=>o.i+'@'+o.x+','+o.y+'d'+o.d+'f'+(o.fr||0)+'h'+(o.hp||0)+(o.t?'t'+o.t:'')+(o.warn?'w'+o.warn:'')+(o.ph?'p'+o.ph:'')+(o.gx!=null?'g'+o.gx:'')+(o.sd!=null?'s'+o.sd:'')+(o.chg?'c':'')+(o.shot?'b'+o.shot.x+','+o.shot.y+','+o.shot.d+(o.shot.back?'r':''):''),CS=o=>o.i+'@'+o.x+','+o.y+'d'+o.d;
+ const MS=o=>o.i+'@'+o.x+','+o.y+'d'+o.d+'f'+(o.fr||0)+'h'+(o.hp||0)+(o.t?'t'+o.t:'')+(o.warn?'w'+o.warn+(o.trap?'T':''):'')+(o.gd?'G'+o.gd:'')+(o.ph?'p'+o.ph:'')+(o.gx!=null?'g'+o.gx:'')+(o.sd!=null?'s'+o.sd:'')+(o.chg?'c':'')+(o.shot?'b'+o.shot.x+','+o.shot.y+','+o.shot.d+(o.shot.back?'r':''):''),CS=o=>o.i+'@'+o.x+','+o.y+'d'+o.d;
  const I0=W._init0Keys||(W._init0Keys={m:[W.dunes0,W.bugs0,W.bosses0].map(a=>a.map(MS)),c:(W.clouds0||[]).map(CS)});
  const dk=(arr,init,f)=>{arr=arr||[];const d=arr.filter(o=>init[o.i]!==f(o)).map(f).join(';');return arr.length===init.length?d:d+'#'+arr.map(o=>o.i).join(',')};
  Object.defineProperty(n,'_mk',{value:'~'+[n.dunes,n.bugs,n.bosses].map((a,j)=>dk(a,I0.m[j],MS)).join('/'),enumerable:false});
  Object.defineProperty(n,'_ck',{value:'~'+dk(n.clouds,I0.c,CS),enumerable:false});
  n.bombs=n.bombs.filter(b=>keep(K(b.m,b.x,b.y)));n.broken=n.broken.filter(keep);n.holes=n.holes.filter(keep);n.filled=n.filled.filter(keep);return n}
-function key(s){return [s.m,s.x,s.y,s.f,s.held,s.inv,s.got.slice().sort().join(';'),(s._bk!=null?'~'+s._bk:s.boxes.slice().sort().join(';')),s.bombs.map(b=>K(b.m,b.x,b.y)+'t'+b.t).sort().join(';'),s.broken.slice().sort().join(';'),s.holes.slice().sort().join(';'),s.filled.slice().sort().join(';'),s.left,s.zone,s.cleared.slice().sort().join(';'),(s.pats||[]).map(p=>p.i+'@'+p.x+','+p.y+(p.d>0?'+':'-')).join(';'),(s._mk!=null?s._mk:[s.dunes,s.bugs,s.bosses].map(a=>(a||[]).map(o=>o.i+'@'+o.x+','+o.y+'d'+o.d+'f'+(o.fr||0)+'h'+(o.hp||0)+(o.t?'t'+o.t:'')+(o.warn?'w'+o.warn:'')+(o.ph?'p'+o.ph:'')+(o.gx!=null?'g'+o.gx:'')+(o.sd!=null?'s'+o.sd:'')+(o.chg?'c':'')+(o.shot?'b'+o.shot.x+','+o.shot.y+','+o.shot.d+(o.shot.back?'r':''):'')+(o.lit?'l':'')).join(';')).join('/')),Object.keys(s.ch||{}).sort().map(k=>k+s.ch[k]).join(';'),Object.keys(s.vt||{}).sort().map(k=>k+'='+s.vt[k]).join(';'),(s.rocks||[]).map(r=>r.m+':'+r.x+','+r.y).sort().join(';'),s.lt||0,s.cf||'',s.cart&&Object.keys(s.cart).sort().map(k=>k+':'+s.cart[k]).join(';')||'',s.bossCp?s.bossCp.zone+':'+s.bossCp.hp:'',s.air||0,s.lvz&&Object.keys(s.lvz).sort().map(k=>k+s.lvz[k]).join(';')||'',(s._ck!=null?s._ck:(s.clouds||[]).map(o=>o.i+'@'+o.x+','+o.y+'d'+o.d).join(';')),s.zt||0,s.lit||0,s.pw||0,s.gen||0,(s.bosses||[]).filter(o=>o.kind==='phantom').map(o=>(o.lit?1:0)).join('')].join('|')}
+function key(s){return [s.m,s.x,s.y,s.f,s.held,s.inv,s.got.slice().sort().join(';'),(s._bk!=null?'~'+s._bk:s.boxes.slice().sort().join(';')),s.bombs.map(b=>K(b.m,b.x,b.y)+'t'+b.t).sort().join(';'),s.broken.slice().sort().join(';'),s.holes.slice().sort().join(';'),s.filled.slice().sort().join(';'),s.left,s.zone,s.cleared.slice().sort().join(';'),(s.pats||[]).map(p=>p.i+'@'+p.x+','+p.y+(p.d>0?'+':'-')).join(';'),(s._mk!=null?s._mk:[s.dunes,s.bugs,s.bosses].map(a=>(a||[]).map(o=>o.i+'@'+o.x+','+o.y+'d'+o.d+'f'+(o.fr||0)+'h'+(o.hp||0)+(o.t?'t'+o.t:'')+(o.warn?'w'+o.warn+(o.trap?'T':''):'')+(o.gd?'G'+o.gd:'')+(o.ph?'p'+o.ph:'')+(o.gx!=null?'g'+o.gx:'')+(o.sd!=null?'s'+o.sd:'')+(o.chg?'c':'')+(o.shot?'b'+o.shot.x+','+o.shot.y+','+o.shot.d+(o.shot.back?'r':''):'')+(o.lit?'l':'')).join(';')).join('/')),Object.keys(s.ch||{}).sort().map(k=>k+s.ch[k]).join(';'),Object.keys(s.vt||{}).sort().map(k=>k+'='+s.vt[k]).join(';'),(s.rocks||[]).map(r=>r.m+':'+r.x+','+r.y).sort().join(';'),s.lt||0,s.cf||'',s.cart&&Object.keys(s.cart).sort().map(k=>k+':'+s.cart[k]).join(';')||'',s.bossCp?s.bossCp.zone+':'+s.bossCp.hp:'',s.air||0,s.lvz&&Object.keys(s.lvz).sort().map(k=>k+s.lvz[k]).join(';')||'',(s._ck!=null?s._ck:(s.clouds||[]).map(o=>o.i+'@'+o.x+','+o.y+'d'+o.d).join(';')),s.zt||0,s.lit||0,s.pw||0,s.gen||0,(s.bosses||[]).filter(o=>o.kind==='phantom').map(o=>(o.lit?1:0)).join('')].join('|')}
 const ACTIONS=['up','down','left','right','act','reset','wait'];
 // explore the whole reachable state graph; returns {states, edges, startKey}
 function explore(W,start,max){max=max||400000;const s0=start||initState(W);const k0=key(s0);const states=new Map([[k0,s0]]),edges=new Map(),q=[k0];let trunc=false,qh=0;
